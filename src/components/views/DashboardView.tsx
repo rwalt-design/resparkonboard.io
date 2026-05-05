@@ -640,7 +640,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
   }
 
   // Account | SKU | Stage | Completion | Last Contact | Tasks | Health
-  const cols = 'minmax(120px,1.5fr) 90px 140px 110px 100px 48px 120px'
+  const cols = 'minmax(140px,1.6fr) minmax(100px,1fr) minmax(110px,1.2fr) 110px 100px 48px 120px'
 
   return (
     <div style={{ padding: '24px 28px' }}>
