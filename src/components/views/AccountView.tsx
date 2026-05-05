@@ -771,12 +771,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
 
   const statusColor = STAGE_STATUS_COLORS[stage.status] || 'var(--text-3)'
   const canAdvance = stage.status === 'unlocked' || stage.status === 'active'
-  const allRequiredDone = stage.items.filter(i => i.required).every(i =>
-    i.task_done || i.session_status === 'complete'
-  )
-
   const handleAdvance = async () => {
-    if (!allRequiredDone) return
     await supabase.from('stages').update({ status: 'complete' }).eq('id', stage.id)
 
     // Find next stage in milestone
@@ -914,7 +909,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
           background: statusColor + '22', color: statusColor,
           fontFamily: 'var(--font-mono)', textTransform: 'capitalize',
         }}>{stage.status}</span>
-        {canAdvance && allRequiredDone && (
+        {canAdvance && (
           <button
             onClick={e => { e.stopPropagation(); handleAdvance() }}
             style={{
