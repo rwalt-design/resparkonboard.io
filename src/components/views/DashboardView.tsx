@@ -656,7 +656,16 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
   }
 
   // Account | SKU | Stage | Completion | Last Outreach | Last Contact | Tasks | Health
-  const cols = 'minmax(140px,1.6fr) minmax(100px,1fr) minmax(110px,1.2fr) 110px 95px 95px 48px 115px'
+  const cols = 'minmax(140px,1.6fr) minmax(90px,1fr) minmax(100px,1.2fr) 112px 128px 128px 80px 128px'
+
+  // Light green → rich green based on completion %
+  const stageColor = (pct: number) => {
+    const t = Math.min(pct / 100, 1)
+    const r = Math.round(0xbb + (0x10 - 0xbb) * t)
+    const g = Math.round(0xf7 + (0xb9 - 0xf7) * t)
+    const b = Math.round(0xd0 + (0x81 - 0xd0) * t)
+    return `rgb(${r},${g},${b})`
+  }
 
   return (
     <div style={{ padding: '24px 28px' }}>
@@ -685,20 +694,20 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
           <button onClick={() => setShowCreate(true)} style={primaryBtnStyle}>Create your first account</button>
         </div>
       ) : (
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
           {/* Table header */}
-          <div style={{ display: 'grid', gridTemplateColumns: cols, padding: '8px 16px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: cols, columnGap: 16, padding: '8px 16px', borderBottom: '1px solid var(--border)', minWidth: 900 }}>
             {[
-              { label: 'Account', align: 'left' },
-              { label: 'SKU', align: 'left' },
-              { label: 'Current Stage', align: 'left' },
-              { label: 'Completion', align: 'left' },
-              { label: 'Last Outreach', align: 'center' },
-              { label: 'Last Contact', align: 'center' },
-              { label: 'Tasks', align: 'center' },
-              { label: 'Health', align: 'right' },
-            ].map(({ label, align }) => (
-              <span key={label} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: align as 'left' | 'center' | 'right' }}>{label}</span>
+              { label: 'Account', align: 'left', nowrap: false },
+              { label: 'SKU', align: 'left', nowrap: false },
+              { label: 'Current Stage', align: 'left', nowrap: false },
+              { label: 'Completion', align: 'left', nowrap: true },
+              { label: 'Last Outreach', align: 'center', nowrap: true },
+              { label: 'Last Contact', align: 'center', nowrap: true },
+              { label: 'Tasks', align: 'center', nowrap: true },
+              { label: 'Health', align: 'right', nowrap: true },
+            ].map(({ label, align, nowrap }) => (
+              <span key={label} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: align as 'left' | 'center' | 'right', whiteSpace: nowrap ? 'nowrap' : undefined }}>{label}</span>
             ))}
           </div>
 
@@ -711,9 +720,10 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
               <div key={account.id}>
                 <div
                   style={{
-                    display: 'grid', gridTemplateColumns: cols,
+                    display: 'grid', gridTemplateColumns: cols, columnGap: 16,
                     padding: '10px 16px', borderBottom: '1px solid var(--border)',
                     alignItems: 'center', cursor: 'pointer', transition: 'background 0.1s',
+                    minWidth: 900,
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -754,49 +764,56 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                     ))}
                   </div>
 
-                  {/* Current Stage — clickable override */}
+                  {/* Current Stage — color-coded pill + clickable override */}
                   {(() => {
                     const allStages = (account.milestones || []).flatMap(m => m.stages)
+                    const color = stageColor(account.completionPct)
                     return (
-                      <select
-                        value={account.currentStage || ''}
-                        onClick={e => e.stopPropagation()}
-                        onChange={async e => {
-                          e.stopPropagation()
-                          const selectedName = e.target.value
-                          const supabase = createClient()
-                          // Set all stages: before selected → complete, selected → active, after → locked
-                          let found = false
-                          for (const stage of allStages) {
-                            if (stage.name === selectedName) {
-                              await supabase.from('stages').update({ status: 'active' }).eq('id', stage.id)
-                              found = true
-                            } else if (!found) {
-                              await supabase.from('stages').update({ status: 'complete' }).eq('id', stage.id)
-                            } else {
-                              await supabase.from('stages').update({ status: 'locked' }).eq('id', stage.id)
+                      <div style={{
+                        display: 'inline-flex', alignItems: 'center',
+                        background: color + '22', border: `1px solid ${color}55`,
+                        borderRadius: 20, padding: '2px 10px',
+                        maxWidth: '100%', overflow: 'hidden',
+                      }}>
+                        <select
+                          value={account.currentStage || ''}
+                          onClick={e => e.stopPropagation()}
+                          onChange={async e => {
+                            e.stopPropagation()
+                            const selectedName = e.target.value
+                            const supabase = createClient()
+                            let found = false
+                            for (const stage of allStages) {
+                              if (stage.name === selectedName) {
+                                await supabase.from('stages').update({ status: 'active' }).eq('id', stage.id)
+                                found = true
+                              } else if (!found) {
+                                await supabase.from('stages').update({ status: 'complete' }).eq('id', stage.id)
+                              } else {
+                                await supabase.from('stages').update({ status: 'locked' }).eq('id', stage.id)
+                              }
                             }
-                          }
-                          await onRefresh()
-                        }}
-                        style={{
-                          background: 'none', border: 'none', outline: 'none',
-                          fontSize: 12, color: 'var(--text)', cursor: 'pointer',
-                          fontFamily: 'var(--font-ui)', width: '100%',
-                          overflow: 'hidden', textOverflow: 'ellipsis',
-                          appearance: 'none', WebkitAppearance: 'none',
-                        }}
-                      >
-                        {!account.currentStage && <option value="">—</option>}
-                        {allStages.map(s => (
-                          <option key={s.id} value={s.name}>{s.name}</option>
-                        ))}
-                      </select>
+                            await onRefresh()
+                          }}
+                          style={{
+                            background: 'none', border: 'none', outline: 'none',
+                            fontSize: 11, fontWeight: 600, color, cursor: 'pointer',
+                            fontFamily: 'var(--font-ui)',
+                            maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis',
+                            appearance: 'none', WebkitAppearance: 'none',
+                          }}
+                        >
+                          {!account.currentStage && <option value="">—</option>}
+                          {allStages.map(s => (
+                            <option key={s.id} value={s.name}>{s.name}</option>
+                          ))}
+                        </select>
+                      </div>
                     )
                   })()}
 
                   {/* Completion — bar + % */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 12, flexShrink: 0, whiteSpace: 'nowrap' }}>
                     <div style={{ flex: 1, background: 'var(--bg-surface2)', borderRadius: 99, height: 3, overflow: 'hidden' }}>
                       <div style={{ width: `${account.completionPct}%`, height: '100%', borderRadius: 99, background: account.completionPct >= 75 ? '#10b981' : '#3b82f6' }} />
                     </div>
@@ -804,11 +821,11 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                   </div>
 
                   {/* Last Outreach */}
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
                     <span
                       title={account.lastOutreachDate ? new Date(account.lastOutreachDate).toLocaleString() : undefined}
                       style={{
-                        fontSize: 11,
+                        fontSize: 11, whiteSpace: 'nowrap',
                         color: account.daysSinceOutreach >= 14 ? '#ef4444' : account.daysSinceOutreach >= 7 ? '#f59e0b' : 'var(--text-2)',
                         fontFamily: 'var(--font-mono)',
                       }}
@@ -818,11 +835,11 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                   </div>
 
                   {/* Last Contact */}
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
                     <span
                       title={account.lastContactDate ? new Date(account.lastContactDate).toLocaleString() : undefined}
                       style={{
-                        fontSize: 11,
+                        fontSize: 11, whiteSpace: 'nowrap',
                         color: account.daysSinceContact >= 14 ? '#ef4444' : account.daysSinceContact >= 7 ? '#f59e0b' : 'var(--text-2)',
                         fontFamily: 'var(--font-mono)',
                       }}
@@ -832,7 +849,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                   </div>
 
                   {/* Tasks */}
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
                     <button
                       onClick={e => { e.stopPropagation(); setExpandedTask(expanded ? null : account.id) }}
                       style={{
@@ -847,7 +864,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                   </div>
 
                   {/* Health — manual dropdown */}
-                  <div onClick={e => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <div onClick={e => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
                     <select
                       value={account.health_status || 'active'}
                       disabled={healthUpdating === account.id}
