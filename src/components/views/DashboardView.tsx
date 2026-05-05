@@ -637,7 +637,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
   }
 
   // Account | SKU | Stage | Completion | Last Contact | Tasks | Health
-  const cols = 'minmax(160px,2fr) minmax(100px,1.2fr) minmax(120px,1.5fr) 120px 110px 56px 140px'
+  const cols = 'minmax(160px,2.5fr) minmax(90px,1fr) minmax(120px,1.5fr) 130px 100px 48px 120px'
 
   return (
     <div style={{ padding: '24px 28px' }}>
@@ -699,10 +699,22 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   onClick={() => onSelectAccount(account)}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                    <span style={{ fontSize: 13, color: '#93c5fd', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name}</span>
-                    {accountsWithSuggestions.has(account.id) && (
-                      <span className="ai-dot" title="AI suggestions available" />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <span style={{ fontSize: 13, color: '#93c5fd', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name}</span>
+                      {account.arr > 0 && (
+                        <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+                          ${account.arr >= 1000 ? `${(account.arr / 1000).toFixed(account.arr % 1000 === 0 ? 0 : 1)}k` : account.arr.toLocaleString()}
+                        </span>
+                      )}
+                      {accountsWithSuggestions.has(account.id) && (
+                        <span className="ai-dot" title="AI suggestions available" />
+                      )}
+                    </div>
+                    {account.sales_context && (
+                      <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+                        {account.sales_context.length > 60 ? account.sales_context.slice(0, 60) + '…' : account.sales_context}
+                      </div>
                     )}
                   </div>
 

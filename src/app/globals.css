@@ -64,6 +64,11 @@ div:hover > .drag-handle,
 div:hover .drag-handle { opacity: 0.6 !important; }
 .drag-handle:hover { opacity: 1 !important; }
 
+/* Item delete button — show on row hover */
+div:hover > .item-delete-btn,
+div:hover .item-delete-btn { opacity: 0.4 !important; }
+.item-delete-btn:hover { opacity: 1 !important; color: #ef4444 !important; }
+
 /* AI suggestion pulse dot */
 @keyframes ai-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }

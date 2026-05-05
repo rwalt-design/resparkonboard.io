@@ -610,8 +610,25 @@ function SortableRow({ id, children }: { id: string; children: React.ReactNode }
   )
 }
 
-function ExchangeRow({ sendItem, returnItem, stageStatus, onUpdate, accountId }: {
-  sendItem: Item; returnItem: Item; stageStatus: string; onUpdate: (i: Item) => void; accountId: string
+function DeleteBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); onClick() }}
+      className="item-delete-btn"
+      title="Remove from plan"
+      style={{
+        background: 'none', border: 'none', padding: '0 3px',
+        color: 'var(--border-b)', fontSize: 14, lineHeight: 1,
+        cursor: 'pointer', flexShrink: 0, opacity: 0, transition: 'opacity 0.1s',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+      onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
+    >×</button>
+  )
+}
+
+function ExchangeRow({ sendItem, returnItem, stageStatus, onUpdate, accountId, onDelete }: {
+  sendItem: Item; returnItem: Item; stageStatus: string; onUpdate: (i: Item) => void; accountId: string; onDelete?: () => void
 }) {
   const supabase = createClient()
   const locked = stageStatus === 'locked'
@@ -679,6 +696,7 @@ function ExchangeRow({ sendItem, returnItem, stageStatus, onUpdate, accountId }:
           </button>
         )}
         {toggleBtn}
+        {onDelete && <DeleteBtn onClick={onDelete} />}
       </div>
       {panel}
     </div>
@@ -826,10 +844,12 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
     } else if (itemType === 'exchange') {
       // Two tasks: Send (respark) + Return (customer)
       const base = { stage_id: stage.id, type: 'task', required: itemRequired, task_source: 'manual', task_done: false }
-      const { data: sendItem }   = await supabase.from('items').insert({ ...base, task_name: `Send ${itemName.trim()}`,   task_assignee: 'personal', order_index: stage.items.length }).select().single()
-      const { data: returnItem } = await supabase.from('items').insert({ ...base, task_name: `Return ${itemName.trim()}`, task_assignee: 'customer', order_index: stage.items.length + 1 }).select().single()
+      const { data: sendItem }   = await supabase.from('items').insert({ ...base, task_name: `Send ${itemName.trim()}`,   task_assignee: 'personal', order_index: localItems.length }).select().single()
+      const { data: returnItem } = await supabase.from('items').insert({ ...base, task_name: `Return ${itemName.trim()}`, task_assignee: 'customer', order_index: localItems.length + 1 }).select().single()
       if (sendItem && returnItem) {
-        onUpdate({ ...account, milestones: (account.milestones || []).map(m => m.id !== milestone.id ? m : { ...m, stages: m.stages.map(s => s.id !== stage.id ? s : { ...s, items: [...s.items, sendItem as Item, returnItem as Item] }) }) })
+        const added = [sendItem as Item, returnItem as Item]
+        setLocalItems(prev => [...prev, ...added])
+        onUpdate({ ...account, milestones: (account.milestones || []).map(m => m.id !== milestone.id ? m : { ...m, stages: m.stages.map(s => s.id !== stage.id ? s : { ...s, items: [...s.items, ...added] }) }) })
         setItemName(''); setAddingItem(false)
       }
       return
@@ -837,6 +857,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
 
     const { data: newItem } = await supabase.from('items').insert(insertPayload).select().single()
     if (newItem) {
+      setLocalItems(prev => [...prev, newItem as Item])
       onUpdate({
         ...account,
         milestones: (account.milestones || []).map(m =>
@@ -851,6 +872,24 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
       setItemName('')
       setAddingItem(false)
     }
+  }
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!window.confirm('Remove this item from the plan?')) return
+    await supabase.from('items').delete().eq('id', itemId)
+    const next = localItems.filter(i => i.id !== itemId)
+    setLocalItems(next)
+    onUpdate({
+      ...account,
+      milestones: (account.milestones || []).map(m =>
+        m.id !== milestone.id ? m : {
+          ...m,
+          stages: m.stages.map(s =>
+            s.id !== stage.id ? s : { ...s, items: next }
+          ),
+        }
+      ),
+    })
   }
 
   return (
@@ -895,9 +934,20 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
                       stageStatus={stage.status}
                       onUpdate={handleItemUpdate}
                       accountId={account.id}
+                      onDelete={() => {
+                        if (!window.confirm('Remove this exchange from the plan?')) return
+                        Promise.all([
+                          supabase.from('items').delete().eq('id', group.send.id),
+                          supabase.from('items').delete().eq('id', group.receive.id),
+                        ]).then(() => {
+                          const next = localItems.filter(i => i.id !== group.send.id && i.id !== group.receive.id)
+                          setLocalItems(next)
+                          onUpdate({ ...account, milestones: (account.milestones || []).map(m => m.id !== milestone.id ? m : { ...m, stages: m.stages.map(s => s.id !== stage.id ? s : { ...s, items: next }) }) })
+                        })
+                      }}
                     />
                   ) : (
-                    <ItemRow item={group.item} stageStatus={stage.status} onUpdate={handleItemUpdate} onOpenSession={onOpenSession} />
+                    <ItemRow item={group.item} stageStatus={stage.status} onUpdate={handleItemUpdate} onOpenSession={onOpenSession} onDelete={() => handleDeleteItem(group.item.id)} />
                   )}
                 </SortableRow>
               ))}
@@ -1042,8 +1092,8 @@ function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
   return { toggleBtn, panel }
 }
 
-function ItemRow({ item, stageStatus, onUpdate, onOpenSession }: {
-  item: Item; stageStatus: string; onUpdate: (i: Item) => void; onOpenSession?: (item: Item) => void
+function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete }: {
+  item: Item; stageStatus: string; onUpdate: (i: Item) => void; onOpenSession?: (item: Item) => void; onDelete?: () => void
 }) {
   const supabase = createClient()
   const locked = stageStatus === 'locked'
@@ -1099,6 +1149,7 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession }: {
             }}>Mark received</button>
           )}
           {toggleBtn}
+          {onDelete && <DeleteBtn onClick={onDelete} />}
         </div>
         {panel}
       </div>
@@ -1127,6 +1178,7 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession }: {
           {!item.required && <span style={{ fontSize: 10, color: 'var(--text-3)', flexShrink: 0 }}>optional</span>}
           <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: color + '18', color, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{item.task_assignee}</span>
           {toggleBtn}
+          {onDelete && <DeleteBtn onClick={onDelete} />}
         </div>
         {panel}
       </div>
@@ -1179,6 +1231,7 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession }: {
             >Mark Complete</button>
           )}
           {toggleBtn}
+          {onDelete && <DeleteBtn onClick={onDelete} />}
         </div>
         {panel}
       </div>
@@ -1193,6 +1246,7 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession }: {
           <InlineEdit value={item.handoff_name || ''} onSave={saveItemName} style={{ fontSize: 13, color: 'var(--text)' }} />
           <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: 'var(--bg-surface3)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>handoff</span>
           {toggleBtn}
+          {onDelete && <DeleteBtn onClick={onDelete} />}
         </div>
         {panel}
       </div>
