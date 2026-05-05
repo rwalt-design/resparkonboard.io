@@ -459,7 +459,7 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
 
   const ASSIGNEE_COLORS: Record<string, string> = { personal: '#3b82f6', customer: '#f59e0b', internal: '#6b7280' }
 
-  const TemplateForm = ({ onSubmit, submitLabel }: { onSubmit: () => void; submitLabel: string }) => (
+  const renderTemplateForm = (onSubmit: () => void, submitLabel: string) => (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         <label style={labelStyle}>Name *
@@ -569,7 +569,7 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
 
       {showAdd && (
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-b)', borderRadius: 8, padding: '18px 20px', marginBottom: 16 }}>
-          <TemplateForm onSubmit={handleAdd} submitLabel="Save Template" />
+          {renderTemplateForm(handleAdd, 'Save Template')}
         </div>
       )}
 
@@ -584,7 +584,7 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
               background: 'var(--bg-surface)', border: `1px solid ${editingId === t.id ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 8, padding: '14px 16px',
             }}>
               {editingId === t.id ? (
-                <TemplateForm onSubmit={handleSaveEdit} submitLabel="Save" />
+                renderTemplateForm(handleSaveEdit, 'Save')
               ) : (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: (t.description || (t.agenda?.length ?? 0) > 0 || (t.tasks?.length ?? 0) > 0) ? 8 : 0 }}>

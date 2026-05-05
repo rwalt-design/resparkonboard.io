@@ -1389,17 +1389,14 @@ function DetailsTab({ account, planTemplates, onUpdate, onRefresh }: {
   onUpdate: (a: Account) => void
   onRefresh: () => void
 }) {
-  const [editingContext, setEditingContext] = useState(false)
   const [contextDraft, setContextDraft] = useState(account.sales_context || '')
-  const [saving, setSaving] = useState(false)
+  const [contextSaved, setContextSaved] = useState(true)
   const supabase = createClient()
 
   const saveContext = async () => {
-    setSaving(true)
     await supabase.from('accounts').update({ sales_context: contextDraft }).eq('id', account.id)
     onUpdate({ ...account, sales_context: contextDraft })
-    setEditingContext(false)
-    setSaving(false)
+    setContextSaved(true)
   }
 
   return (
@@ -1412,31 +1409,22 @@ function DetailsTab({ account, planTemplates, onUpdate, onRefresh }: {
         <ApplyPlanTemplateSection account={account} planTemplates={planTemplates} onRefresh={onRefresh} />
       )}
 
-      {/* Sales context */}
+      {/* Sales context — always editable */}
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <span style={sectionLabel}>Deal Context</span>
-          <button onClick={() => setEditingContext(v => !v)} style={ghostBtn}>
-            {editingContext ? 'Cancel' : 'Edit'}
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={sectionLabel}>Sales Context</span>
+          {!contextSaved && (
+            <button onClick={saveContext} style={primaryBtn}>Save</button>
+          )}
         </div>
-        {editingContext ? (
-          <div>
-            <textarea
-              value={contextDraft} onChange={e => setContextDraft(e.target.value)}
-              rows={4} style={{ ...inputStyle, resize: 'vertical' }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-              <button onClick={saveContext} disabled={saving} style={primaryBtn}>
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p style={{ fontSize: 13, color: account.sales_context ? 'var(--text)' : 'var(--text-3)', lineHeight: 1.6 }}>
-            {account.sales_context || 'No context added.'}
-          </p>
-        )}
+        <textarea
+          value={contextDraft}
+          onChange={e => { setContextDraft(e.target.value); setContextSaved(false) }}
+          onBlur={saveContext}
+          rows={4}
+          placeholder="Add deal context, sales notes, key stakeholders…"
+          style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+        />
       </section>
 
       {/* Contacts */}
@@ -1633,11 +1621,12 @@ function AccountDetailsSection({ account, onUpdate }: { account: Account; onUpda
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)' }}>{account.name}</span>
-            {account.arr > 0 && (
-              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                ARR <strong style={{ color: 'var(--text-h)' }}>${account.arr.toLocaleString()}</strong>
-              </span>
-            )}
+            <span style={{ fontSize: 12, color: account.arr > 0 ? 'var(--text-2)' : 'var(--text-3)' }}>
+              ARR{' '}
+              {account.arr > 0
+                ? <strong style={{ color: 'var(--text-h)' }}>${account.arr.toLocaleString()}</strong>
+                : <span style={{ fontStyle: 'italic' }}>not set — click Edit</span>}
+            </span>
           </div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             <span style={{
@@ -1659,6 +1648,80 @@ function AccountDetailsSection({ account, onUpdate }: { account: Account; onUpda
   )
 }
 
+function ContactCard({ contact, onSave, onDelete }: {
+  contact: Contact
+  onSave: (updated: Contact) => void
+  onDelete: (id: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [name,  setName]  = useState(contact.name)
+  const [role,  setRole]  = useState(contact.role  || '')
+  const [email, setEmail] = useState(contact.email || '')
+  const [phone, setPhone] = useState(contact.phone || '')
+  const [saving, setSaving] = useState(false)
+  const supabase = createClient()
+
+  const save = async () => {
+    if (!name.trim()) return
+    setSaving(true)
+    await supabase.from('contacts').update({
+      name, role: role || null, email: email || null, phone: phone || null,
+    }).eq('id', contact.id)
+    onSave({ ...contact, name, role: role || undefined, email: email || undefined, phone: phone || undefined })
+    setSaving(false)
+    setEditing(false)
+  }
+
+  const remove = async () => {
+    await supabase.from('contacts').delete().eq('id', contact.id)
+    onDelete(contact.id)
+  }
+
+  if (editing) {
+    return (
+      <div style={{
+        background: 'var(--bg-surface)', border: '1px solid #3b82f640', borderRadius: 7,
+        padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6,
+      }}>
+        <input value={name}  onChange={e => setName(e.target.value)}  placeholder="Name *"
+          style={{ ...inputStyle, fontSize: 12, padding: '4px 8px' }} />
+        <input value={role}  onChange={e => setRole(e.target.value)}  placeholder="Role"
+          style={{ ...inputStyle, fontSize: 12, padding: '4px 8px' }} />
+        <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email"
+          style={{ ...inputStyle, fontSize: 12, padding: '4px 8px' }} />
+        <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone"
+          style={{ ...inputStyle, fontSize: 12, padding: '4px 8px' }} />
+        <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+          <button onClick={save} disabled={saving} style={{ ...primaryBtn, fontSize: 11, padding: '3px 10px' }}>
+            {saving ? '…' : 'Save'}
+          </button>
+          <button onClick={() => setEditing(false)} style={{ ...ghostBtn, fontSize: 11, padding: '3px 10px' }}>Cancel</button>
+          <button onClick={remove} style={{ marginLeft: 'auto', background: 'none', border: 'none',
+            color: '#ef444480', cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-ui)' }}>Delete</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      onClick={() => setEditing(true)}
+      style={{
+        background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 7,
+        padding: '10px 12px', cursor: 'pointer', position: 'relative',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = '#3b82f640')}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+    >
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>{contact.name}</div>
+      {contact.role  && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{contact.role}</div>}
+      {contact.email && <div style={{ fontSize: 11, color: '#3b82f6', marginTop: 3, fontFamily: 'var(--font-mono)' }}>{contact.email}</div>}
+      {contact.phone && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>{contact.phone}</div>}
+      <span style={{ position: 'absolute', top: 8, right: 10, fontSize: 10, color: 'var(--text-3)' }}>edit</span>
+    </div>
+  )
+}
+
 function ContactsSection({ account, onUpdate }: { account: Account; onUpdate: (a: Account) => void }) {
   const [showAdd, setShowAdd] = useState(false)
   const [name, setName] = useState('')
@@ -1676,6 +1739,14 @@ function ContactsSection({ account, onUpdate }: { account: Account; onUpdate: (a
       onUpdate({ ...account, contacts: [...(account.contacts || []), data as Contact] })
       setName(''); setRole(''); setEmail(''); setPhone(''); setShowAdd(false)
     }
+  }
+
+  const handleSave = (updated: Contact) => {
+    onUpdate({ ...account, contacts: (account.contacts || []).map(c => c.id === updated.id ? updated : c) })
+  }
+
+  const handleDelete = (id: string) => {
+    onUpdate({ ...account, contacts: (account.contacts || []).filter(c => c.id !== id) })
   }
 
   return (
@@ -1700,15 +1771,7 @@ function ContactsSection({ account, onUpdate }: { account: Account; onUpdate: (a
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
           {(account.contacts || []).map(c => (
-            <div key={c.id} style={{
-              background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 7,
-              padding: '10px 12px',
-            }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>{c.name}</div>
-              {c.role  && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{c.role}</div>}
-              {c.email && <div style={{ fontSize: 11, color: '#3b82f6', marginTop: 3, fontFamily: 'var(--font-mono)' }}>{c.email}</div>}
-              {c.phone && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>{c.phone}</div>}
-            </div>
+            <ContactCard key={c.id} contact={c} onSave={handleSave} onDelete={handleDelete} />
           ))}
         </div>
       )}

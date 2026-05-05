@@ -388,12 +388,10 @@ function buildMilestonesJSON(
         name: t.name,
         items: [
           { type: 'session', required: true, session_name: t.name, session_status: 'pending', training_template_id: t.id },
-          { type: 'task', required: true, task_name: `Confirm ${t.name} complete`, task_assignee: 'customer', task_source: 'plan', task_done: false },
         ],
       }))
     : [{ name: 'Training', items: [
         { type: 'session', required: true, session_name: 'Training Session', session_status: 'pending' },
-        { type: 'task', required: true, task_name: 'Confirm training complete', task_assignee: 'customer', task_source: 'plan', task_done: false },
       ]}]
 
   let milestones: Milestone[]
