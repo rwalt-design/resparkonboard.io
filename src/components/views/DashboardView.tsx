@@ -754,7 +754,46 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                     ))}
                   </div>
 
-                  <span style={{ fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.currentStage || '—'}</span>
+                  {/* Current Stage — clickable override */}
+                  {(() => {
+                    const allStages = (account.milestones || []).flatMap(m => m.stages)
+                    return (
+                      <select
+                        value={account.currentStage || ''}
+                        onClick={e => e.stopPropagation()}
+                        onChange={async e => {
+                          e.stopPropagation()
+                          const selectedName = e.target.value
+                          const supabase = createClient()
+                          // Set all stages: before selected → complete, selected → active, after → locked
+                          let found = false
+                          for (const stage of allStages) {
+                            if (stage.name === selectedName) {
+                              await supabase.from('stages').update({ status: 'active' }).eq('id', stage.id)
+                              found = true
+                            } else if (!found) {
+                              await supabase.from('stages').update({ status: 'complete' }).eq('id', stage.id)
+                            } else {
+                              await supabase.from('stages').update({ status: 'locked' }).eq('id', stage.id)
+                            }
+                          }
+                          await onRefresh()
+                        }}
+                        style={{
+                          background: 'none', border: 'none', outline: 'none',
+                          fontSize: 12, color: 'var(--text)', cursor: 'pointer',
+                          fontFamily: 'var(--font-ui)', width: '100%',
+                          overflow: 'hidden', textOverflow: 'ellipsis',
+                          appearance: 'none', WebkitAppearance: 'none',
+                        }}
+                      >
+                        {!account.currentStage && <option value="">—</option>}
+                        {allStages.map(s => (
+                          <option key={s.id} value={s.name}>{s.name}</option>
+                        ))}
+                      </select>
+                    )
+                  })()}
 
                   {/* Completion — bar + % */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 12 }}>

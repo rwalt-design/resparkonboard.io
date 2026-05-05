@@ -91,7 +91,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
       })
       ;(account.milestones || []).forEach(m => {
         m.stages.forEach(s => {
-          if (s.status === 'locked') return
+          if (s.status === 'locked' || s.status === 'complete') return
           s.items.forEach(item => {
             if (item.type === 'task' && !item.task_done && item.required) {
               const alreadyIn = tasks.some(t => t.name === item.task_name && t.account.id === account.id)

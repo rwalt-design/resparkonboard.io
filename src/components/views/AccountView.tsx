@@ -904,11 +904,35 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
       >
         <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{open ? '▾' : '▸'}</span>
         <InlineEdit value={stage.name} onSave={saveStageName} style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }} />
-        <span style={{
-          fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 4,
-          background: statusColor + '22', color: statusColor,
-          fontFamily: 'var(--font-mono)', textTransform: 'capitalize',
-        }}>{stage.status}</span>
+        <select
+          value={stage.status}
+          onClick={e => e.stopPropagation()}
+          onChange={async e => {
+            e.stopPropagation()
+            const newStatus = e.target.value as Stage['status']
+            await supabase.from('stages').update({ status: newStatus }).eq('id', stage.id)
+            onUpdate({
+              ...account,
+              milestones: (account.milestones || []).map(m =>
+                m.id !== milestone.id ? m : {
+                  ...m,
+                  stages: m.stages.map(s => s.id === stage.id ? { ...s, status: newStatus } : s),
+                }
+              ),
+            })
+          }}
+          style={{
+            fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 4,
+            background: statusColor + '22', color: statusColor,
+            fontFamily: 'var(--font-mono)', textTransform: 'capitalize',
+            border: `1px solid ${statusColor}44`, cursor: 'pointer',
+            appearance: 'none', WebkitAppearance: 'none', outline: 'none',
+          }}
+        >
+          {(['locked', 'active', 'unlocked', 'complete'] as Stage['status'][]).map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
         {canAdvance && (
           <button
             onClick={e => { e.stopPropagation(); handleAdvance() }}
