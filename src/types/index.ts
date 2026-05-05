@@ -281,6 +281,8 @@ export interface AccountSummary extends Account {
   completionPct: number
   daysSinceContact: number
   lastContactDate?: string
+  daysSinceOutreach: number
+  lastOutreachDate?: string
   openTaskCount: number
 }
 

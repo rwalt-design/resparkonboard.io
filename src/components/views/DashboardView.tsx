@@ -48,17 +48,31 @@ function computeSummary(account: Account): AccountSummary {
     if (currentStage) break
   }
 
-  // Days since last qualifying interaction (internal_note does not count)
-  const interactions = (account.interactions || []).filter(i => i.type !== 'internal_note')
+  // Outreach = CSM-initiated contact (not internal notes or inbound sessions)
+  const OUTREACH_TYPES = new Set(['called', 'texted', 'bumped_email', 'sent_follow_up', 'custom', 'email', 'call', 'meeting'])
+
+  // Last Contact = any qualifying interaction (not internal_note)
+  const allInteractions = (account.interactions || []).filter(i => i.type !== 'internal_note')
   let daysSinceContact = 999
   let lastContactDate: string | undefined
-  if (interactions.length > 0) {
-    const latest = interactions.reduce((a, b) =>
+  if (allInteractions.length > 0) {
+    const latest = allInteractions.reduce((a, b) =>
       new Date(a.created_at) > new Date(b.created_at) ? a : b
     )
     lastContactDate = latest.created_at
-    const diff = Date.now() - new Date(latest.created_at).getTime()
-    daysSinceContact = Math.floor(diff / (1000 * 60 * 60 * 24))
+    daysSinceContact = Math.floor((Date.now() - new Date(latest.created_at).getTime()) / 86400000)
+  }
+
+  // Last Outreach = last CSM-initiated interaction only
+  const outreachInteractions = allInteractions.filter(i => OUTREACH_TYPES.has(i.type))
+  let daysSinceOutreach = 999
+  let lastOutreachDate: string | undefined
+  if (outreachInteractions.length > 0) {
+    const latest = outreachInteractions.reduce((a, b) =>
+      new Date(a.created_at) > new Date(b.created_at) ? a : b
+    )
+    lastOutreachDate = latest.created_at
+    daysSinceOutreach = Math.floor((Date.now() - new Date(latest.created_at).getTime()) / 86400000)
   }
 
   return {
@@ -67,6 +81,8 @@ function computeSummary(account: Account): AccountSummary {
     completionPct,
     daysSinceContact,
     lastContactDate,
+    daysSinceOutreach,
+    lastOutreachDate,
     openTaskCount: (account.open_tasks || []).filter(t => !t.done).length,
   }
 }
@@ -639,8 +655,8 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
     setHealthUpdating(null)
   }
 
-  // Account | SKU | Stage | Completion | Last Contact | Tasks | Health
-  const cols = 'minmax(140px,1.6fr) minmax(100px,1fr) minmax(110px,1.2fr) 110px 100px 48px 120px'
+  // Account | SKU | Stage | Completion | Last Outreach | Last Contact | Tasks | Health
+  const cols = 'minmax(140px,1.6fr) minmax(100px,1fr) minmax(110px,1.2fr) 110px 95px 95px 48px 115px'
 
   return (
     <div style={{ padding: '24px 28px' }}>
@@ -677,6 +693,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
               { label: 'SKU', align: 'left' },
               { label: 'Current Stage', align: 'left' },
               { label: 'Completion', align: 'left' },
+              { label: 'Last Outreach', align: 'center' },
               { label: 'Last Contact', align: 'center' },
               { label: 'Tasks', align: 'center' },
               { label: 'Health', align: 'right' },
@@ -745,6 +762,20 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                       <div style={{ width: `${account.completionPct}%`, height: '100%', borderRadius: 99, background: account.completionPct >= 75 ? '#10b981' : '#3b82f6' }} />
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--font-mono)', flexShrink: 0, width: 30, textAlign: 'right' }}>{account.completionPct}%</span>
+                  </div>
+
+                  {/* Last Outreach */}
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <span
+                      title={account.lastOutreachDate ? new Date(account.lastOutreachDate).toLocaleString() : undefined}
+                      style={{
+                        fontSize: 11,
+                        color: account.daysSinceOutreach >= 14 ? '#ef4444' : account.daysSinceOutreach >= 7 ? '#f59e0b' : 'var(--text-2)',
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    >
+                      {account.daysSinceOutreach === 999 ? '—' : account.daysSinceOutreach === 0 ? 'today' : `${account.daysSinceOutreach}d ago`}
+                    </span>
                   </div>
 
                   {/* Last Contact */}
