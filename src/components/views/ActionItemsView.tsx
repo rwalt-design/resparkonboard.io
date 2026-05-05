@@ -421,8 +421,8 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
     const fourteenDays = 14 * 24 * 60 * 60 * 1000
     const payload = accounts.map(account => {
       const pendingItems: {
-        id: string; type: 'task' | 'session'; name: string
-        milestone_name: string; stage_name: string; stage_id: string
+        id: string; type: 'task' | 'session' | 'dependency'; name: string
+        assignee?: string; milestone_name: string; stage_name: string; stage_id: string
       }[] = []
       ;(account.milestones || []).forEach(m => {
         m.stages.forEach(s => {
@@ -431,6 +431,9 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
             if (!item.required) return
             if (item.type === 'task' && !item.task_done && item.task_name) {
               pendingItems.push({ id: item.id, type: 'task', name: item.task_name, milestone_name: m.name, stage_name: s.name, stage_id: s.id })
+            }
+            if (item.type === 'dependency' && !item.task_done && item.task_name) {
+              pendingItems.push({ id: item.id, type: 'dependency', name: item.task_name, assignee: 'customer', milestone_name: m.name, stage_name: s.name, stage_id: s.id })
             }
             if (item.type === 'session' && item.session_status !== 'complete' && item.session_name) {
               pendingItems.push({ id: item.id, type: 'session', name: item.session_name, milestone_name: m.name, stage_name: s.name, stage_id: s.id })
@@ -442,8 +445,8 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
         .filter(i => now - new Date(i.created_at).getTime() < fourteenDays)
         .slice(0, 8)
         .map(i => ({ type: i.type, summary: i.summary }))
-      return { id: account.id, name: account.name, pending_items: pendingItems, recent_interactions: recentInteractions }
-    }).filter(a => a.pending_items.length > 0 && a.recent_interactions.length > 0)
+      return { id: account.id, name: account.name, sku: account.sku, pending_items: pendingItems, recent_interactions: recentInteractions }
+    }).filter(a => a.recent_interactions.length > 0)
 
     await fetch('/api/ai/suggestions/scan', {
       method: 'POST',
@@ -458,8 +461,29 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
   const categoryLabel = (s: AiSuggestion) => {
     const cat = s.meta?.suggestion_category
     if (cat === 'completion') return { label: 'Mark complete', color: '#10b981' }
+    if (cat === 'next_action') {
+      const p = s.meta?.priority
+      if (p === 'high') return { label: '▲ High priority', color: '#ef4444' }
+      if (p === 'low')  return { label: '▽ Low priority',  color: '#6b7280' }
+      return { label: '◆ Next action', color: '#8b5cf6' }
+    }
     if (s.type === 'dependency') return { label: 'Waiting on customer', color: '#f59e0b' }
     return { label: 'My task', color: '#3b82f6' }
+  }
+
+  const priorityBadge = (s: AiSuggestion) => {
+    if (s.meta?.suggestion_category !== 'next_action') return null
+    const p = s.meta?.priority
+    if (!p) return null
+    const colors: Record<string, string> = { high: '#ef4444', medium: '#f59e0b', low: '#6b7280' }
+    const c = colors[p] || '#6b7280'
+    return (
+      <span style={{
+        fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+        background: c + '18', color: c, fontFamily: 'var(--font-mono)',
+        border: `1px solid ${c}40`, textTransform: 'uppercase',
+      }}>{p}</span>
+    )
   }
 
   const accountFor = (id: string) => accounts.find(a => a.id === id)
@@ -501,6 +525,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
             const { label, color } = categoryLabel(s)
             const account = accountFor(s.account_id)
             const isCompletion = s.meta?.suggestion_category === 'completion'
+            const isNextAction = s.meta?.suggestion_category === 'next_action'
             return (
               <div key={s.id} style={{
                 background: 'var(--bg-surface)', border: '1px solid var(--border)',
@@ -516,6 +541,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
                         background: color + '18', color, fontFamily: 'var(--font-mono)',
                         border: `1px solid ${color}40`,
                       }}>{label}</span>
+                      {priorityBadge(s)}
                       {account && (
                         <span onClick={() => onSelectAccount(account)}
                           style={{ fontSize: 11, color: '#3b82f6', cursor: 'pointer',
@@ -554,7 +580,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
                         borderRadius: 5, padding: '5px 12px', color,
                         fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
                       }}
-                    >{acting === s.id ? '…' : isCompletion ? 'Mark complete' : 'Add to items'}</button>
+                    >{acting === s.id ? '…' : isCompletion ? 'Mark complete' : isNextAction ? 'Add as task' : 'Add to items'}</button>
                     <button
                       onClick={() => act(s.id, 'dismiss')}
                       disabled={acting === s.id}

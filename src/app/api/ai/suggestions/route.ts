@@ -59,14 +59,14 @@ export async function PATCH(req: NextRequest) {
   const meta = (suggestion.meta || {}) as Record<string, unknown>
   const category = meta.suggestion_category as string | undefined
 
-  if (category === 'extracted') {
+  if (category === 'extracted' || category === 'next_action') {
     // Create an open_task from the staged suggestion
-    const isDep = suggestion.type === 'dependency'
+    const isDep = suggestion.type === 'dependency' || (meta.item_type as string) === 'dependency'
     const { error } = await supabase.from('open_tasks').insert({
       account_id: suggestion.account_id,
       name:       suggestion.title,
       assignee:   isDep ? 'customer' : 'personal',
-      source:     (meta.source as string) || 'email',
+      source:     (meta.source as string) || (category === 'next_action' ? 'manual' : 'email'),
       done:       false,
       notes:      (meta.why_important as string) || suggestion.body || null,
       item_type:   isDep ? 'dependency' : 'task',

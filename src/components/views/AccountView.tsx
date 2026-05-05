@@ -1664,16 +1664,17 @@ function ContactsSection({ account, onUpdate }: { account: Account; onUpdate: (a
   const [name, setName] = useState('')
   const [role, setRole] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const supabase = createClient()
 
   const addContact = async () => {
     if (!name.trim()) return
     const { data } = await supabase.from('contacts').insert({
-      account_id: account.id, name, role: role || null, email: email || null,
+      account_id: account.id, name, role: role || null, email: email || null, phone: phone || null,
     }).select().single()
     if (data) {
       onUpdate({ ...account, contacts: [...(account.contacts || []), data as Contact] })
-      setName(''); setRole(''); setEmail(''); setShowAdd(false)
+      setName(''); setRole(''); setEmail(''); setPhone(''); setShowAdd(false)
     }
   }
 
@@ -1685,10 +1686,11 @@ function ContactsSection({ account, onUpdate }: { account: Account; onUpdate: (a
       </div>
 
       {showAdd && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="Name *" style={{ ...inputStyle, flex: 2 }} />
-          <input value={role} onChange={e => setRole(e.target.value)} placeholder="Role" style={{ ...inputStyle, flex: 1 }} />
-          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" style={{ ...inputStyle, flex: 2 }} />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          <input value={name}  onChange={e => setName(e.target.value)}  placeholder="Name *" style={{ ...inputStyle, flex: '2 1 120px' }} />
+          <input value={role}  onChange={e => setRole(e.target.value)}  placeholder="Role"   style={{ ...inputStyle, flex: '1 1 90px' }} />
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email"  style={{ ...inputStyle, flex: '2 1 140px' }} />
+          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone"  style={{ ...inputStyle, flex: '1 1 110px' }} />
           <button onClick={addContact} style={primaryBtn}>Add</button>
         </div>
       )}
@@ -1703,8 +1705,9 @@ function ContactsSection({ account, onUpdate }: { account: Account; onUpdate: (a
               padding: '10px 12px',
             }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>{c.name}</div>
-              {c.role && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{c.role}</div>}
+              {c.role  && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{c.role}</div>}
               {c.email && <div style={{ fontSize: 11, color: '#3b82f6', marginTop: 3, fontFamily: 'var(--font-mono)' }}>{c.email}</div>}
+              {c.phone && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>{c.phone}</div>}
             </div>
           ))}
         </div>
@@ -1780,36 +1783,13 @@ const sectionLabel: React.CSSProperties = {
 // ─── AI Tab ──────────────────────────────────────────────────────────────────
 
 function AITab({ account }: { account: Account }) {
-  const [emailContext, setEmailContext] = useState('')
-  const [emailResult, setEmailResult] = useState<{ subject: string; body: string } | null>(null)
-  const [emailLoading, setEmailLoading] = useState(false)
-
-  const [summary, setSummary] = useState<string | null>(null)
+  const [emailContext, setEmailContext]   = useState('')
+  const [emailResult, setEmailResult]     = useState<{ subject: string; body: string } | null>(null)
+  const [emailLoading, setEmailLoading]   = useState(false)
+  const [summary, setSummary]             = useState<string | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
-
-  const [actions, setActions] = useState<{ action: string; reason: string; priority: string }[] | null>(null)
-  const [actionsLoading, setActionsLoading] = useState(false)
-  const [acceptedActions, setAcceptedActions] = useState<Set<number>>(new Set())
-  const [acceptingAction, setAcceptingAction] = useState<number | null>(null)
+  const [copied, setCopied]               = useState(false)
   const supabase = createClient()
-
-  const [copied, setCopied] = useState(false)
-
-  const draftEmail = async () => {
-    setEmailLoading(true)
-    setEmailResult(null)
-    try {
-      const res = await fetch('/api/ai/draft-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: account.id, context: emailContext }),
-      })
-      const data = await res.json()
-      setEmailResult(data)
-    } finally {
-      setEmailLoading(false)
-    }
-  }
 
   const getSummary = async () => {
     setSummaryLoading(true)
@@ -1827,47 +1807,32 @@ function AITab({ account }: { account: Account }) {
     }
   }
 
-  const getActions = async () => {
-    setActionsLoading(true)
-    setActions(null)
+  const draftEmail = async () => {
+    setEmailLoading(true)
+    setEmailResult(null)
     try {
-      const res = await fetch('/api/ai/next-actions', {
+      const res = await fetch('/api/ai/draft-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: account.id }),
+        body: JSON.stringify({ accountId: account.id, context: emailContext }),
       })
       const data = await res.json()
-      setActions(data.actions)
+      setEmailResult(data)
     } finally {
-      setActionsLoading(false)
+      setEmailLoading(false)
     }
   }
 
-  // Auto-generate summary + actions when AI tab opens, and clear the pending dot
+  // Auto-generate summary when AI tab opens; clear the pending dot
   useEffect(() => {
     getSummary()
-    getActions()
-    // Dismiss any pending ai_suggestions for this account so the dot clears
     supabase
       .from('ai_suggestions')
       .update({ status: 'viewed' })
       .eq('account_id', account.id)
       .eq('status', 'pending')
-      .then(() => {}) // fire-and-forget
+      .then(() => {})
   }, [account.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const acceptAction = async (index: number, action: { action: string; priority: string }) => {
-    setAcceptingAction(index)
-    await supabase.from('open_tasks').insert({
-      account_id: account.id,
-      name: action.action,
-      assignee: 'personal',
-      source: 'manual',
-      done: false,
-    })
-    setAcceptedActions(prev => new Set(prev).add(index))
-    setAcceptingAction(null)
-  }
 
   const copyEmail = () => {
     if (!emailResult) return
@@ -1875,9 +1840,6 @@ function AITab({ account }: { account: Account }) {
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
-
-  const priorityColor = (p: string) =>
-    p === 'high' ? '#ef4444' : p === 'medium' ? '#f59e0b' : '#10b981'
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -1910,63 +1872,6 @@ function AITab({ account }: { account: Account }) {
             No recent interactions to summarize yet.
           </p>
         )}
-      </div>
-
-      {/* Next Actions */}
-      <div style={aiCard}>
-        <div style={aiCardHeader}>
-          <span style={aiCardTitle}>Suggested Next Actions</span>
-          {actions && !actionsLoading && (
-            <button onClick={getActions} style={aiBtn}>Regenerate</button>
-          )}
-        </div>
-        {actionsLoading && (
-          <div style={{ fontSize: 12, color: 'var(--text-2)', padding: '8px 0' }}>Thinking…</div>
-        )}
-        {!actionsLoading && !actions && (
-          <p style={{ fontSize: 11, color: 'var(--text-2)' }}>
-            No data yet to suggest actions from.
-          </p>
-        )}
-        {actions && actions.map((a, i) => {
-          const accepted = acceptedActions.has(i)
-          return (
-            <div key={i} style={{
-              background: accepted ? '#10b98108' : 'var(--bg-surface2)',
-              border: `1px solid ${accepted ? '#10b98130' : 'var(--border)'}`,
-              borderRadius: 8, padding: '12px 14px', marginBottom: 8,
-              borderLeft: `3px solid ${accepted ? '#10b981' : priorityColor(a.priority)}`,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{
-                  fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3,
-                  background: priorityColor(a.priority) + '22',
-                  color: priorityColor(a.priority),
-                  textTransform: 'uppercase', letterSpacing: '0.06em',
-                }}>{a.priority}</span>
-                <span style={{ flex: 1 }} />
-                {accepted ? (
-                  <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>✓ Added to tasks</span>
-                ) : (
-                  <button
-                    onClick={() => acceptAction(i, a)}
-                    disabled={acceptingAction === i}
-                    style={{
-                      background: '#3b82f618', border: '1px solid #3b82f640',
-                      borderRadius: 5, padding: '3px 10px',
-                      color: '#93c5fd', fontSize: 11, fontWeight: 600,
-                      cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                    }}
-                  >
-                    {acceptingAction === i ? 'Adding…' : '+ Add to tasks'}
-                  </button>
-                )}
-              </div>
-              <div style={{ fontSize: 13, color: accepted ? 'var(--text-2)' : 'var(--text-h)', fontWeight: 600, marginBottom: 4 }}>{a.action}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{a.reason}</div>
-            </div>
-          )
-        })}
       </div>
 
       {/* Draft Email */}
@@ -2009,6 +1914,13 @@ function AITab({ account }: { account: Account }) {
           </div>
         )}
       </div>
+
+      {/* Hint — next steps live in Action Items */}
+      <p style={{ fontSize: 11, color: 'var(--text-3)', margin: 0, lineHeight: 1.6 }}>
+        ✦ Suggested next steps and action items live in{' '}
+        <strong style={{ color: 'var(--text-2)' }}>Action Items → AI Suggestions</strong>.
+        Use the &ldquo;Scan plans&rdquo; button there to generate fresh recommendations across all accounts.
+      </p>
     </div>
   )
 }

@@ -179,7 +179,7 @@ export interface OpenTask {
   why_important?: string
 }
 
-export type AiSuggestionCategory = 'extracted' | 'completion' | 'sync'
+export type AiSuggestionCategory = 'extracted' | 'completion' | 'sync' | 'next_action'
 
 export interface AiSuggestionMeta {
   // For category = 'extracted'
@@ -197,6 +197,8 @@ export interface AiSuggestionMeta {
   milestone_name?: string
   stage_name?:     string
   stage_id?:       string
+  // For category = 'next_action'
+  priority?: 'high' | 'medium' | 'low'
 }
 
 export interface AiSuggestion {
