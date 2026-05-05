@@ -280,5 +280,9 @@ export interface AccountSummary extends Account {
   currentStage?: string
   completionPct: number
   daysSinceContact: number
+  lastContactDate?: string
   openTaskCount: number
 }
+
+export type QuickLogType = 'called' | 'texted' | 'bumped_email' | 'sent_follow_up' | 'internal_note' | 'custom'
+export type QuickLogOutcome = 'reached' | 'left_voicemail' | 'no_answer'

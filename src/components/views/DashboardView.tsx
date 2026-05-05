@@ -48,13 +48,15 @@ function computeSummary(account: Account): AccountSummary {
     if (currentStage) break
   }
 
-  // Days since last interaction
-  const interactions = account.interactions || []
+  // Days since last qualifying interaction (internal_note does not count)
+  const interactions = (account.interactions || []).filter(i => i.type !== 'internal_note')
   let daysSinceContact = 999
+  let lastContactDate: string | undefined
   if (interactions.length > 0) {
     const latest = interactions.reduce((a, b) =>
       new Date(a.created_at) > new Date(b.created_at) ? a : b
     )
+    lastContactDate = latest.created_at
     const diff = Date.now() - new Date(latest.created_at).getTime()
     daysSinceContact = Math.floor(diff / (1000 * 60 * 60 * 24))
   }
@@ -64,6 +66,7 @@ function computeSummary(account: Account): AccountSummary {
     currentStage,
     completionPct,
     daysSinceContact,
+    lastContactDate,
     openTaskCount: (account.open_tasks || []).filter(t => !t.done).length,
   }
 }
@@ -746,12 +749,15 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
 
                   {/* Last Contact */}
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <span style={{
-                      fontSize: 11,
-                      color: account.daysSinceContact >= 14 ? '#ef4444' : account.daysSinceContact >= 7 ? '#f59e0b' : 'var(--text-2)',
-                      fontFamily: 'var(--font-mono)',
-                    }}>
-                      {account.daysSinceContact === 999 ? '—' : `${account.daysSinceContact}d ago`}
+                    <span
+                      title={account.lastContactDate ? new Date(account.lastContactDate).toLocaleString() : undefined}
+                      style={{
+                        fontSize: 11,
+                        color: account.daysSinceContact >= 14 ? '#ef4444' : account.daysSinceContact >= 7 ? '#f59e0b' : 'var(--text-2)',
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    >
+                      {account.daysSinceContact === 999 ? '—' : account.daysSinceContact === 0 ? 'today' : `${account.daysSinceContact}d ago`}
                     </span>
                   </div>
 

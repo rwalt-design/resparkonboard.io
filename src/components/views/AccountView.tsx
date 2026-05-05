@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Account, Milestone, Stage, Item, Interaction, OrgMember, Contact, Request, ChecklistItem, LogEntry, Sku, Addon, SessionActionItem, PlanTemplate, TrainingTemplate, SessionTemplate } from '@/types'
+import type { Account, Milestone, Stage, Item, Interaction, OrgMember, Contact, Request, ChecklistItem, LogEntry, Sku, Addon, SessionActionItem, PlanTemplate, TrainingTemplate, SessionTemplate, QuickLogType, QuickLogOutcome } from '@/types'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -34,7 +34,9 @@ const STAGE_STATUS_COLORS: Record<string, string> = {
   complete: '#10b981',
 }
 const INTERACTION_ICONS: Record<string, string> = {
-  email: '✉', call: '📞', meeting: '🗓', note: '📝', session: '🎓',
+  email: '✉️', call: '📞', meeting: '🗓', note: '📝', session: '🎓',
+  called: '📞', texted: '💬', bumped_email: '📧', sent_follow_up: '📨',
+  internal_note: '📝', custom: '⚡',
 }
 
 interface Props {
@@ -50,7 +52,7 @@ interface Props {
 
 type TabId = 'plan' | 'timeline' | 'details' | 'ai'
 
-export function AccountView({ account, orgMembers: _orgMembers, currentMember: _currentMember, planTemplates = [], trainingTemplates: _trainingTemplates = [], sessionTemplates: _sessionTemplates = [], onBack, onRefresh }: Props) {
+export function AccountView({ account, orgMembers, currentMember, planTemplates = [], trainingTemplates: _trainingTemplates = [], sessionTemplates: _sessionTemplates = [], onBack, onRefresh }: Props) {
   const [tab, setTab] = useState<TabId>('plan')
   const [localAccount, setLocalAccount] = useState<Account>(account)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -227,6 +229,8 @@ export function AccountView({ account, orgMembers: _orgMembers, currentMember: _
         {tab === 'timeline' && (
           <TimelineTab
             account={localAccount}
+            orgMembers={orgMembers}
+            currentMember={currentMember}
             onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
           />
         )}
@@ -1313,29 +1317,110 @@ function LogItem({ item, locked, onUpdate, toggleBtn, panel }: {
   )
 }
 
+// ─── Quick Log helpers ────────────────────────────────────────────────────────
+
+const QUICK_CHIPS: { type: QuickLogType; icon: string; label: string; instant?: boolean }[] = [
+  { type: 'called',        icon: '📞', label: 'Called' },
+  { type: 'texted',        icon: '💬', label: 'Texted',       instant: true },
+  { type: 'bumped_email',  icon: '📧', label: 'Bumped Email', instant: true },
+  { type: 'sent_follow_up', icon: '📨', label: 'Sent Follow-Up' },
+  { type: 'internal_note', icon: '📝', label: 'Internal Note' },
+  { type: 'custom',        icon: '⚡', label: 'Custom' },
+]
+
+function buildQuickLogSummary(type: QuickLogType, outcome?: QuickLogOutcome | null, customLabel?: string): string {
+  switch (type) {
+    case 'called':
+      if (outcome === 'reached')       return 'Called — Reached'
+      if (outcome === 'left_voicemail') return 'Called — Left voicemail'
+      if (outcome === 'no_answer')     return 'Called — No answer'
+      return 'Called'
+    case 'texted':        return 'Texted'
+    case 'bumped_email':  return 'Bumped email thread'
+    case 'sent_follow_up': return 'Sent follow-up'
+    case 'internal_note': return 'Internal note'
+    case 'custom':        return customLabel ? `Custom: ${customLabel}` : 'Custom'
+  }
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const ms = Date.now() - new Date(dateStr).getTime()
+  const secs = Math.floor(ms / 1000)
+  const mins = Math.floor(secs / 60)
+  const hours = Math.floor(mins / 60)
+  const days = Math.floor(hours / 24)
+  if (secs < 60) return 'just now'
+  if (mins < 60) return `${mins} min ago`
+  if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`
+  if (days === 1) return 'yesterday'
+  if (days < 30) return `${days} days ago`
+  return new Date(dateStr).toLocaleDateString()
+}
+
 // ─── Timeline Tab ─────────────────────────────────────────────────────────────
 
-function TimelineTab({ account, onUpdate }: { account: Account; onUpdate: (a: Account) => void }) {
-  const [showLog, setShowLog] = useState(false)
-  const [logType, setLogType] = useState('note')
-  const [logSummary, setLogSummary] = useState('')
-  const [logDetail, setLogDetail] = useState('')
+function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
+  account: Account
+  onUpdate: (a: Account) => void
+  orgMembers: OrgMember[]
+  currentMember: OrgMember | undefined
+}) {
+  const [activeChip, setActiveChip] = useState<QuickLogType | null>(null)
+  const [calledOutcome, setCalledOutcome] = useState<QuickLogOutcome | null>(null)
+  const [note, setNote] = useState('')
+  const [customLabel, setCustomLabel] = useState('')
+  // datetime-local input value, defaults to now
+  const [loggedAt, setLoggedAt] = useState(() => {
+    const d = new Date()
+    d.setSeconds(0, 0)
+    return d.toISOString().slice(0, 16)
+  })
+  const [showDatePicker, setShowDatePicker] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState<{ message: string; undoId?: string } | null>(null)
   const supabase = createClient()
 
   const interactions = [...(account.interactions || [])].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
 
-  const handleLog = async () => {
-    if (!logSummary.trim()) return
-    setSaving(true)
+  const memberName = (userId?: string) => {
+    if (!userId) return null
+    if (currentMember?.user_id === userId) return 'You'
+    return orgMembers.find(m => m.user_id === userId)?.name ?? null
+  }
+
+  const resetForm = () => {
+    setCalledOutcome(null)
+    setNote('')
+    setCustomLabel('')
+    const d = new Date(); d.setSeconds(0, 0)
+    setLoggedAt(d.toISOString().slice(0, 16))
+    setShowDatePicker(false)
+  }
+
+  const handleChipClick = async (chip: typeof QUICK_CHIPS[0]) => {
+    if (chip.instant) {
+      await logInstant(chip.type)
+      return
+    }
+    if (activeChip === chip.type) {
+      setActiveChip(null)
+      resetForm()
+    } else {
+      setActiveChip(chip.type)
+      resetForm()
+    }
+  }
+
+  const logInstant = async (type: QuickLogType) => {
     const { data: { user } } = await supabase.auth.getUser()
+    const summary = buildQuickLogSummary(type)
     const { data } = await supabase.from('interactions').insert({
       account_id: account.id,
-      type: logType,
-      summary: logSummary,
-      detail: logDetail || null,
+      type,
+      summary,
+      detail: null,
       user_id: user?.id,
     }).select().single()
 
@@ -1344,56 +1429,229 @@ function TimelineTab({ account, onUpdate }: { account: Account; onUpdate: (a: Ac
         ...account,
         interactions: [data as Interaction, ...(account.interactions || [])],
       })
+      setToast({ message: `Logged — ${summary}`, undoId: data.id })
+      setTimeout(() => setToast(t => t?.undoId === data.id ? null : t), 5000)
     }
-    setLogSummary('')
-    setLogDetail('')
-    setShowLog(false)
+  }
+
+  const handleUndo = async () => {
+    if (!toast?.undoId) return
+    const idToDelete = toast.undoId
+    setToast(null)
+    await supabase.from('interactions').delete().eq('id', idToDelete)
+    onUpdate({
+      ...account,
+      interactions: (account.interactions || []).filter(i => i.id !== idToDelete),
+    })
+  }
+
+  const showNoteField = () => {
+    if (!activeChip) return false
+    if (activeChip === 'called') return calledOutcome === 'reached'
+    if (activeChip === 'texted' || activeChip === 'bumped_email') return false
+    return true
+  }
+
+  const canSave = () => {
+    if (activeChip === 'called' && !calledOutcome) return false
+    if (activeChip === 'custom' && (!customLabel.trim() || !note.trim())) return false
+    return true
+  }
+
+  const handleSave = async () => {
+    if (!activeChip || !canSave()) return
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const summary = buildQuickLogSummary(activeChip, calledOutcome, customLabel)
+    const logTime = new Date(loggedAt).toISOString()
+    const noteValue = showNoteField() ? (note.trim() || null) : null
+
+    const { data } = await supabase.from('interactions').insert({
+      account_id: account.id,
+      type: activeChip,
+      summary,
+      detail: noteValue,
+      user_id: user?.id,
+      created_at: logTime,
+    }).select().single()
+
+    if (data) {
+      const merged = [data as Interaction, ...(account.interactions || [])]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      onUpdate({ ...account, interactions: merged })
+      setToast({ message: 'Logged ✓' })
+      setTimeout(() => setToast(null), 3000)
+    }
+
+    setActiveChip(null)
+    resetForm()
     setSaving(false)
+  }
+
+  const formatsLoggedAt = () => {
+    const d = new Date(loggedAt)
+    const now = new Date()
+    const diffMs = now.getTime() - d.getTime()
+    if (Math.abs(diffMs) < 60000) return 'Now'
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   }
 
   return (
     <div style={{ padding: '20px 24px', maxWidth: 720 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <button onClick={() => setShowLog(v => !v)} style={primaryBtn}>
-          {showLog ? '✕ Cancel' : '+ Log Interaction'}
-        </button>
+
+      {/* Quick Log Toolbar */}
+      <div style={{
+        display: 'flex', gap: 6, marginBottom: activeChip ? 0 : 20,
+        overflowX: 'auto', paddingBottom: 2,
+      }}>
+        {QUICK_CHIPS.map(chip => {
+          const isActive = activeChip === chip.type
+          return (
+            <button
+              key={chip.type}
+              onClick={() => handleChipClick(chip)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: isActive ? '#3b82f615' : 'var(--bg-surface)',
+                border: `1px solid ${isActive ? '#3b82f6' : 'var(--border)'}`,
+                borderRadius: 20, padding: '5px 12px',
+                color: isActive ? '#3b82f6' : 'var(--text-2)',
+                fontSize: 12, fontWeight: isActive ? 600 : 400,
+                cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                whiteSpace: 'nowrap', flexShrink: 0,
+                transition: 'border-color 0.15s, color 0.15s, background 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 14 }}>{chip.icon}</span>
+              {chip.label}
+            </button>
+          )
+        })}
       </div>
 
-      {showLog && (
+      {/* Inline Expansion Form */}
+      <div style={{
+        maxHeight: activeChip ? 320 : 0,
+        overflow: 'hidden',
+        transition: 'max-height 0.2s ease',
+        marginBottom: activeChip ? 16 : 0,
+      }}>
+        {activeChip && (
+          <div style={{
+            background: 'var(--bg-surface)', border: '1px solid var(--border-b)',
+            borderRadius: '0 0 8px 8px', borderTop: 'none',
+            padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10,
+          }}>
+            {/* Called outcome toggle */}
+            {activeChip === 'called' && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                {(['reached', 'left_voicemail', 'no_answer'] as QuickLogOutcome[]).map(o => {
+                  const labels: Record<QuickLogOutcome, string> = {
+                    reached: 'Reached',
+                    left_voicemail: 'Left voicemail',
+                    no_answer: 'No answer',
+                  }
+                  const isSelected = calledOutcome === o
+                  return (
+                    <button
+                      key={o}
+                      onClick={() => setCalledOutcome(o)}
+                      style={{
+                        background: isSelected ? '#3b82f6' : 'var(--bg-surface2)',
+                        border: `1px solid ${isSelected ? '#3b82f6' : 'var(--border)'}`,
+                        borderRadius: 6, padding: '5px 12px',
+                        color: isSelected ? '#fff' : 'var(--text-2)',
+                        fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                        transition: 'all 0.15s',
+                      }}
+                    >{labels[o]}</button>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Custom label input */}
+            {activeChip === 'custom' && (
+              <input
+                value={customLabel}
+                onChange={e => setCustomLabel(e.target.value)}
+                placeholder="Label (e.g. Dropped off swag)"
+                style={{ ...inputStyle }}
+              />
+            )}
+
+            {/* Note field */}
+            {showNoteField() && (
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                placeholder={activeChip === 'custom' ? 'Note (required)…' : 'Note (optional)…'}
+                rows={2}
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+            )}
+
+            {/* Footer: timestamp + save */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={() => setShowDatePicker(v => !v)}
+                style={{
+                  background: 'none', border: '1px solid var(--border)', borderRadius: 5,
+                  padding: '4px 10px', color: 'var(--text-3)', fontSize: 11,
+                  cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                }}
+              >🕐 {formatsLoggedAt()}</button>
+              {showDatePicker && (
+                <input
+                  type="datetime-local"
+                  value={loggedAt}
+                  onChange={e => setLoggedAt(e.target.value)}
+                  style={{ ...inputStyle, fontSize: 11, padding: '3px 8px', width: 'auto' }}
+                />
+              )}
+              <div style={{ marginLeft: 'auto' }}>
+                <button
+                  onClick={() => { setActiveChip(null); resetForm() }}
+                  style={{ ...ghostBtn, marginRight: 6 }}
+                >Cancel</button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !canSave()}
+                  style={{
+                    ...primaryBtn,
+                    opacity: !canSave() ? 0.4 : 1,
+                  }}
+                >{saving ? 'Saving…' : 'Log'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Undo Toast */}
+      {toast && (
         <div style={{
-          background: 'var(--bg-surface)', border: '1px solid var(--border-b)', borderRadius: 8,
-          padding: '16px 18px', marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'var(--bg-surface)', border: '1px solid var(--border-b)',
+          borderRadius: 8, padding: '10px 14px', marginBottom: 16,
+          fontSize: 12, color: 'var(--text-2)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-            {['note', 'email', 'call', 'meeting'].map(t => (
-              <button key={t} onClick={() => setLogType(t)} style={{
-                background: logType === t ? 'var(--border)' : 'none',
-                border: `1px solid ${logType === t ? '#3b82f666' : 'var(--border)'}`,
-                borderRadius: 5, padding: '4px 10px',
-                color: logType === t ? 'var(--text)' : 'var(--text-2)',
-                fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)', textTransform: 'capitalize',
-              }}>{INTERACTION_ICONS[t]} {t}</button>
-            ))}
-          </div>
-          <input
-            value={logSummary} onChange={e => setLogSummary(e.target.value)}
-            placeholder="Summary..."
-            style={{ ...inputStyle, marginBottom: 8 }}
-          />
-          <textarea
-            value={logDetail} onChange={e => setLogDetail(e.target.value)}
-            placeholder="Details (optional)..."
-            rows={2}
-            style={{ ...inputStyle, resize: 'vertical' }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-            <button onClick={handleLog} disabled={saving || !logSummary.trim()} style={primaryBtn}>
-              {saving ? 'Saving...' : 'Log'}
-            </button>
-          </div>
+          <span style={{ color: '#10b981', fontWeight: 600 }}>{toast.message}</span>
+          {toast.undoId && (
+            <button
+              onClick={handleUndo}
+              style={{
+                background: 'none', border: '1px solid var(--border)', borderRadius: 5,
+                padding: '2px 8px', color: 'var(--text-2)', fontSize: 11,
+                cursor: 'pointer', fontFamily: 'var(--font-ui)', marginLeft: 'auto',
+              }}
+            >Undo</button>
+          )}
         </div>
       )}
 
+      {/* Timeline */}
       {interactions.length === 0 ? (
         <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: '48px 0' }}>
           No interactions logged yet.
@@ -1406,25 +1664,27 @@ function TimelineTab({ account, onUpdate }: { account: Account; onUpdate: (a: Ac
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%',
                   background: 'var(--bg-surface)', border: '1px solid var(--border)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
                 }}>{INTERACTION_ICONS[interaction.type] || '📌'}</div>
                 {idx < interactions.length - 1 && (
                   <div style={{ width: 1, flex: 1, background: 'var(--border)', marginTop: 4 }} />
                 )}
               </div>
               <div style={{ flex: 1, paddingBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>{interaction.summary}</span>
-                  <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', textTransform: 'capitalize' }}>
-                    {interaction.type}
-                  </span>
-                  <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>
-                    {new Date(interaction.created_at).toLocaleDateString()}
-                  </span>
+                  <span
+                    title={new Date(interaction.created_at).toLocaleString()}
+                    style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', cursor: 'default' }}
+                  >{formatRelativeTime(interaction.created_at)}</span>
                 </div>
                 {interaction.detail && (
-                  <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{interaction.detail}</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, margin: '0 0 3px' }}>{interaction.detail}</p>
+                )}
+                {memberName(interaction.user_id) && (
+                  <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+                    {memberName(interaction.user_id)}
+                  </span>
                 )}
               </div>
             </div>
