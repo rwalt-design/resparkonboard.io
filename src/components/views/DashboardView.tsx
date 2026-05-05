@@ -640,7 +640,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
   }
 
   // Account | SKU | Stage | Completion | Last Contact | Tasks | Health
-  const cols = 'minmax(120px,1.2fr) minmax(90px,1fr) minmax(100px,1fr) 110px 100px 48px 120px'
+  const cols = 'minmax(120px,1.5fr) 90px 140px 110px 100px 48px 120px'
 
   return (
     <div style={{ padding: '24px 28px' }}>
@@ -704,7 +704,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                 >
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <span style={{ fontSize: 13, color: 'var(--text-h)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name}</span>
+                      <span style={{ fontSize: 13, color: '#60a5fa', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name}</span>
                       {account.arr > 0 && (
                         <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
                           ${account.arr >= 1000 ? `${(account.arr / 1000).toFixed(account.arr % 1000 === 0 ? 0 : 1)}k` : account.arr.toLocaleString()}
