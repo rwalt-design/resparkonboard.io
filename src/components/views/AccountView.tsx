@@ -1,0 +1,2278 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import type { Account, Milestone, Stage, Item, Interaction, OrgMember, Contact, Request, ChecklistItem, LogEntry, Sku, Addon, SessionActionItem, PlanTemplate, TrainingTemplate, SessionTemplate } from '@/types'
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
+const SKU_LABELS: Record<string, string> = {
+  dispatch: 'Dispatch',
+  facility_management: 'Facility Mgmt',
+  full_suite: 'Full Suite',
+}
+const SKU_COLORS: Record<string, string> = {
+  dispatch: '#f59e0b',
+  facility_management: '#8b5cf6',
+  full_suite: '#3b82f6',
+}
+const HEALTH_OPTIONS = [
+  { value: 'active',       label: 'Active',       color: '#10b981' },
+  { value: 'stalled',      label: 'Stalled',      color: '#f59e0b' },
+  { value: 'on_hold',      label: 'On Hold',      color: '#6b7280' },
+  { value: 'unresponsive', label: 'Unresponsive', color: '#ef4444' },
+  { value: 'blocked',      label: 'Blocked',      color: '#ef4444' },
+]
+const STAGE_STATUS_COLORS: Record<string, string> = {
+  locked: 'var(--text-3)',
+  active: '#3b82f6',
+  unlocked: '#f59e0b',
+  complete: '#10b981',
+}
+const INTERACTION_ICONS: Record<string, string> = {
+  email: '✉', call: '📞', meeting: '🗓', note: '📝', session: '🎓',
+}
+
+interface Props {
+  account: Account
+  orgMembers: OrgMember[]
+  currentMember: OrgMember | undefined
+  planTemplates?: PlanTemplate[]
+  trainingTemplates?: TrainingTemplate[]
+  sessionTemplates?: SessionTemplate[]
+  onBack: () => void
+  onRefresh: () => void
+}
+
+type TabId = 'plan' | 'timeline' | 'details' | 'ai'
+
+export function AccountView({ account, orgMembers: _orgMembers, currentMember: _currentMember, planTemplates = [], trainingTemplates: _trainingTemplates = [], sessionTemplates: _sessionTemplates = [], onBack, onRefresh }: Props) {
+  const [tab, setTab] = useState<TabId>('plan')
+  const [localAccount, setLocalAccount] = useState<Account>(account)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  // Compute stats
+  const allItems = (localAccount.milestones || []).flatMap(m => m.stages.flatMap(s => s.items))
+  const required = allItems.filter(i => i.required)
+  const done = required.filter(i => i.task_done || i.session_status === 'complete')
+  const completionPct = required.length ? Math.round((done.length / required.length) * 100) : 0
+
+  const interactions = [...(localAccount.interactions || [])].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
+  const daysSinceContact = interactions.length > 0
+    ? Math.floor((Date.now() - new Date(interactions[0].created_at).getTime()) / 86400000)
+    : null
+
+  const openTaskCount = (localAccount.open_tasks || []).filter(t => !t.done).length
+
+  const exportPlan = () => {
+    const a = document.createElement('a')
+    a.href = `/api/export-plan?account=${localAccount.id}`
+    a.download = ''
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    const supabase = createClient()
+    await supabase.from('accounts').delete().eq('id', localAccount.id)
+    onRefresh()
+    onBack()
+  }
+
+  const updateHealth = async (status: string) => {
+    const supabase = createClient()
+    await supabase.from('accounts').update({ health_status: status }).eq('id', localAccount.id)
+    setLocalAccount(prev => ({ ...prev, health_status: status as Account['health_status'] }))
+    onRefresh()
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Account header */}
+      <div style={{
+        background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)',
+        padding: '16px 24px', flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <button onClick={onBack} style={{
+            background: 'none', border: 'none', color: 'var(--text-2)', fontSize: 12,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+            fontFamily: 'var(--font-ui)',
+          }}>← Back</button>
+
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-h)', flex: 1 }}>{localAccount.name}</h1>
+
+          {/* SKU badge */}
+          <span style={{
+            fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 5,
+            background: (SKU_COLORS[localAccount.sku] || 'var(--text-2)') + '22',
+            color: SKU_COLORS[localAccount.sku] || 'var(--text-2)',
+            fontFamily: 'var(--font-mono)',
+          }}>{SKU_LABELS[localAccount.sku] || localAccount.sku}</span>
+
+          {(localAccount.addons || []).map(a => (
+            <span key={a} style={{
+              fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4,
+              background: 'var(--border)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)',
+            }}>{a}</span>
+          ))}
+        </div>
+
+        {/* Meta row */}
+        <div style={{ display: 'flex', gap: 20, alignItems: 'center', marginBottom: 12 }}>
+          {localAccount.arr > 0 && (
+            <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+              ARR <strong style={{ color: 'var(--text-h)' }}>${localAccount.arr.toLocaleString()}</strong>
+            </span>
+          )}
+          <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+            Progress <strong style={{ color: 'var(--text-h)' }}>{completionPct}%</strong>
+          </span>
+          {daysSinceContact !== null && (
+            <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+              Last contact <strong style={{ color: daysSinceContact >= 14 ? '#ef4444' : 'var(--text-h)' }}>
+                {daysSinceContact === 0 ? 'today' : `${daysSinceContact}d ago`}
+              </strong>
+            </span>
+          )}
+          <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+            Open tasks <strong style={{ color: openTaskCount > 0 ? 'var(--text-h)' : 'var(--text-3)' }}>{openTaskCount}</strong>
+          </span>
+
+          {/* Health dropdown */}
+          {(() => {
+            const h = HEALTH_OPTIONS.find(o => o.value === (localAccount.health_status || 'active')) || HEALTH_OPTIONS[0]
+            return (
+              <select
+                value={localAccount.health_status || 'active'}
+                onChange={e => updateHealth(e.target.value)}
+                style={{
+                  background: h.color + '14', border: `1px solid ${h.color}40`,
+                  borderRadius: 6, padding: '3px 8px', color: h.color,
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                  appearance: 'none', WebkitAppearance: 'none', outline: 'none',
+                }}
+              >
+                {HEALTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            )
+          })()}
+
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button onClick={() => setTab('timeline')} style={ghostBtn}>+ Log Interaction</button>
+            <button onClick={exportPlan} style={ghostBtn}>⬇ Export Plan</button>
+            {confirmDelete ? (
+              <>
+                <span style={{ fontSize: 11, color: '#ef4444' }}>Delete this account?</span>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  style={{ ...ghostBtn, color: '#ef4444', borderColor: '#ef444440' }}
+                >{deleting ? 'Deleting…' : 'Yes, delete'}</button>
+                <button onClick={() => setConfirmDelete(false)} style={ghostBtn}>Cancel</button>
+              </>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                style={{ ...ghostBtn, color: 'var(--text-3)' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
+              >Delete</button>
+            )}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div style={{ background: 'var(--bg-surface2)', borderRadius: 99, height: 4, overflow: 'hidden' }}>
+          <div style={{
+            width: `${completionPct}%`, height: '100%', borderRadius: 99,
+            background: completionPct >= 75 ? '#10b981' : '#3b82f6',
+            transition: 'width 0.3s',
+          }} />
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', flexShrink: 0 }}>
+        {(['plan', 'timeline', 'details', 'ai'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            background: 'none', border: 'none',
+            borderBottom: tab === t ? '2px solid #3b82f6' : '2px solid transparent',
+            padding: '10px 18px', marginBottom: -1,
+            color: tab === t ? 'var(--text-h)' : 'var(--text-2)',
+            fontSize: 13, fontWeight: tab === t ? 600 : 400,
+            cursor: 'pointer', fontFamily: 'var(--font-ui)',
+            textTransform: 'capitalize',
+          }}>{t === 'ai' ? '✦ AI' : t}</button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {tab === 'plan' && (
+          <PlanTab
+            account={localAccount}
+            onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
+          />
+        )}
+        {tab === 'timeline' && (
+          <TimelineTab
+            account={localAccount}
+            onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
+          />
+        )}
+        {tab === 'details' && (
+          <DetailsTab
+            account={localAccount}
+            planTemplates={planTemplates}
+            onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
+            onRefresh={onRefresh}
+          />
+        )}
+        {tab === 'ai' && (
+          <AITab account={localAccount} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+const ghostBtn: React.CSSProperties = {
+  background: 'none', border: '1px solid var(--border)', borderRadius: 6,
+  padding: '5px 12px', color: 'var(--text-2)', fontSize: 12,
+  cursor: 'pointer', fontFamily: 'var(--font-ui)',
+}
+
+// ─── Plan Tab ────────────────────────────────────────────────────────────────
+
+function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Account) => void }) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({
+    [account.milestones?.[0]?.id || '']: true,
+  })
+  const [addingMilestone, setAddingMilestone] = useState(false)
+  const [milestoneName, setMilestoneName] = useState('')
+  const [sessionModal, setSessionModal] = useState<Item | null>(null)
+  const supabase = createClient()
+
+  const toggleMilestone = (id: string) =>
+    setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
+
+  const handleAddMilestone = async () => {
+    if (!milestoneName.trim()) return
+    const { data: milestone } = await supabase.from('milestones').insert({
+      account_id: account.id,
+      name: milestoneName.trim(),
+      order_index: (account.milestones || []).length,
+    }).select('id, account_id, name, order_index').single()
+    if (milestone) {
+      const newMilestone: Milestone = { ...milestone, stages: [] }
+      onUpdate({ ...account, milestones: [...(account.milestones || []), newMilestone] })
+      setExpanded(prev => ({ ...prev, [milestone.id]: true }))
+      setMilestoneName('')
+      setAddingMilestone(false)
+    }
+  }
+
+  const handleSessionUpdate = (updated: Item) => {
+    onUpdate({
+      ...account,
+      milestones: (account.milestones || []).map(m => ({
+        ...m,
+        stages: m.stages.map(s => ({
+          ...s,
+          items: s.items.map(i => i.id === updated.id ? updated : i),
+        })),
+      })),
+    })
+    setSessionModal(updated)
+  }
+
+  return (
+    <div style={{ padding: '20px 24px' }}>
+      <style>{`.drag-handle { opacity: 0 } *:hover > .drag-handle { opacity: 1 }`}</style>
+      {(account.milestones || []).map((milestone, mi) => (
+        <MilestoneBlock
+          key={milestone.id}
+          milestone={milestone}
+          index={mi}
+          open={!!expanded[milestone.id]}
+          onToggle={() => toggleMilestone(milestone.id)}
+          account={account}
+          onUpdate={onUpdate}
+          onOpenSession={setSessionModal}
+        />
+      ))}
+      {sessionModal && (
+        <SessionModal
+          item={sessionModal}
+          onClose={() => setSessionModal(null)}
+          onUpdate={handleSessionUpdate}
+        />
+      )}
+
+      {/* Add milestone */}
+      {addingMilestone ? (
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <input
+            autoFocus
+            value={milestoneName}
+            onChange={e => setMilestoneName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleAddMilestone(); if (e.key === 'Escape') { setAddingMilestone(false); setMilestoneName('') } }}
+            placeholder="Milestone name..."
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          <button onClick={handleAddMilestone} style={primaryBtn}>Add</button>
+          <button onClick={() => { setAddingMilestone(false); setMilestoneName('') }} style={ghostBtn}>✕</button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setAddingMilestone(true)}
+          style={{
+            display: 'block', width: '100%', background: 'none',
+            border: '1px dashed var(--border)', borderRadius: 8,
+            padding: '10px', textAlign: 'center',
+            color: 'var(--text-3)', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+            marginTop: (account.milestones || []).length > 0 ? 4 : 0,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border-b)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+        >+ Add Milestone</button>
+      )}
+    </div>
+  )
+}
+
+// Inline editable name — shows a pencil icon on hover, becomes an input on click
+function InlineEdit({ value, onSave, style }: {
+  value: string
+  onSave: (v: string) => Promise<void>
+  style?: React.CSSProperties
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const [hovered, setHovered] = useState(false)
+
+  const commit = async () => {
+    setEditing(false)
+    const trimmed = draft.trim()
+    if (trimmed && trimmed !== value) await onSave(trimmed)
+    else setDraft(value)
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => {
+          e.stopPropagation()
+          if (e.key === 'Enter') { e.preventDefault(); commit() }
+          if (e.key === 'Escape') { setDraft(value); setEditing(false) }
+        }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'var(--bg-surface2)', border: '1px solid #3b82f6', borderRadius: 4,
+          padding: '1px 6px', color: 'var(--text-h)', outline: 'none', minWidth: 0, flex: 1,
+          fontSize: style?.fontSize, fontWeight: style?.fontWeight, fontFamily: 'var(--font-ui)',
+        }}
+      />
+    )
+  }
+
+  return (
+    <span
+      style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <span style={{ ...style, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+      <span
+        onClick={e => { e.stopPropagation(); setDraft(value); setEditing(true) }}
+        style={{
+          fontSize: 11, color: 'var(--text-3)', cursor: 'pointer', flexShrink: 0, lineHeight: 1,
+          opacity: hovered ? 1 : 0, transition: 'opacity 0.1s',
+        }}
+        title="Rename"
+      >✎</span>
+    </span>
+  )
+}
+
+function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, onOpenSession }: {
+  milestone: Milestone; index: number; open: boolean; onToggle: () => void
+  account: Account; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void
+}) {
+  const [localStages, setLocalStages] = useState<Stage[]>(milestone.stages)
+  useEffect(() => { setLocalStages(milestone.stages) }, [milestone.stages])
+
+  const stageSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  const supabase = createClient()
+
+  const handleStageDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIdx = localStages.findIndex(s => s.id === active.id)
+    const newIdx = localStages.findIndex(s => s.id === over.id)
+    if (oldIdx === -1 || newIdx === -1) return
+    const newStages = arrayMove(localStages, oldIdx, newIdx).map((s, i) => ({ ...s, order_index: i }))
+    setLocalStages(newStages)
+    onUpdate({
+      ...account,
+      milestones: (account.milestones || []).map(m =>
+        m.id !== milestone.id ? m : { ...m, stages: newStages }
+      ),
+    })
+    await Promise.all(newStages.map(s =>
+      supabase.from('stages').update({ order_index: s.order_index }).eq('id', s.id)
+    ))
+  }
+
+  const saveMilestoneName = async (name: string) => {
+    await supabase.from('milestones').update({ name }).eq('id', milestone.id)
+    onUpdate({
+      ...account,
+      milestones: (account.milestones || []).map(m =>
+        m.id === milestone.id ? { ...m, name } : m
+      ),
+    })
+  }
+
+  const allItems = localStages.flatMap(s => s.items)
+  const req = allItems.filter(i => i.required)
+  const done = req.filter(i => i.task_done || i.session_status === 'complete')
+  const pct = req.length ? Math.round((done.length / req.length) * 100) : 0
+  const isComplete = localStages.every(s => s.status === 'complete')
+  const [addingStage, setAddingStage] = useState(false)
+  const [stageName, setStageName] = useState('')
+
+  const handleAddStage = async () => {
+    if (!stageName.trim()) return
+    const { data: stage } = await supabase.from('stages').insert({
+      milestone_id: milestone.id,
+      name: stageName.trim(),
+      status: 'locked',
+      order_index: localStages.length,
+    }).select('id, milestone_id, name, status, order_index').single()
+    if (stage) {
+      const newStage: Stage = { ...stage, items: [] }
+      onUpdate({
+        ...account,
+        milestones: (account.milestones || []).map(m =>
+          m.id !== milestone.id ? m : { ...m, stages: [...m.stages, newStage] }
+        ),
+      })
+      setStageName('')
+      setAddingStage(false)
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+      <div
+        onClick={onToggle}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '12px 16px', cursor: 'pointer',
+          background: 'var(--bg-surface)', borderBottom: open ? '1px solid var(--border)' : 'none',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-surface3)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-surface)')}
+      >
+        <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{open ? '▾' : '▸'}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
+          {index + 1}.&nbsp;
+          <InlineEdit value={milestone.name} onSave={saveMilestoneName} style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-h)' }} />
+        </span>
+        {isComplete && <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>Complete</span>}
+        <div style={{ width: 80, background: 'var(--bg-surface2)', borderRadius: 99, height: 4, overflow: 'hidden' }}>
+          <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#10b981' : '#3b82f6', borderRadius: 99 }} />
+        </div>
+        <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', width: 32, textAlign: 'right' }}>{pct}%</span>
+      </div>
+      {open && (
+        <div>
+          <DndContext sensors={stageSensors} collisionDetection={closestCenter} onDragEnd={handleStageDragEnd}>
+            <SortableContext items={localStages.map(s => s.id)} strategy={verticalListSortingStrategy}>
+              {localStages.map((stage, si) => (
+                <SortableRow key={stage.id} id={stage.id}>
+                  <StageBlock
+                    stage={stage}
+                    index={si}
+                    account={account}
+                    milestone={{ ...milestone, stages: localStages }}
+                    onUpdate={onUpdate}
+                    onOpenSession={onOpenSession}
+                  />
+                </SortableRow>
+              ))}
+            </SortableContext>
+          </DndContext>
+          {/* Add stage row */}
+          {addingStage ? (
+            <div style={{ display: 'flex', gap: 8, padding: '8px 16px 10px 28px', background: 'var(--bg-stage)', borderTop: '1px solid var(--bg-surface3)' }}>
+              <input
+                autoFocus
+                value={stageName}
+                onChange={e => setStageName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddStage(); if (e.key === 'Escape') { setAddingStage(false); setStageName('') } }}
+                placeholder="Stage name..."
+                style={{ ...inputStyle, flex: 1, fontSize: 12 }}
+              />
+              <button onClick={handleAddStage} style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px' }}>Add</button>
+              <button onClick={() => { setAddingStage(false); setStageName('') }} style={{ ...ghostBtn, fontSize: 11, padding: '4px 10px' }}>✕</button>
+            </div>
+          ) : (
+            <button
+              onClick={e => { e.stopPropagation(); setAddingStage(true) }}
+              style={{
+                display: 'block', width: '100%', background: 'none', border: 'none',
+                borderTop: '1px solid var(--bg-surface3)',
+                padding: '7px 16px 7px 28px', textAlign: 'left',
+                color: 'var(--text-3)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
+            >+ Add Stage</button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Exchange grouping ────────────────────────────────────────────────────────
+type ItemGroup =
+  | { kind: 'exchange'; id: string; send: Item; receive: Item }
+  | { kind: 'single';   id: string; item: Item }
+
+function groupItems(items: Item[]): ItemGroup[] {
+  const result: ItemGroup[] = []
+  let i = 0
+  while (i < items.length) {
+    const cur = items[i]
+    const nxt = items[i + 1]
+    if (
+      cur.type === 'task' && nxt?.type === 'task' &&
+      cur.task_assignee === 'personal' && nxt.task_assignee === 'customer' &&
+      cur.task_name?.startsWith('Send ') && nxt.task_name?.startsWith('Return ')
+    ) {
+      result.push({ kind: 'exchange', id: cur.id, send: cur, receive: nxt })
+      i += 2
+    } else {
+      result.push({ kind: 'single', id: cur.id, item: cur })
+      i++
+    }
+  }
+  return result
+}
+
+// ─── Sortable wrappers ────────────────────────────────────────────────────────
+function SortableRow({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition: transition ?? undefined,
+        opacity: isDragging ? 0.35 : 1,
+        position: 'relative',
+      }}
+      {...attributes}
+    >
+      {/* Drag handle — left edge, hover-visible */}
+      <div
+        {...listeners}
+        style={{
+          position: 'absolute', left: 6, top: 0, bottom: 0,
+          width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          color: 'var(--border-b)', fontSize: 11, userSelect: 'none',
+          opacity: 0, transition: 'opacity 0.1s',
+        }}
+        className="drag-handle"
+        title="Drag to reorder"
+      >⠿</div>
+      {children}
+    </div>
+  )
+}
+
+function ExchangeRow({ sendItem, returnItem, stageStatus, onUpdate, accountId }: {
+  sendItem: Item; returnItem: Item; stageStatus: string; onUpdate: (i: Item) => void; accountId: string
+}) {
+  const supabase = createClient()
+  const locked = stageStatus === 'locked'
+  const label = sendItem.task_name?.replace(/^Send /, '') ?? ''
+  const { toggleBtn, panel } = useItemChecklist(sendItem, onUpdate)
+  const [requested, setRequested] = useState(false)
+
+  const toggle = async (item: Item) => {
+    if (locked) return
+    const newDone = !item.task_done
+    await supabase.from('items').update({ task_done: newDone }).eq('id', item.id)
+    onUpdate({ ...item, task_done: newDone })
+  }
+
+  const requestAgain = async () => {
+    if (locked) return
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('interactions').insert({
+      account_id: accountId,
+      type: 'email',
+      summary: `Followed up: re-requested ${label}`,
+      detail: `Sent a follow-up request for the "${label}" document.`,
+      user_id: user?.id || null,
+    })
+    setRequested(true)
+    setTimeout(() => setRequested(false), 3000)
+  }
+
+  const bothDone = sendItem.task_done && returnItem.task_done
+  const awaitingReturn = sendItem.task_done && !returnItem.task_done
+
+  const pill = (done: boolean | undefined, pillLabel: string, color: string, onClick: () => void) => (
+    <button onClick={onClick} disabled={locked} style={{
+      display: 'flex', alignItems: 'center', gap: 4,
+      padding: '2px 9px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+      cursor: locked ? 'default' : 'pointer', fontFamily: 'var(--font-ui)',
+      background: done ? '#10b98115' : color + '10',
+      border: `1px solid ${done ? '#10b98140' : color + '35'}`,
+      color: done ? '#10b981' : color,
+      transition: 'all 0.1s',
+    }}>
+      <span style={{ fontSize: 9 }}>{done ? '●' : '○'}</span> {pillLabel}
+    </button>
+  )
+
+  return (
+    <div style={{ opacity: locked ? 0.45 : 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 16px 6px 44px' }}>
+        <span style={{ fontSize: 13, color: bothDone ? 'var(--text-3)' : 'var(--text)', flex: 1, textDecoration: bothDone ? 'line-through' : 'none' }}>{label}</span>
+        {pill(sendItem.task_done, 'Sent', '#3b82f6', () => toggle(sendItem))}
+        {pill(returnItem.task_done, 'Received', '#f59e0b', () => toggle(returnItem))}
+        {awaitingReturn && !locked && (
+          <button
+            onClick={requestAgain}
+            style={{
+              background: requested ? '#10b98115' : 'none',
+              border: `1px solid ${requested ? '#10b98140' : 'var(--border)'}`,
+              borderRadius: 4, padding: '1px 8px', fontSize: 10, fontWeight: 600,
+              color: requested ? '#10b981' : 'var(--text-2)',
+              cursor: 'pointer', fontFamily: 'var(--font-ui)', flexShrink: 0,
+              transition: 'all 0.2s',
+            }}
+          >
+            {requested ? '✓ Logged' : '↩ Request Again'}
+          </button>
+        )}
+        {toggleBtn}
+      </div>
+      {panel}
+    </div>
+  )
+}
+
+
+function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpenSession }: {
+  stage: Stage; index: number; account: Account; milestone: Milestone; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void
+}) {
+  const [open, setOpen] = useState(stage.status === 'active' || stage.status === 'unlocked')
+  const [addingItem, setAddingItem] = useState(false)
+  const [itemType, setItemType] = useState<'task' | 'dependency' | 'exchange' | 'session' | 'log' | 'handoff'>('task')
+  const [itemName, setItemName] = useState('')
+  const [itemRequired, setItemRequired] = useState(true)
+  const [localItems, setLocalItems] = useState<Item[]>(stage.items)
+  const supabase = createClient()
+
+  // Keep local items in sync when parent updates (e.g. after adding an item)
+  useEffect(() => { setLocalItems(stage.items) }, [stage.items])
+
+  const saveStageName = async (name: string) => {
+    await supabase.from('stages').update({ name }).eq('id', stage.id)
+    onUpdate({
+      ...account,
+      milestones: (account.milestones || []).map(m =>
+        m.id !== milestone.id ? m : {
+          ...m,
+          stages: m.stages.map(s => s.id === stage.id ? { ...s, name } : s),
+        }
+      ),
+    })
+  }
+
+  const itemSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  const handleItemDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const groups = groupItems(localItems)
+    const oldIdx = groups.findIndex(g => g.id === active.id)
+    const newIdx = groups.findIndex(g => g.id === over.id)
+    if (oldIdx === -1 || newIdx === -1) return
+    const newGroups = arrayMove(groups, oldIdx, newIdx)
+    let idx = 0
+    const newItems: Item[] = newGroups.flatMap(g =>
+      g.kind === 'exchange'
+        ? [{ ...g.send, order_index: idx++ }, { ...g.receive, order_index: idx++ }]
+        : [{ ...g.item, order_index: idx++ }]
+    )
+    setLocalItems(newItems)
+    // Propagate new order to parent so re-renders don't reset the order
+    onUpdate({
+      ...account,
+      milestones: (account.milestones || []).map(m =>
+        m.id !== milestone.id ? m : {
+          ...m,
+          stages: m.stages.map(s =>
+            s.id !== stage.id ? s : { ...s, items: newItems }
+          ),
+        }
+      ),
+    })
+    await Promise.all(newItems.map(item =>
+      supabase.from('items').update({ order_index: item.order_index }).eq('id', item.id)
+    ))
+  }
+
+  const statusColor = STAGE_STATUS_COLORS[stage.status] || 'var(--text-3)'
+  const canAdvance = stage.status === 'unlocked' || stage.status === 'active'
+  const allRequiredDone = stage.items.filter(i => i.required).every(i =>
+    i.task_done || i.session_status === 'complete'
+  )
+
+  const handleAdvance = async () => {
+    if (!allRequiredDone) return
+    await supabase.from('stages').update({ status: 'complete' }).eq('id', stage.id)
+
+    // Find next stage in milestone
+    const stageIdx = milestone.stages.findIndex(s => s.id === stage.id)
+    if (stageIdx < milestone.stages.length - 1) {
+      const nextStage = milestone.stages[stageIdx + 1]
+      await supabase.from('stages').update({ status: 'active' }).eq('id', nextStage.id)
+    }
+
+    onUpdate({
+      ...account,
+      milestones: (account.milestones || []).map(m =>
+        m.id !== milestone.id ? m : {
+          ...m,
+          stages: m.stages.map((s, si) => {
+            if (s.id === stage.id) return { ...s, status: 'complete' as const }
+            const stageIdx2 = milestone.stages.findIndex(x => x.id === stage.id)
+            if (si === stageIdx2 + 1) return { ...s, status: 'active' as const }
+            return s
+          }),
+        }
+      ),
+    })
+  }
+
+  const handleItemUpdate = (updatedItem: Item) => {
+    onUpdate({
+      ...account,
+      milestones: (account.milestones || []).map(m =>
+        m.id !== milestone.id ? m : {
+          ...m,
+          stages: m.stages.map(s =>
+            s.id !== stage.id ? s : {
+              ...s,
+              items: s.items.map(i => i.id === updatedItem.id ? updatedItem : i),
+            }
+          ),
+        }
+      ),
+    })
+  }
+
+  const handleAddItem = async () => {
+    if (!itemName.trim()) return
+    const insertPayload: Record<string, unknown> = {
+      stage_id: stage.id,
+      type: itemType === 'exchange' ? 'task' : itemType, // exchange expands to 2 tasks
+      required: itemRequired,
+      order_index: stage.items.length,
+    }
+
+    if (itemType === 'task' || itemType === 'log') {
+      insertPayload.task_name     = itemName.trim()
+      insertPayload.task_assignee = 'personal'
+      insertPayload.task_source   = 'manual'
+      insertPayload.task_done     = false
+    } else if (itemType === 'dependency') {
+      // Dependency: customer-owned blocker. Reuses task_name + task_done columns.
+      insertPayload.type          = 'dependency'
+      insertPayload.task_name     = itemName.trim()
+      insertPayload.task_assignee = 'customer'
+      insertPayload.task_source   = 'manual'
+      insertPayload.task_done     = false
+    } else if (itemType === 'session') {
+      insertPayload.session_name   = itemName.trim()
+      insertPayload.session_status = 'pending'
+    } else if (itemType === 'handoff') {
+      insertPayload.handoff_name = itemName.trim()
+    } else if (itemType === 'exchange') {
+      // Two tasks: Send (respark) + Return (customer)
+      const base = { stage_id: stage.id, type: 'task', required: itemRequired, task_source: 'manual', task_done: false }
+      const { data: sendItem }   = await supabase.from('items').insert({ ...base, task_name: `Send ${itemName.trim()}`,   task_assignee: 'personal', order_index: stage.items.length }).select().single()
+      const { data: returnItem } = await supabase.from('items').insert({ ...base, task_name: `Return ${itemName.trim()}`, task_assignee: 'customer', order_index: stage.items.length + 1 }).select().single()
+      if (sendItem && returnItem) {
+        onUpdate({ ...account, milestones: (account.milestones || []).map(m => m.id !== milestone.id ? m : { ...m, stages: m.stages.map(s => s.id !== stage.id ? s : { ...s, items: [...s.items, sendItem as Item, returnItem as Item] }) }) })
+        setItemName(''); setAddingItem(false)
+      }
+      return
+    }
+
+    const { data: newItem } = await supabase.from('items').insert(insertPayload).select().single()
+    if (newItem) {
+      onUpdate({
+        ...account,
+        milestones: (account.milestones || []).map(m =>
+          m.id !== milestone.id ? m : {
+            ...m,
+            stages: m.stages.map(s =>
+              s.id !== stage.id ? s : { ...s, items: [...s.items, newItem as Item] }
+            ),
+          }
+        ),
+      })
+      setItemName('')
+      setAddingItem(false)
+    }
+  }
+
+  return (
+    <div style={{ borderBottom: '1px solid var(--bg-surface3)' }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '9px 16px 9px 28px', cursor: 'pointer', background: 'var(--bg-stage)',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-surface2)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-stage)')}
+      >
+        <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{open ? '▾' : '▸'}</span>
+        <InlineEdit value={stage.name} onSave={saveStageName} style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }} />
+        <span style={{
+          fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 4,
+          background: statusColor + '22', color: statusColor,
+          fontFamily: 'var(--font-mono)', textTransform: 'capitalize',
+        }}>{stage.status}</span>
+        {canAdvance && allRequiredDone && (
+          <button
+            onClick={e => { e.stopPropagation(); handleAdvance() }}
+            style={{
+              background: '#10b98122', border: '1px solid #10b98144',
+              borderRadius: 5, padding: '2px 8px',
+              color: '#10b981', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+            }}
+          >Mark complete →</button>
+        )}
+      </div>
+      {open && (
+        <div style={{ paddingBottom: 4 }}>
+          <DndContext sensors={itemSensors} collisionDetection={closestCenter} onDragEnd={handleItemDragEnd}>
+            <SortableContext items={groupItems(localItems).map(g => g.id)} strategy={verticalListSortingStrategy}>
+              {groupItems(localItems).map(group => (
+                <SortableRow key={group.id} id={group.id}>
+                  {group.kind === 'exchange' ? (
+                    <ExchangeRow
+                      sendItem={group.send}
+                      returnItem={group.receive}
+                      stageStatus={stage.status}
+                      onUpdate={handleItemUpdate}
+                      accountId={account.id}
+                    />
+                  ) : (
+                    <ItemRow item={group.item} stageStatus={stage.status} onUpdate={handleItemUpdate} onOpenSession={onOpenSession} />
+                  )}
+                </SortableRow>
+              ))}
+            </SortableContext>
+          </DndContext>
+          {/* Add item */}
+          {addingItem ? (
+            <div style={{ padding: '8px 16px 6px 44px' }}>
+              {/* Type picker — verb-first labels to make the distinction obvious */}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
+                {([
+                  { id: 'task',       label: 'Task (me)',          color: '#3b82f6', hint: 'Something you do internally' },
+                  { id: 'dependency', label: 'Dependency (them)',  color: '#f59e0b', hint: 'Something the customer must do' },
+                  { id: 'exchange',   label: 'Exchange (send/get)', color: '#8b5cf6', hint: 'Document you send, they return' },
+                  { id: 'session',    label: 'Session',            color: '#10b981', hint: 'Meeting or training' },
+                  { id: 'handoff',    label: 'Handoff',            color: '#6b7280', hint: 'Rep transition' },
+                  { id: 'log',        label: 'Log',                color: '#6b7280', hint: 'Activity log entry' },
+                ] as const).map(({ id, label, color }) => (
+                  <button key={id} onClick={() => setItemType(id)} title={id} style={{
+                    padding: '3px 9px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                    fontFamily: 'var(--font-ui)',
+                    background: itemType === id ? color + '20' : 'none',
+                    border: `1px solid ${itemType === id ? color : 'var(--border)'}`,
+                    color: itemType === id ? color : 'var(--text-3)',
+                  }}>{label}</button>
+                ))}
+                <button onClick={() => setItemRequired(r => !r)} style={{
+                  marginLeft: 'auto', padding: '3px 9px', borderRadius: 4, fontSize: 10,
+                  fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                  background: itemRequired ? '#10b98118' : 'none',
+                  border: `1px solid ${itemRequired ? '#10b98144' : 'var(--border)'}`,
+                  color: itemRequired ? '#10b981' : 'var(--text-3)',
+                }}>{itemRequired ? 'required' : 'optional'}</button>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input
+                  autoFocus
+                  value={itemName}
+                  onChange={e => setItemName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddItem(); if (e.key === 'Escape') { setAddingItem(false); setItemName('') } }}
+                  placeholder={
+                    itemType === 'task'       ? 'What do you need to do?' :
+                    itemType === 'dependency' ? 'What must the customer complete?' :
+                    itemType === 'exchange'   ? 'Document name (e.g. Data Template)' :
+                    itemType === 'session'    ? 'Session name...' :
+                    'Name...'
+                  }
+                  style={{ ...inputStyle, flex: 1, fontSize: 12 }}
+                />
+                <button onClick={handleAddItem} style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px' }}>Add</button>
+                <button onClick={() => { setAddingItem(false); setItemName('') }} style={{ ...ghostBtn, fontSize: 11, padding: '4px 10px' }}>✕</button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={e => { e.stopPropagation(); setAddingItem(true) }}
+              style={{
+                display: 'block', width: '100%', background: 'none', border: 'none',
+                padding: '5px 16px 5px 44px', textAlign: 'left',
+                color: 'var(--border-b)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
+            >+ Add Item</button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const ASSIGNEE_COLORS: Record<string, string> = {
+  personal: '#3b82f6', customer: '#f59e0b', internal: '#6b7280',
+}
+
+// Shared sub-checklist hook — used by ItemRow and ExchangeRow
+function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
+  const supabase = createClient()
+  const [open, setOpen] = useState((item.checklist ?? []).length > 0)
+  const [items, setItems] = useState<ChecklistItem[]>(item.checklist ?? [])
+  const [input, setInput] = useState('')
+
+  const save = async (next: ChecklistItem[]) => {
+    setItems(next)
+    await supabase.from('items').update({ checklist: next }).eq('id', item.id)
+    onUpdate({ ...item, checklist: next })
+  }
+  const add = async () => {
+    if (!input.trim()) return
+    await save([...items, { id: crypto.randomUUID(), text: input.trim(), done: false, created_at: new Date().toISOString() }])
+    setInput('')
+  }
+  const toggle = (id: string) => save(items.map(x => x.id === id ? { ...x, done: !x.done } : x))
+  const remove = (id: string) => save(items.filter(x => x.id !== id))
+
+  const doneCount = items.filter(x => x.done).length
+
+  const toggleBtn = (
+    <button
+      onClick={() => setOpen(v => !v)}
+      title="Checklist"
+      style={{
+        background: items.length ? 'var(--border)' : 'none',
+        border: `1px solid ${items.length ? 'var(--border-b)' : 'transparent'}`,
+        borderRadius: 4, padding: '1px 6px', cursor: 'pointer',
+        color: items.length ? 'var(--text-2)' : 'var(--border-b)',
+        fontSize: 10, fontFamily: 'var(--font-mono)',
+        display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0,
+      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f640'; e.currentTarget.style.color = 'var(--text)' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = items.length ? 'var(--border-b)' : 'transparent'; e.currentTarget.style.color = items.length ? 'var(--text-2)' : 'var(--border-b)' }}
+    >
+      ☰{items.length > 0 ? ` ${doneCount}/${items.length}` : ''}
+    </button>
+  )
+
+  const panel = open ? (
+    <div style={{ padding: '2px 16px 8px 62px' }}>
+      {items.map(ci => (
+        <div key={ci.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '2px 0' }}>
+          <div onClick={() => toggle(ci.id)} style={{
+            width: 12, height: 12, borderRadius: 2, flexShrink: 0,
+            border: ci.done ? 'none' : '1.5px solid var(--border-b)',
+            background: ci.done ? '#10b981' : 'transparent',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {ci.done && <span style={{ fontSize: 7, color: '#fff', fontWeight: 700 }}>✓</span>}
+          </div>
+          <span style={{ fontSize: 12, color: ci.done ? 'var(--text-3)' : 'var(--text)', flex: 1, textDecoration: ci.done ? 'line-through' : 'none' }}>{ci.text}</span>
+          <button onClick={() => remove(ci.id)} style={{ background: 'none', border: 'none', color: 'var(--border-b)', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: '0 2px' }}>×</button>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 5, marginTop: 3 }}>
+        <input value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') add(); if (e.key === 'Escape') setInput('') }}
+          placeholder="Add sub-item..." style={{ ...inputStyle, flex: 1, fontSize: 11, padding: '3px 7px', marginTop: 0 }} />
+        {input.trim() && <button onClick={add} style={{ ...primaryBtn, fontSize: 11, padding: '3px 10px' }}>Add</button>}
+      </div>
+    </div>
+  ) : null
+
+  return { toggleBtn, panel }
+}
+
+function ItemRow({ item, stageStatus, onUpdate, onOpenSession }: {
+  item: Item; stageStatus: string; onUpdate: (i: Item) => void; onOpenSession?: (item: Item) => void
+}) {
+  const supabase = createClient()
+  const locked = stageStatus === 'locked'
+  const { toggleBtn, panel } = useItemChecklist(item, onUpdate)
+
+  const toggleTask = async () => {
+    if (locked || (item.type !== 'task' && item.type !== 'dependency')) return
+    const newDone = !item.task_done
+    await supabase.from('items').update({ task_done: newDone }).eq('id', item.id)
+    onUpdate({ ...item, task_done: newDone })
+  }
+
+  const saveItemName = async (name: string) => {
+    const field = item.type === 'session' ? 'session_name' : item.type === 'handoff' ? 'handoff_name' : 'task_name'
+    await supabase.from('items').update({ [field]: name }).eq('id', item.id)
+    onUpdate({ ...item, [field]: name })
+  }
+
+  // ── Dependency — customer-owned blocker ──────────────────────────────────────
+  if (item.type === 'dependency') {
+    const isDone = !!item.task_done
+    return (
+      <div style={{ opacity: locked ? 0.4 : 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 16px 7px 44px' }}>
+          {/* Amber ⏳ icon — "Mark received" on click */}
+          <div
+            onClick={() => !locked && !isDone && toggleTask()}
+            title={isDone ? 'Received' : 'Mark received'}
+            style={{
+              width: 17, height: 17, borderRadius: 9, flexShrink: 0,
+              border: isDone ? 'none' : '1.5px solid #f59e0b',
+              background: isDone ? '#10b981' : 'transparent',
+              cursor: locked || isDone ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: isDone ? 8 : 10, color: isDone ? '#fff' : '#f59e0b', fontWeight: 700,
+            }}
+          >{isDone ? '✓' : '⏳'}</div>
+          <InlineEdit
+            value={item.task_name || ''}
+            onSave={saveItemName}
+            style={{ fontSize: 13, color: isDone ? 'var(--text-3)' : 'var(--text)', textDecoration: isDone ? 'line-through' : 'none' }}
+          />
+          {!item.required && <span style={{ fontSize: 10, color: 'var(--text-3)', flexShrink: 0 }}>optional</span>}
+          <span style={{ fontSize: 10, fontWeight: 700, padding: '0 6px', borderRadius: 3,
+            background: '#f59e0b18', color: '#f59e0b', fontFamily: 'var(--font-mono)', flexShrink: 0,
+            border: '1px solid #f59e0b30',
+          }}>waiting on customer</span>
+          {!isDone && !locked && (
+            <button onClick={toggleTask} style={{
+              background: 'none', border: '1px solid #f59e0b40', borderRadius: 4,
+              padding: '1px 7px', fontSize: 10, color: '#f59e0b', cursor: 'pointer',
+              fontFamily: 'var(--font-ui)', fontWeight: 600, flexShrink: 0,
+            }}>Mark received</button>
+          )}
+          {toggleBtn}
+        </div>
+        {panel}
+      </div>
+    )
+  }
+
+  if (item.type === 'task') {
+    const color = ASSIGNEE_COLORS[item.task_assignee || 'personal'] || 'var(--text-3)'
+    return (
+      <div style={{ opacity: locked ? 0.4 : 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 16px 7px 44px' }}>
+          <div onClick={toggleTask} style={{
+            width: 15, height: 15, borderRadius: 3, flexShrink: 0,
+            border: item.task_done ? 'none' : `1.5px solid ${color}`,
+            background: item.task_done ? '#10b981' : 'transparent',
+            cursor: locked ? 'default' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {item.task_done && <span style={{ fontSize: 8, color: '#fff', fontWeight: 700 }}>✓</span>}
+          </div>
+          <InlineEdit
+            value={item.task_name || ''}
+            onSave={saveItemName}
+            style={{ fontSize: 13, color: item.task_done ? 'var(--text-3)' : 'var(--text)', textDecoration: item.task_done ? 'line-through' : 'none' }}
+          />
+          {!item.required && <span style={{ fontSize: 10, color: 'var(--text-3)', flexShrink: 0 }}>optional</span>}
+          <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: color + '18', color, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{item.task_assignee}</span>
+          {toggleBtn}
+        </div>
+        {panel}
+      </div>
+    )
+  }
+
+  if (item.type === 'session') {
+    const toggleSession = async () => {
+      if (locked) return
+      const newStatus = item.session_status === 'complete' ? 'pending' : 'complete'
+      await supabase.from('items').update({ session_status: newStatus }).eq('id', item.id)
+      onUpdate({ ...item, session_status: newStatus })
+    }
+    const isComplete = item.session_status === 'complete'
+    return (
+      <div style={{ opacity: locked ? 0.4 : 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px 8px 44px' }}>
+          <div
+            onClick={toggleSession}
+            style={{
+              width: 15, height: 15, borderRadius: 3, flexShrink: 0,
+              border: isComplete ? 'none' : '1.5px solid #8b5cf6',
+              background: isComplete ? '#10b981' : 'transparent',
+              cursor: locked ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            {isComplete && <span style={{ fontSize: 8, color: '#fff', fontWeight: 700 }}>✓</span>}
+          </div>
+          <InlineEdit value={item.session_name || ''} onSave={saveItemName} style={{ fontSize: 13, color: isComplete ? 'var(--text-3)' : 'var(--text)', textDecoration: isComplete ? 'line-through' : 'none' }} />
+          <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: '#8b5cf618', color: '#8b5cf6', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>session</span>
+          {onOpenSession && (
+            <button
+              onClick={e => { e.stopPropagation(); onOpenSession(item) }}
+              style={{
+                background: 'none', border: '1px solid var(--border)', borderRadius: 4,
+                padding: '1px 7px', fontSize: 10, color: 'var(--text-2)', cursor: 'pointer',
+                fontFamily: 'var(--font-ui)', fontWeight: 600, flexShrink: 0,
+              }}
+            >Open ↗</button>
+          )}
+          {!isComplete && !locked && (
+            <button
+              onClick={toggleSession}
+              style={{
+                background: 'none', border: '1px solid #8b5cf640', borderRadius: 4,
+                padding: '1px 7px', fontSize: 10, color: '#8b5cf6', cursor: 'pointer',
+                fontFamily: 'var(--font-ui)', fontWeight: 600, flexShrink: 0,
+              }}
+            >Mark Complete</button>
+          )}
+          {toggleBtn}
+        </div>
+        {panel}
+      </div>
+    )
+  }
+
+  if (item.type === 'handoff') {
+    return (
+      <div style={{ opacity: locked ? 0.4 : 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px 7px 44px' }}>
+          <div style={{ width: 15, height: 15, borderRadius: 3, border: '1.5px solid var(--text-2)', flexShrink: 0 }} />
+          <InlineEdit value={item.handoff_name || ''} onSave={saveItemName} style={{ fontSize: 13, color: 'var(--text)' }} />
+          <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: 'var(--bg-surface3)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>handoff</span>
+          {toggleBtn}
+        </div>
+        {panel}
+      </div>
+    )
+  }
+
+  if (item.type === 'log') {
+    return <LogItem item={item} locked={locked} onUpdate={onUpdate} toggleBtn={toggleBtn} panel={panel} />
+  }
+
+  return null
+}
+
+function LogItem({ item, locked, onUpdate, toggleBtn, panel }: {
+  item: Item; locked: boolean; onUpdate: (i: Item) => void
+  toggleBtn: React.ReactNode; panel: React.ReactNode
+}) {
+  const [entries, setEntries] = useState<LogEntry[]>(item.log_entries ?? [])
+  const [text, setText] = useState('')
+  const supabase = createClient()
+
+  const addEntry = async () => {
+    if (!text.trim() || locked) return
+    const entry: LogEntry = { id: crypto.randomUUID(), text: text.trim(), created_at: new Date().toISOString() }
+    const next = [...entries, entry]
+    setEntries(next)
+    setText('')
+    await supabase.from('items').update({ log_entries: next }).eq('id', item.id)
+    onUpdate({ ...item, log_entries: next })
+  }
+
+  return (
+    <div style={{ opacity: locked ? 0.45 : 1 }}>
+      <div style={{ padding: '8px 16px 2px 44px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{item.task_name ?? 'Usage Log'}</span>
+          {toggleBtn}
+        </div>
+        {entries.length === 0
+          ? <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 6 }}>No entries yet</div>
+          : <div style={{ marginBottom: 6 }}>
+              {entries.map(e => (
+                <div key={e.id} style={{ display: 'flex', gap: 10, padding: '3px 0', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+                    {new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--text)' }}>{e.text}</span>
+                </div>
+              ))}
+            </div>
+        }
+        {!locked && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <input value={text} onChange={e => setText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addEntry() }}
+              placeholder="e.g. 14 jobs dispatched, drivers adapting well..."
+              style={{ ...inputStyle, flex: 1, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
+            {text.trim() && <button onClick={addEntry} style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px' }}>Log</button>}
+          </div>
+        )}
+      </div>
+      {panel}
+    </div>
+  )
+}
+
+// ─── Timeline Tab ─────────────────────────────────────────────────────────────
+
+function TimelineTab({ account, onUpdate }: { account: Account; onUpdate: (a: Account) => void }) {
+  const [showLog, setShowLog] = useState(false)
+  const [logType, setLogType] = useState('note')
+  const [logSummary, setLogSummary] = useState('')
+  const [logDetail, setLogDetail] = useState('')
+  const [saving, setSaving] = useState(false)
+  const supabase = createClient()
+
+  const interactions = [...(account.interactions || [])].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
+
+  const handleLog = async () => {
+    if (!logSummary.trim()) return
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data } = await supabase.from('interactions').insert({
+      account_id: account.id,
+      type: logType,
+      summary: logSummary,
+      detail: logDetail || null,
+      user_id: user?.id,
+    }).select().single()
+
+    if (data) {
+      onUpdate({
+        ...account,
+        interactions: [data as Interaction, ...(account.interactions || [])],
+      })
+    }
+    setLogSummary('')
+    setLogDetail('')
+    setShowLog(false)
+    setSaving(false)
+  }
+
+  return (
+    <div style={{ padding: '20px 24px', maxWidth: 720 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <button onClick={() => setShowLog(v => !v)} style={primaryBtn}>
+          {showLog ? '✕ Cancel' : '+ Log Interaction'}
+        </button>
+      </div>
+
+      {showLog && (
+        <div style={{
+          background: 'var(--bg-surface)', border: '1px solid var(--border-b)', borderRadius: 8,
+          padding: '16px 18px', marginBottom: 20,
+        }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            {['note', 'email', 'call', 'meeting'].map(t => (
+              <button key={t} onClick={() => setLogType(t)} style={{
+                background: logType === t ? 'var(--border)' : 'none',
+                border: `1px solid ${logType === t ? '#3b82f666' : 'var(--border)'}`,
+                borderRadius: 5, padding: '4px 10px',
+                color: logType === t ? 'var(--text)' : 'var(--text-2)',
+                fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)', textTransform: 'capitalize',
+              }}>{INTERACTION_ICONS[t]} {t}</button>
+            ))}
+          </div>
+          <input
+            value={logSummary} onChange={e => setLogSummary(e.target.value)}
+            placeholder="Summary..."
+            style={{ ...inputStyle, marginBottom: 8 }}
+          />
+          <textarea
+            value={logDetail} onChange={e => setLogDetail(e.target.value)}
+            placeholder="Details (optional)..."
+            rows={2}
+            style={{ ...inputStyle, resize: 'vertical' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+            <button onClick={handleLog} disabled={saving || !logSummary.trim()} style={primaryBtn}>
+              {saving ? 'Saving...' : 'Log'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {interactions.length === 0 ? (
+        <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: '48px 0' }}>
+          No interactions logged yet.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {interactions.map((interaction, idx) => (
+            <div key={interaction.id} style={{ display: 'flex', gap: 12, padding: '10px 0' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 32, flexShrink: 0 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: 'var(--bg-surface)', border: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 13,
+                }}>{INTERACTION_ICONS[interaction.type] || '📌'}</div>
+                {idx < interactions.length - 1 && (
+                  <div style={{ width: 1, flex: 1, background: 'var(--border)', marginTop: 4 }} />
+                )}
+              </div>
+              <div style={{ flex: 1, paddingBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>{interaction.summary}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', textTransform: 'capitalize' }}>
+                    {interaction.type}
+                  </span>
+                  <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>
+                    {new Date(interaction.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                {interaction.detail && (
+                  <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{interaction.detail}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Details Tab ──────────────────────────────────────────────────────────────
+
+function DetailsTab({ account, planTemplates, onUpdate, onRefresh }: {
+  account: Account
+  planTemplates: PlanTemplate[]
+  onUpdate: (a: Account) => void
+  onRefresh: () => void
+}) {
+  const [editingContext, setEditingContext] = useState(false)
+  const [contextDraft, setContextDraft] = useState(account.sales_context || '')
+  const [saving, setSaving] = useState(false)
+  const supabase = createClient()
+
+  const saveContext = async () => {
+    setSaving(true)
+    await supabase.from('accounts').update({ sales_context: contextDraft }).eq('id', account.id)
+    onUpdate({ ...account, sales_context: contextDraft })
+    setEditingContext(false)
+    setSaving(false)
+  }
+
+  return (
+    <div style={{ padding: '20px 24px', maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Account details editing */}
+      <AccountDetailsSection account={account} onUpdate={onUpdate} />
+
+      {/* Plan template assignment */}
+      {planTemplates.length > 0 && (
+        <ApplyPlanTemplateSection account={account} planTemplates={planTemplates} onRefresh={onRefresh} />
+      )}
+
+      {/* Sales context */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <span style={sectionLabel}>Deal Context</span>
+          <button onClick={() => setEditingContext(v => !v)} style={ghostBtn}>
+            {editingContext ? 'Cancel' : 'Edit'}
+          </button>
+        </div>
+        {editingContext ? (
+          <div>
+            <textarea
+              value={contextDraft} onChange={e => setContextDraft(e.target.value)}
+              rows={4} style={{ ...inputStyle, resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+              <button onClick={saveContext} disabled={saving} style={primaryBtn}>
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: 13, color: account.sales_context ? 'var(--text)' : 'var(--text-3)', lineHeight: 1.6 }}>
+            {account.sales_context || 'No context added.'}
+          </p>
+        )}
+      </section>
+
+      {/* Contacts */}
+      <ContactsSection account={account} onUpdate={onUpdate} />
+
+      {/* Requests */}
+      <RequestsSection account={account} onUpdate={onUpdate} />
+    </div>
+  )
+}
+
+function ApplyPlanTemplateSection({ account, planTemplates, onRefresh }: {
+  account: Account
+  planTemplates: PlanTemplate[]
+  onRefresh: () => void
+}) {
+  const matchingTemplates = planTemplates.filter(t => !t.sku || t.sku === account.sku)
+  const [selectedId, setSelectedId] = useState<string>('')
+  const [confirm, setConfirm] = useState(false)
+  const [applying, setApplying] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  const handleApply = async () => {
+    setApplying(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/apply-plan-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: account.id, plan_template_id: selectedId || undefined }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to apply template')
+      setSuccess(true)
+      setConfirm(false)
+      onRefresh()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  if (success) {
+    return (
+      <section>
+        <span style={sectionLabel}>Plan Template</span>
+        <p style={{ fontSize: 13, color: '#10b981', marginTop: 8 }}>
+          ✓ Plan template applied — switch to the Plan tab to see the new structure.
+        </p>
+      </section>
+    )
+  }
+
+  return (
+    <section>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={sectionLabel}>Plan Template</span>
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 12, lineHeight: 1.5 }}>
+        Assign a plan template to this account. This will replace the current plan structure — existing progress will be lost.
+      </p>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <select
+          value={selectedId}
+          onChange={e => { setSelectedId(e.target.value); setConfirm(false); setSuccess(false) }}
+          style={{ ...inputStyle, flex: 1, fontSize: 12 }}
+        >
+          <option value="">Default plan</option>
+          {matchingTemplates.map(t => (
+            <option key={t.id} value={t.id}>{t.name}{t.description ? ` — ${t.description}` : ''}</option>
+          ))}
+        </select>
+        {!confirm ? (
+          <button
+            onClick={() => setConfirm(true)}
+            style={ghostBtn}
+          >Apply</button>
+        ) : null}
+      </div>
+
+      {confirm && (
+        <div style={{
+          marginTop: 12, padding: '12px 14px', borderRadius: 8,
+          background: '#ef444411', border: '1px solid #ef444430',
+        }}>
+          <p style={{ fontSize: 12, color: '#ef4444', marginBottom: 10 }}>
+            ⚠ This will permanently replace the current plan and reset all progress. Are you sure?
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={handleApply}
+              disabled={applying}
+              style={{ ...primaryBtn, background: '#ef4444', borderColor: '#ef4444' }}
+            >{applying ? 'Applying…' : 'Yes, replace plan'}</button>
+            <button onClick={() => setConfirm(false)} style={ghostBtn}>Cancel</button>
+          </div>
+          {error && <p style={{ fontSize: 12, color: '#ef4444', marginTop: 8 }}>{error}</p>}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function AccountDetailsSection({ account, onUpdate }: { account: Account; onUpdate: (a: Account) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(account.name)
+  const [sku, setSku] = useState<string>(account.sku)
+  const [addons, setAddons] = useState<string[]>(account.addons || [])
+  const [arr, setArr] = useState(String(account.arr || ''))
+  const [saving, setSaving] = useState(false)
+  const supabase = createClient()
+
+  const SKU_OPTIONS = [['dispatch', 'Dispatch'], ['facility_management', 'Facility Mgmt'], ['full_suite', 'Full Suite']] as const
+  const ADDON_OPTIONS = ['brokerage', 'export', 'api'] as const
+  const SKU_COLORS_MAP: Record<string, string> = { dispatch: '#f59e0b', facility_management: '#8b5cf6', full_suite: '#3b82f6' }
+
+  const toggleAddon = (addon: string) =>
+    setAddons(prev => prev.includes(addon) ? prev.filter(a => a !== addon) : [...prev, addon])
+
+  const cancel = () => {
+    setName(account.name); setSku(account.sku); setAddons(account.addons || []); setArr(String(account.arr || ''))
+    setEditing(false)
+  }
+
+  const save = async () => {
+    setSaving(true)
+    const parsedArr = parseInt(arr) || 0
+    await supabase.from('accounts').update({
+      name: name.trim() || account.name,
+      sku,
+      addons,
+      arr: parsedArr,
+    }).eq('id', account.id)
+    onUpdate({ ...account, name: name.trim() || account.name, sku: sku as Sku, addons: addons as Addon[], arr: parsedArr })
+    setEditing(false)
+    setSaving(false)
+  }
+
+  return (
+    <section>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={sectionLabel}>Account Details</span>
+        {!editing && <button onClick={() => setEditing(true)} style={ghostBtn}>Edit</button>}
+      </div>
+
+      {editing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }}>
+            Name
+            <input value={name} onChange={e => setName(e.target.value)}
+              style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
+          </label>
+          <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }}>
+            ARR ($)
+            <input value={arr} onChange={e => setArr(e.target.value)} type="number"
+              style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
+          </label>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 6 }}>SKU</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {SKU_OPTIONS.map(([val, label]) => (
+                <button key={val} onClick={() => setSku(val)} style={{
+                  flex: 1, padding: '6px 0', borderRadius: 6,
+                  background: sku === val ? SKU_COLORS_MAP[val] + '22' : 'var(--bg-surface2)',
+                  border: `1px solid ${sku === val ? SKU_COLORS_MAP[val] : 'var(--border-b)'}`,
+                  color: sku === val ? SKU_COLORS_MAP[val] : 'var(--text-2)',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                }}>{label}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 6 }}>Add-ons</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {ADDON_OPTIONS.map(val => (
+                <button key={val} onClick={() => toggleAddon(val)} style={{
+                  flex: 1, padding: '5px 0', borderRadius: 6,
+                  background: addons.includes(val) ? '#3b82f622' : 'var(--bg-surface2)',
+                  border: `1px solid ${addons.includes(val) ? '#3b82f6' : 'var(--border-b)'}`,
+                  color: addons.includes(val) ? '#3b82f6' : 'var(--text-2)',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', textTransform: 'capitalize',
+                }}>{val}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+            <button onClick={cancel} style={ghostBtn}>Cancel</button>
+            <button onClick={save} disabled={saving} style={primaryBtn}>{saving ? 'Saving…' : 'Save'}</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)' }}>{account.name}</span>
+            {account.arr > 0 && (
+              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                ARR <strong style={{ color: 'var(--text-h)' }}>${account.arr.toLocaleString()}</strong>
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            <span style={{
+              fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+              background: (SKU_COLORS_MAP[account.sku] || 'var(--text-2)') + '22',
+              color: SKU_COLORS_MAP[account.sku] || 'var(--text-2)',
+              fontFamily: 'var(--font-mono)',
+            }}>{SKU_LABELS[account.sku] || account.sku}</span>
+            {(account.addons || []).map(a => (
+              <span key={a} style={{
+                fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 3,
+                background: 'var(--border)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)',
+              }}>{a}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function ContactsSection({ account, onUpdate }: { account: Account; onUpdate: (a: Account) => void }) {
+  const [showAdd, setShowAdd] = useState(false)
+  const [name, setName] = useState('')
+  const [role, setRole] = useState('')
+  const [email, setEmail] = useState('')
+  const supabase = createClient()
+
+  const addContact = async () => {
+    if (!name.trim()) return
+    const { data } = await supabase.from('contacts').insert({
+      account_id: account.id, name, role: role || null, email: email || null,
+    }).select().single()
+    if (data) {
+      onUpdate({ ...account, contacts: [...(account.contacts || []), data as Contact] })
+      setName(''); setRole(''); setEmail(''); setShowAdd(false)
+    }
+  }
+
+  return (
+    <section>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={sectionLabel}>Contacts</span>
+        <button onClick={() => setShowAdd(v => !v)} style={ghostBtn}>+ Add</button>
+      </div>
+
+      {showAdd && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="Name *" style={{ ...inputStyle, flex: 2 }} />
+          <input value={role} onChange={e => setRole(e.target.value)} placeholder="Role" style={{ ...inputStyle, flex: 1 }} />
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" style={{ ...inputStyle, flex: 2 }} />
+          <button onClick={addContact} style={primaryBtn}>Add</button>
+        </div>
+      )}
+
+      {(account.contacts || []).length === 0 ? (
+        <p style={{ fontSize: 13, color: 'var(--text-3)' }}>No contacts added.</p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+          {(account.contacts || []).map(c => (
+            <div key={c.id} style={{
+              background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 7,
+              padding: '10px 12px',
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>{c.name}</div>
+              {c.role && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{c.role}</div>}
+              {c.email && <div style={{ fontSize: 11, color: '#3b82f6', marginTop: 3, fontFamily: 'var(--font-mono)' }}>{c.email}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function RequestsSection({ account, onUpdate }: { account: Account; onUpdate: (a: Account) => void }) {
+  const supabase = createClient()
+  const requests = account.requests || []
+
+  const cycleStatus = async (req: Request) => {
+    const cycle: Record<string, string> = { pending: 'sent', sent: 'received', received: 'complete', complete: 'pending' }
+    const newStatus = cycle[req.status] || 'pending'
+    await supabase.from('requests').update({ status: newStatus }).eq('id', req.id)
+    onUpdate({
+      ...account,
+      requests: requests.map(r => r.id === req.id ? { ...r, status: newStatus as Request['status'] } : r),
+    })
+  }
+
+  const STATUS_COLORS: Record<string, string> = {
+    pending: 'var(--text-3)', sent: '#3b82f6', received: '#f59e0b', complete: '#10b981',
+  }
+
+  return (
+    <section>
+      <span style={{ ...sectionLabel, display: 'block', marginBottom: 10 }}>Requests</span>
+      {requests.length === 0 ? (
+        <p style={{ fontSize: 13, color: 'var(--text-3)' }}>No requests tracked.</p>
+      ) : (
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 7, overflow: 'hidden' }}>
+          {requests.map((req, idx) => (
+            <div key={req.id} style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+              borderBottom: idx < requests.length - 1 ? '1px solid var(--bg-surface3)' : 'none',
+            }}>
+              <span style={{ fontSize: 13, color: 'var(--text)', flex: 1 }}>{req.label}</span>
+              <button
+                onClick={() => cycleStatus(req)}
+                style={{
+                  fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+                  background: (STATUS_COLORS[req.status] || 'var(--text-3)') + '20',
+                  color: STATUS_COLORS[req.status] || 'var(--text-3)',
+                  border: `1px solid ${(STATUS_COLORS[req.status] || 'var(--text-3)')}44`,
+                  cursor: 'pointer', fontFamily: 'var(--font-mono)', textTransform: 'capitalize',
+                }}
+              >{req.status}</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+const primaryBtn: React.CSSProperties = {
+  background: '#3b82f6', border: 'none', borderRadius: 6,
+  padding: '7px 16px', color: '#fff', fontSize: 12,
+  fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+}
+const inputStyle: React.CSSProperties = {
+  width: '100%', background: 'var(--bg-surface2)', border: '1px solid var(--border-b)',
+  borderRadius: 6, padding: '7px 10px', color: 'var(--text-h)',
+  fontSize: 13, fontFamily: 'var(--font-ui)', outline: 'none', display: 'block',
+}
+const sectionLabel: React.CSSProperties = {
+  fontSize: 10, fontWeight: 700, color: 'var(--text-3)',
+  textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8,
+}
+
+// ─── AI Tab ──────────────────────────────────────────────────────────────────
+
+function AITab({ account }: { account: Account }) {
+  const [emailContext, setEmailContext] = useState('')
+  const [emailResult, setEmailResult] = useState<{ subject: string; body: string } | null>(null)
+  const [emailLoading, setEmailLoading] = useState(false)
+
+  const [summary, setSummary] = useState<string | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+
+  const [actions, setActions] = useState<{ action: string; reason: string; priority: string }[] | null>(null)
+  const [actionsLoading, setActionsLoading] = useState(false)
+  const [acceptedActions, setAcceptedActions] = useState<Set<number>>(new Set())
+  const [acceptingAction, setAcceptingAction] = useState<number | null>(null)
+  const supabase = createClient()
+
+  const [copied, setCopied] = useState(false)
+
+  const draftEmail = async () => {
+    setEmailLoading(true)
+    setEmailResult(null)
+    try {
+      const res = await fetch('/api/ai/draft-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: account.id, context: emailContext }),
+      })
+      const data = await res.json()
+      setEmailResult(data)
+    } finally {
+      setEmailLoading(false)
+    }
+  }
+
+  const getSummary = async () => {
+    setSummaryLoading(true)
+    setSummary(null)
+    try {
+      const res = await fetch('/api/ai/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: account.id }),
+      })
+      const data = await res.json()
+      setSummary(data.summary)
+    } finally {
+      setSummaryLoading(false)
+    }
+  }
+
+  const getActions = async () => {
+    setActionsLoading(true)
+    setActions(null)
+    try {
+      const res = await fetch('/api/ai/next-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: account.id }),
+      })
+      const data = await res.json()
+      setActions(data.actions)
+    } finally {
+      setActionsLoading(false)
+    }
+  }
+
+  // Auto-generate summary + actions when AI tab opens, and clear the pending dot
+  useEffect(() => {
+    getSummary()
+    getActions()
+    // Dismiss any pending ai_suggestions for this account so the dot clears
+    supabase
+      .from('ai_suggestions')
+      .update({ status: 'viewed' })
+      .eq('account_id', account.id)
+      .eq('status', 'pending')
+      .then(() => {}) // fire-and-forget
+  }, [account.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const acceptAction = async (index: number, action: { action: string; priority: string }) => {
+    setAcceptingAction(index)
+    await supabase.from('open_tasks').insert({
+      account_id: account.id,
+      name: action.action,
+      assignee: 'personal',
+      source: 'manual',
+      done: false,
+    })
+    setAcceptedActions(prev => new Set(prev).add(index))
+    setAcceptingAction(null)
+  }
+
+  const copyEmail = () => {
+    if (!emailResult) return
+    navigator.clipboard.writeText(`Subject: ${emailResult.subject}\n\n${emailResult.body}`)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const priorityColor = (p: string) =>
+    p === 'high' ? '#ef4444' : p === 'medium' ? '#f59e0b' : '#10b981'
+
+  return (
+    <div style={{ padding: '24px 28px', maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+      {/* Account Summary */}
+      <div style={aiCard}>
+        <div style={aiCardHeader}>
+          <span style={aiCardTitle}>Account Summary</span>
+          {summary && !summaryLoading && (
+            <button onClick={getSummary} style={aiBtn}>Regenerate</button>
+          )}
+        </div>
+        {summaryLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-2)' }}>Generating summary…</span>
+          </div>
+        ) : summary ? (
+          <div style={{ marginTop: 4 }}>
+            {summary.split('\n').filter(l => l.trim()).map((line, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+                <span style={{ color: '#3b82f6', flexShrink: 0, marginTop: 1 }}>•</span>
+                <span style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5 }}>
+                  {line.replace(/^•\s*/, '')}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ fontSize: 11, color: 'var(--text-2)' }}>
+            No recent interactions to summarize yet.
+          </p>
+        )}
+      </div>
+
+      {/* Next Actions */}
+      <div style={aiCard}>
+        <div style={aiCardHeader}>
+          <span style={aiCardTitle}>Suggested Next Actions</span>
+          {actions && !actionsLoading && (
+            <button onClick={getActions} style={aiBtn}>Regenerate</button>
+          )}
+        </div>
+        {actionsLoading && (
+          <div style={{ fontSize: 12, color: 'var(--text-2)', padding: '8px 0' }}>Thinking…</div>
+        )}
+        {!actionsLoading && !actions && (
+          <p style={{ fontSize: 11, color: 'var(--text-2)' }}>
+            No data yet to suggest actions from.
+          </p>
+        )}
+        {actions && actions.map((a, i) => {
+          const accepted = acceptedActions.has(i)
+          return (
+            <div key={i} style={{
+              background: accepted ? '#10b98108' : 'var(--bg-surface2)',
+              border: `1px solid ${accepted ? '#10b98130' : 'var(--border)'}`,
+              borderRadius: 8, padding: '12px 14px', marginBottom: 8,
+              borderLeft: `3px solid ${accepted ? '#10b981' : priorityColor(a.priority)}`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3,
+                  background: priorityColor(a.priority) + '22',
+                  color: priorityColor(a.priority),
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                }}>{a.priority}</span>
+                <span style={{ flex: 1 }} />
+                {accepted ? (
+                  <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>✓ Added to tasks</span>
+                ) : (
+                  <button
+                    onClick={() => acceptAction(i, a)}
+                    disabled={acceptingAction === i}
+                    style={{
+                      background: '#3b82f618', border: '1px solid #3b82f640',
+                      borderRadius: 5, padding: '3px 10px',
+                      color: '#93c5fd', fontSize: 11, fontWeight: 600,
+                      cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                    }}
+                  >
+                    {acceptingAction === i ? 'Adding…' : '+ Add to tasks'}
+                  </button>
+                )}
+              </div>
+              <div style={{ fontSize: 13, color: accepted ? 'var(--text-2)' : 'var(--text-h)', fontWeight: 600, marginBottom: 4 }}>{a.action}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{a.reason}</div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Draft Email */}
+      <div style={aiCard}>
+        <div style={aiCardHeader}>
+          <span style={aiCardTitle}>Draft Follow-up Email</span>
+          {emailResult && (
+            <button onClick={copyEmail} style={{ ...aiBtn, background: copied ? '#10b98120' : undefined, color: copied ? '#10b981' : undefined }}>
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          )}
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 12 }}>
+          Optional: add context for what to address in the email.
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: emailResult ? 16 : 0 }}>
+          <input
+            value={emailContext}
+            onChange={e => setEmailContext(e.target.value)}
+            placeholder="e.g. follow up on missing data file, check in after training session..."
+            style={{
+              flex: 1, background: 'var(--bg-surface2)', border: '1px solid var(--border-b)',
+              borderRadius: 6, padding: '7px 10px', color: 'var(--text-h)',
+              fontSize: 12, fontFamily: 'var(--font-ui)', outline: 'none',
+            }}
+            onKeyDown={e => e.key === 'Enter' && draftEmail()}
+          />
+          <button onClick={draftEmail} disabled={emailLoading} style={aiBtn}>
+            {emailLoading ? 'Drafting…' : emailResult ? 'Redraft' : 'Draft'}
+          </button>
+        </div>
+        {emailResult && (
+          <div style={{ background: 'var(--bg-surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', marginBottom: 8 }}>
+              Subject: {emailResult.subject}
+            </div>
+            <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+              {emailResult.body}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Session Modal ────────────────────────────────────────────────────────────
+
+function SessionModal({ item, onClose, onUpdate }: {
+  item: Item
+  onClose: () => void
+  onUpdate: (updated: Item) => void
+}) {
+  const supabase = createClient()
+  const isComplete = item.session_status === 'complete'
+
+  // Local state for all session fields
+  const [name, setName] = useState(item.session_name || '')
+  const [notes, setNotes] = useState(item.session_notes || '')
+  const [agenda, setAgenda] = useState<string[]>(item.session_agenda || [])
+  const [agendaInput, setAgendaInput] = useState('')
+  const [actionItems, setActionItems] = useState<SessionActionItem[]>(item.session_action_items || [])
+  const [actionInput, setActionInput] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const patch = async (fields: Partial<Item>) => {
+    await supabase.from('items').update(fields).eq('id', item.id)
+    onUpdate({ ...item, ...fields })
+  }
+
+  const saveName = async () => {
+    if (name.trim() && name.trim() !== item.session_name) {
+      await patch({ session_name: name.trim() })
+    }
+  }
+
+  const saveNotes = async () => {
+    await patch({ session_notes: notes })
+  }
+
+  const addAgendaItem = async () => {
+    if (!agendaInput.trim()) return
+    const next = [...agenda, agendaInput.trim()]
+    setAgenda(next)
+    setAgendaInput('')
+    await patch({ session_agenda: next })
+  }
+
+  const removeAgendaItem = async (idx: number) => {
+    const next = agenda.filter((_, i) => i !== idx)
+    setAgenda(next)
+    await patch({ session_agenda: next })
+  }
+
+  const addActionItem = async () => {
+    if (!actionInput.trim()) return
+    const newItem: SessionActionItem = {
+      id: crypto.randomUUID(),
+      text: actionInput.trim(),
+      done: false,
+      created_at: new Date().toISOString(),
+    }
+    const next = [...actionItems, newItem]
+    setActionItems(next)
+    setActionInput('')
+    await patch({ session_action_items: next })
+  }
+
+  const toggleActionItem = async (id: string) => {
+    const next = actionItems.map(a => a.id === id ? { ...a, done: !a.done } : a)
+    setActionItems(next)
+    await patch({ session_action_items: next })
+  }
+
+  const removeActionItem = async (id: string) => {
+    const next = actionItems.filter(a => a.id !== id)
+    setActionItems(next)
+    await patch({ session_action_items: next })
+  }
+
+  const toggleComplete = async () => {
+    setSaving(true)
+    const newStatus = isComplete ? 'pending' : 'complete'
+    await patch({ session_status: newStatus })
+    setSaving(false)
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 24,
+      }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{
+        background: 'var(--bg-surface)', border: '1px solid var(--border)',
+        borderRadius: 12, width: '100%', maxWidth: 680,
+        maxHeight: '85vh', overflow: 'hidden',
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '18px 22px 14px', borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'flex-start', gap: 12, flexShrink: 0,
+        }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: '#8b5cf618', color: '#8b5cf6', fontFamily: 'var(--font-mono)' }}>SESSION</span>
+              {isComplete && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: '#10b98118', color: '#10b981', fontFamily: 'var(--font-mono)' }}>COMPLETE</span>}
+            </div>
+            <input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onBlur={saveName}
+              onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.blur() } }}
+              style={{
+                fontSize: 18, fontWeight: 700, color: 'var(--text-h)',
+                background: 'none', border: 'none', outline: 'none',
+                width: '100%', fontFamily: 'var(--font-ui)',
+              }}
+              placeholder="Session name..."
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={toggleComplete}
+              disabled={saving}
+              style={{
+                padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                background: isComplete ? '#10b98120' : '#8b5cf620',
+                border: `1px solid ${isComplete ? '#10b98140' : '#8b5cf640'}`,
+                color: isComplete ? '#10b981' : '#8b5cf6',
+              }}
+            >
+              {isComplete ? '↩ Reopen' : '✓ Mark Complete'}
+            </button>
+            <button onClick={onClose} style={{
+              background: 'none', border: '1px solid var(--border)', borderRadius: 6,
+              padding: '6px 12px', color: 'var(--text-2)', fontSize: 13,
+              cursor: 'pointer', fontFamily: 'var(--font-ui)',
+            }}>✕</button>
+          </div>
+        </div>
+
+        {/* Body — scrollable */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+          {/* Agenda */}
+          <div>
+            <div style={sectionLabel}>Agenda</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+              {agenda.length === 0 && (
+                <p style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>No agenda items yet.</p>
+              )}
+              {agenda.map((item, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}>
+                  <span style={{ fontSize: 11, color: '#8b5cf6', fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
+                  <span style={{ fontSize: 13, color: 'var(--text)', flex: 1 }}>{item}</span>
+                  <button onClick={() => removeAgendaItem(i)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>×</button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                value={agendaInput}
+                onChange={e => setAgendaInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addAgendaItem() }}
+                placeholder="Add agenda item..."
+                style={{ ...modalInputStyle, flex: 1 }}
+              />
+              {agendaInput.trim() && (
+                <button onClick={addAgendaItem} style={modalAddBtn}>Add</button>
+              )}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <div style={sectionLabel}>Notes</div>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              onBlur={saveNotes}
+              placeholder="Session notes, outcomes, key decisions..."
+              rows={5}
+              style={{
+                ...modalInputStyle, width: '100%', resize: 'vertical',
+                lineHeight: 1.6, fontFamily: 'var(--font-ui)',
+              }}
+            />
+          </div>
+
+          {/* Action Items */}
+          <div>
+            <div style={sectionLabel}>Action Items</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 8 }}>
+              {actionItems.length === 0 && (
+                <p style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>No action items yet.</p>
+              )}
+              {actionItems.map(ai => (
+                <div key={ai.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                  <div
+                    onClick={() => toggleActionItem(ai.id)}
+                    style={{
+                      width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                      border: ai.done ? 'none' : '1.5px solid var(--border-b)',
+                      background: ai.done ? '#10b981' : 'transparent',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    {ai.done && <span style={{ fontSize: 8, color: '#fff', fontWeight: 700 }}>✓</span>}
+                  </div>
+                  <span style={{
+                    fontSize: 13, color: ai.done ? 'var(--text-3)' : 'var(--text)', flex: 1,
+                    textDecoration: ai.done ? 'line-through' : 'none',
+                  }}>{ai.text}</span>
+                  <button onClick={() => removeActionItem(ai.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>×</button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                value={actionInput}
+                onChange={e => setActionInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addActionItem() }}
+                placeholder="Add action item..."
+                style={{ ...modalInputStyle, flex: 1 }}
+              />
+              {actionInput.trim() && (
+                <button onClick={addActionItem} style={modalAddBtn}>Add</button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const modalInputStyle: React.CSSProperties = {
+  background: 'var(--bg-surface2)', border: '1px solid var(--border)',
+  borderRadius: 6, padding: '7px 10px', color: 'var(--text-h)',
+  fontSize: 13, fontFamily: 'var(--font-ui)', outline: 'none',
+}
+const modalAddBtn: React.CSSProperties = {
+  background: '#3b82f620', border: '1px solid #3b82f640', borderRadius: 6,
+  padding: '5px 14px', color: '#93c5fd', fontSize: 12,
+  fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+}
+
+const aiCard: React.CSSProperties = {
+  background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px',
+}
+const aiCardHeader: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8,
+}
+const aiCardTitle: React.CSSProperties = {
+  fontSize: 14, fontWeight: 700, color: 'var(--text-h)',
+}
+const aiBtn: React.CSSProperties = {
+  background: '#3b82f620', border: '1px solid #3b82f640', borderRadius: 6,
+  padding: '5px 14px', color: '#93c5fd', fontSize: 12,
+  fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+}
