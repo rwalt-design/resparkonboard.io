@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Step 3: Handle message events
-  if (body.event?.type === 'message' && body.event?.text && !body.event?.bot_id) {
+  // Only handle real human messages — skip bots, workflow automations, and message subtypes
+  if (body.event?.type === 'message' && body.event?.text && !body.event?.bot_id && !body.event?.subtype) {
     const text = (body.event.text as string).toLowerCase()
     const channelId = body.event.channel
     const ts = body.event.ts

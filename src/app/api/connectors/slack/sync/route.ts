@@ -38,7 +38,10 @@ export async function POST() {
       if (!data.messages?.matches?.length) continue
 
       for (const match of data.messages.matches) {
-        if (match.username === 'bot' || match.subtype) continue
+        // Skip bots, workflow automations, and non-human message subtypes
+        if (match.bot_id || match.bot_profile || match.subtype) continue
+        // Only surface messages from channels the authed user is in
+        if (match.channel?.is_member === false) continue
 
         const { data: existing } = await supabase
           .from('interactions')
