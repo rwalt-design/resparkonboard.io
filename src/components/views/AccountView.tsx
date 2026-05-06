@@ -1649,7 +1649,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
   const supabase = createClient()
 
   const interactions = [...(account.interactions || [])].sort(
-    (a, b) => new Date(a.event_at ?? a.created_at).getTime() - new Date(b.event_at ?? b.created_at).getTime()
+    (a, b) => new Date(b.event_at ?? b.created_at).getTime() - new Date(a.event_at ?? a.created_at).getTime()
   )
 
   const memberName = (userId?: string) => {
