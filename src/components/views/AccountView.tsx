@@ -349,7 +349,7 @@ function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Accoun
 
   return (
     <div style={{ padding: '20px 24px' }}>
-      <style>{`.drag-handle { opacity: 0 } *:hover > .drag-handle { opacity: 1 }`}</style>
+      <style>{`.drag-handle { opacity: 0 } *:hover > .drag-handle { opacity: 1 } .timeline-row:hover .item-delete-btn { opacity: 1 }`}</style>
       {(account.milestones || []).map((milestone, mi) => (
         <MilestoneBlock
           key={milestone.id}
@@ -360,6 +360,12 @@ function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Accoun
           account={account}
           onUpdate={onUpdate}
           onOpenSession={setSessionModal}
+          onDelete={async () => {
+            if (!window.confirm('Delete this milestone and all its stages and items?')) return
+            const supabase = createClient()
+            await supabase.from('milestones').delete().eq('id', milestone.id)
+            onUpdate({ ...account, milestones: (account.milestones || []).filter(m => m.id !== milestone.id) })
+          }}
         />
       ))}
       {sessionModal && (
@@ -460,9 +466,9 @@ function InlineEdit({ value, onSave, style }: {
   )
 }
 
-function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, onOpenSession }: {
+function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, onOpenSession, onDelete }: {
   milestone: Milestone; index: number; open: boolean; onToggle: () => void
-  account: Account; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void
+  account: Account; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void; onDelete?: () => void
 }) {
   const [localStages, setLocalStages] = useState<Stage[]>(milestone.stages)
   useEffect(() => { setLocalStages(milestone.stages) }, [milestone.stages])
@@ -508,6 +514,13 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, o
   const [addingStage, setAddingStage] = useState(false)
   const [stageName, setStageName] = useState('')
 
+  const handleDeleteStage = async (stageId: string) => {
+    await supabase.from('stages').delete().eq('id', stageId)
+    const next = localStages.filter(s => s.id !== stageId)
+    setLocalStages(next)
+    onUpdate({ ...account, milestones: (account.milestones || []).map(m => m.id !== milestone.id ? m : { ...m, stages: next }) })
+  }
+
   const handleAddStage = async () => {
     if (!stageName.trim()) return
     const { data: stage } = await supabase.from('stages').insert({
@@ -551,6 +564,20 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, o
           <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#10b981' : '#3b82f6', borderRadius: 99 }} />
         </div>
         <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', width: 32, textAlign: 'right' }}>{pct}%</span>
+        {onDelete && (
+          <button
+            onClick={e => { e.stopPropagation(); onDelete() }}
+            className="item-delete-btn"
+            title="Delete milestone"
+            style={{
+              background: 'none', border: 'none', padding: '0 4px',
+              color: 'var(--border-b)', fontSize: 16, lineHeight: 1,
+              cursor: 'pointer', flexShrink: 0, opacity: 0, transition: 'opacity 0.1s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
+          >×</button>
+        )}
       </div>
       {open && (
         <div>
@@ -565,6 +592,7 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, o
                     milestone={{ ...milestone, stages: localStages }}
                     onUpdate={onUpdate}
                     onOpenSession={onOpenSession}
+                    onDelete={() => handleDeleteStage(stage.id)}
                   />
                 </SortableRow>
               ))}
@@ -755,8 +783,8 @@ function ExchangeRow({ sendItem, returnItem, stageStatus, onUpdate, accountId, o
 }
 
 
-function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpenSession }: {
-  stage: Stage; index: number; account: Account; milestone: Milestone; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void
+function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpenSession, onDelete }: {
+  stage: Stage; index: number; account: Account; milestone: Milestone; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void; onDelete?: () => void
 }) {
   const [open, setOpen] = useState(stage.status === 'active' || stage.status === 'unlocked')
   const [addingItem, setAddingItem] = useState(false)
@@ -873,12 +901,12 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
   }
 
   const handleAddItem = async () => {
-    if (!itemName.trim()) return
+    if (itemType !== 'golive' && !itemName.trim()) return
     const insertPayload: Record<string, unknown> = {
       stage_id: stage.id,
       type: itemType === 'exchange' ? 'task' : itemType,
       required: itemRequired,
-      order_index: stage.items.length,
+      order_index: localItems.length,
     }
 
     if (itemType === 'golive') {
@@ -904,8 +932,11 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
     } else if (itemType === 'exchange') {
       // Two tasks: Send (respark) + Return (customer)
       const base = { stage_id: stage.id, type: 'task', required: itemRequired, task_source: 'manual', task_done: false }
-      const { data: sendItem }   = await supabase.from('items').insert({ ...base, task_name: `Send ${itemName.trim()}`,   task_assignee: 'personal', order_index: localItems.length }).select().single()
-      const { data: returnItem } = await supabase.from('items').insert({ ...base, task_name: `Return ${itemName.trim()}`, task_assignee: 'customer', order_index: localItems.length + 1 }).select().single()
+      const [{ data: sendItem, error: e1 }, { data: returnItem, error: e2 }] = await Promise.all([
+        supabase.from('items').insert({ ...base, task_name: `Send ${itemName.trim()}`,   task_assignee: 'personal', order_index: localItems.length }).select().single(),
+        supabase.from('items').insert({ ...base, task_name: `Return ${itemName.trim()}`, task_assignee: 'customer', order_index: localItems.length + 1 }).select().single(),
+      ])
+      if (e1 || e2) { alert(`Failed to add exchange: ${(e1 || e2)?.message}`); return }
       if (sendItem && returnItem) {
         const added = [sendItem as Item, returnItem as Item]
         setLocalItems(prev => [...prev, ...added])
@@ -1014,6 +1045,20 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
             }}
           >{allRequiredDone ? 'Mark complete →' : `${incompleteRequired.length} required left`}</button>
         )}
+        {onDelete && (
+          <button
+            onClick={e => { e.stopPropagation(); if (window.confirm('Delete this stage and all its items?')) onDelete() }}
+            className="item-delete-btn"
+            title="Delete stage"
+            style={{
+              background: 'none', border: 'none', padding: '0 4px',
+              color: 'var(--border-b)', fontSize: 15, lineHeight: 1,
+              cursor: 'pointer', flexShrink: 0, opacity: 0, transition: 'opacity 0.1s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
+          >×</button>
+        )}
       </div>
       {open && (
         <div style={{ paddingBottom: 4 }}>
@@ -1098,6 +1143,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
                     itemType === 'dependency' ? 'What must the customer complete?' :
                     itemType === 'exchange'   ? 'Document name (e.g. Data Template)' :
                     itemType === 'session'    ? 'Session name...' :
+                    itemType === 'golive'     ? 'Label (optional, defaults to "Go Live")' :
                     'Name...'
                   }
                   style={{ ...inputStyle, flex: 1, fontSize: 12 }}
@@ -1407,14 +1453,14 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete, onGoLiv
   }
 
   if (item.type === 'log') {
-    return <LogItem item={item} locked={locked} onUpdate={onUpdate} toggleBtn={toggleBtn} panel={panel} />
+    return <LogItem item={item} locked={locked} onUpdate={onUpdate} onDelete={onDelete} toggleBtn={toggleBtn} panel={panel} />
   }
 
   return null
 }
 
-function LogItem({ item, locked, onUpdate, toggleBtn, panel }: {
-  item: Item; locked: boolean; onUpdate: (i: Item) => void
+function LogItem({ item, locked, onUpdate, onDelete, toggleBtn, panel }: {
+  item: Item; locked: boolean; onUpdate: (i: Item) => void; onDelete?: () => void
   toggleBtn: React.ReactNode; panel: React.ReactNode
 }) {
   const [entries, setEntries] = useState<LogEntry[]>(item.log_entries ?? [])
@@ -1475,6 +1521,7 @@ function LogItem({ item, locked, onUpdate, toggleBtn, panel }: {
             textDecoration: item.task_done ? 'line-through' : 'none',
           }}>{item.task_name ?? 'Usage Log'}</span>
           {toggleBtn}
+          {onDelete && <DeleteBtn onClick={onDelete} />}
         </div>
 
         {/* Entry list */}
@@ -1593,6 +1640,14 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
     if (!userId) return null
     if (currentMember?.user_id === userId) return 'You'
     return orgMembers.find(m => m.user_id === userId)?.name ?? null
+  }
+
+  const handleDeleteInteraction = async (id: string) => {
+    await supabase.from('interactions').delete().eq('id', id)
+    onUpdate({
+      ...account,
+      interactions: (account.interactions || []).filter(i => i.id !== id),
+    })
   }
 
   const resetForm = () => {
@@ -1864,7 +1919,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {interactions.map((interaction, idx) => (
-            <div key={interaction.id} style={{ display: 'flex', gap: 12, padding: '10px 0' }}>
+            <div key={interaction.id} className="timeline-row" style={{ display: 'flex', gap: 12, padding: '10px 0' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 32, flexShrink: 0 }}>
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%',
@@ -1882,6 +1937,18 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
                     title={new Date(interaction.created_at).toLocaleString()}
                     style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', cursor: 'default' }}
                   >{formatRelativeTime(interaction.created_at)}</span>
+                  <button
+                    className="item-delete-btn"
+                    onClick={() => handleDeleteInteraction(interaction.id)}
+                    title="Delete interaction"
+                    style={{
+                      background: 'none', border: 'none', padding: '0 2px',
+                      color: 'var(--border-b)', fontSize: 14, lineHeight: 1,
+                      cursor: 'pointer', flexShrink: 0, opacity: 0, transition: 'opacity 0.1s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
+                  >×</button>
                 </div>
                 {interaction.detail && (
                   <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, margin: '0 0 3px' }}>{interaction.detail}</p>
