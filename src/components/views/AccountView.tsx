@@ -873,12 +873,12 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
   }
 
   const handleAddItem = async () => {
-    if (!itemName.trim()) return
+    if (itemType !== 'golive' && !itemName.trim()) return
     const insertPayload: Record<string, unknown> = {
       stage_id: stage.id,
       type: itemType === 'exchange' ? 'task' : itemType,
       required: itemRequired,
-      order_index: stage.items.length,
+      order_index: localItems.length,
     }
 
     if (itemType === 'golive') {
@@ -904,8 +904,11 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
     } else if (itemType === 'exchange') {
       // Two tasks: Send (respark) + Return (customer)
       const base = { stage_id: stage.id, type: 'task', required: itemRequired, task_source: 'manual', task_done: false }
-      const { data: sendItem }   = await supabase.from('items').insert({ ...base, task_name: `Send ${itemName.trim()}`,   task_assignee: 'personal', order_index: localItems.length }).select().single()
-      const { data: returnItem } = await supabase.from('items').insert({ ...base, task_name: `Return ${itemName.trim()}`, task_assignee: 'customer', order_index: localItems.length + 1 }).select().single()
+      const [{ data: sendItem, error: e1 }, { data: returnItem, error: e2 }] = await Promise.all([
+        supabase.from('items').insert({ ...base, task_name: `Send ${itemName.trim()}`,   task_assignee: 'personal', order_index: localItems.length }).select().single(),
+        supabase.from('items').insert({ ...base, task_name: `Return ${itemName.trim()}`, task_assignee: 'customer', order_index: localItems.length + 1 }).select().single(),
+      ])
+      if (e1 || e2) { alert(`Failed to add exchange: ${(e1 || e2)?.message}`); return }
       if (sendItem && returnItem) {
         const added = [sendItem as Item, returnItem as Item]
         setLocalItems(prev => [...prev, ...added])
@@ -1098,6 +1101,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
                     itemType === 'dependency' ? 'What must the customer complete?' :
                     itemType === 'exchange'   ? 'Document name (e.g. Data Template)' :
                     itemType === 'session'    ? 'Session name...' :
+                    itemType === 'golive'     ? 'Label (optional, defaults to "Go Live")' :
                     'Name...'
                   }
                   style={{ ...inputStyle, flex: 1, fontSize: 12 }}
