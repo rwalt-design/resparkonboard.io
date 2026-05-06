@@ -51,6 +51,11 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Record which template this account was built from (enables template sync later)
+  if (plan_template_id) {
+    await supabase.from('accounts').update({ plan_template_id }).eq('id', account_id)
+  }
+
   return NextResponse.json({ ok: true })
 }
 

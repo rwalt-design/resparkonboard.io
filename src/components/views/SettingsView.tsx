@@ -712,7 +712,28 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
   const [newDesc, setNewDesc] = useState('')
   const [saving, setSaving] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [pushingId, setPushingId] = useState<string | null>(null)
+  const [pushResult, setPushResult] = useState<{ id: string; message: string } | null>(null)
   const supabase = createClient()
+
+  const handlePushToAccounts = async (templateId: string, scope: 'linked' | 'all') => {
+    setPushingId(templateId)
+    setPushResult(null)
+    const res = await fetch(`/api/plan-templates/${templateId}/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope }),
+    })
+    const data = await res.json()
+    setPushingId(null)
+    if (data.error) {
+      setPushResult({ id: templateId, message: `Error: ${data.error}` })
+    } else if (data.accounts_synced === 0) {
+      setPushResult({ id: templateId, message: 'No linked accounts found. Use "Push to all" to sync every account.' })
+    } else {
+      setPushResult({ id: templateId, message: `Added ${data.items_added} item${data.items_added !== 1 ? 's' : ''} across ${data.accounts_synced} account${data.accounts_synced !== 1 ? 's' : ''}.` })
+    }
+  }
 
   // Keep local list in sync when parent refreshes (e.g. after onTemplatesChange)
   useEffect(() => { setTemplates(initialTemplates) }, [initialTemplates])
@@ -839,11 +860,24 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
                   style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '3px 10px', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#93c5fd')}
                   onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Clone</button>
+                <button
+                  onClick={() => handlePushToAccounts(t.id, 'all')}
+                  disabled={pushingId === t.id}
+                  title="Add any missing template items to all accounts in your org"
+                  style={{ background: '#10b98118', border: '1px solid #10b98140', borderRadius: 5, padding: '3px 10px', color: pushingId === t.id ? 'var(--text-3)' : '#10b981', fontSize: 11, fontWeight: 600, cursor: pushingId === t.id ? 'default' : 'pointer', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap' }}>
+                  {pushingId === t.id ? 'Pushing…' : '↑ Push to accounts'}
+                </button>
                 <button onClick={() => handleDelete(t.id)}
                   style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 14, cursor: 'pointer', padding: '0 4px' }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
                   onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}>×</button>
               </div>
+              {pushResult?.id === t.id && (
+                <div style={{ padding: '8px 16px', background: pushResult.message.startsWith('Error') ? '#ef444410' : '#10b98110', borderTop: '1px solid var(--border)', fontSize: 12, color: pushResult.message.startsWith('Error') ? '#ef4444' : '#10b981', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{pushResult.message}</span>
+                  <button onClick={() => setPushResult(null)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}>×</button>
+                </div>
+              )}
 
               {/* Inline structure editor */}
               {expandedId === t.id && (
