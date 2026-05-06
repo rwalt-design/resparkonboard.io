@@ -349,7 +349,7 @@ function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Accoun
 
   return (
     <div style={{ padding: '20px 24px' }}>
-      <style>{`.drag-handle { opacity: 0 } *:hover > .drag-handle { opacity: 1 }`}</style>
+      <style>{`.drag-handle { opacity: 0 } *:hover > .drag-handle { opacity: 1 } .timeline-row:hover .item-delete-btn { opacity: 1 }`}</style>
       {(account.milestones || []).map((milestone, mi) => (
         <MilestoneBlock
           key={milestone.id}
@@ -1642,6 +1642,14 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
     return orgMembers.find(m => m.user_id === userId)?.name ?? null
   }
 
+  const handleDeleteInteraction = async (id: string) => {
+    await supabase.from('interactions').delete().eq('id', id)
+    onUpdate({
+      ...account,
+      interactions: (account.interactions || []).filter(i => i.id !== id),
+    })
+  }
+
   const resetForm = () => {
     setCalledOutcome(null)
     setNote('')
@@ -1911,7 +1919,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {interactions.map((interaction, idx) => (
-            <div key={interaction.id} style={{ display: 'flex', gap: 12, padding: '10px 0' }}>
+            <div key={interaction.id} className="timeline-row" style={{ display: 'flex', gap: 12, padding: '10px 0' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 32, flexShrink: 0 }}>
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%',
@@ -1929,6 +1937,18 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
                     title={new Date(interaction.created_at).toLocaleString()}
                     style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', cursor: 'default' }}
                   >{formatRelativeTime(interaction.created_at)}</span>
+                  <button
+                    className="item-delete-btn"
+                    onClick={() => handleDeleteInteraction(interaction.id)}
+                    title="Delete interaction"
+                    style={{
+                      background: 'none', border: 'none', padding: '0 2px',
+                      color: 'var(--border-b)', fontSize: 14, lineHeight: 1,
+                      cursor: 'pointer', flexShrink: 0, opacity: 0, transition: 'opacity 0.1s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
+                  >×</button>
                 </div>
                 {interaction.detail && (
                   <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, margin: '0 0 3px' }}>{interaction.detail}</p>
