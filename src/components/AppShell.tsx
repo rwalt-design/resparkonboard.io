@@ -8,7 +8,7 @@ import { AccountView } from './views/AccountView'
 import { ActionItemsView } from './views/ActionItemsView'
 import { SettingsView } from './views/SettingsView'
 import { TimeToLaunchView } from './views/TimeToLaunchView'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
 
 type View = 'dashboard' | 'account' | 'actions' | 'ttl' | 'templates' | 'settings'
@@ -67,8 +67,13 @@ function useTheme() {
 }
 
 export function AppShell({ accounts: initialAccounts, currentUser, currentMember, orgMembers, trainingTemplates: initialTraining, planTemplates: initialPlans, sessionTemplates: initialSessions, connectors, connectorTokens, accountsWithSuggestions }: Props) {
-  const [view, setView] = useState<View>('dashboard')
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
+  const searchParams = useSearchParams()
+  const initialView = (searchParams.get('view') as View | null) ?? 'dashboard'
+  const initialAccountId = searchParams.get('account')
+  const [view, setView] = useState<View>(initialView)
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(
+    initialAccountId ? (initialAccounts.find(a => a.id === initialAccountId) ?? null) : null
+  )
   const [accounts, setAccounts] = useState<Account[]>(initialAccounts)
   const [planTemplates, setPlanTemplates] = useState<PlanTemplate[]>(initialPlans)
   const [trainingTemplates, setTrainingTemplates] = useState<TrainingTemplate[]>(initialTraining)
@@ -118,15 +123,25 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
     }
   }
 
+  const navigate = useCallback((nextView: View, account?: Account | null) => {
+    const params = new URLSearchParams()
+    if (nextView !== 'dashboard') params.set('view', nextView)
+    if (account) params.set('account', account.id)
+    const qs = params.toString()
+    router.replace(qs ? `?${qs}` : '/', { scroll: false })
+  }, [router])
+
   const handleSelectAccount = useCallback((account: Account) => {
     setSelectedAccount(account)
     setView('account')
-  }, [])
+    navigate('account', account)
+  }, [navigate])
 
   const handleBack = useCallback(() => {
     setSelectedAccount(null)
     setView('dashboard')
-  }, [])
+    navigate('dashboard')
+  }, [navigate])
 
   const refreshTemplates = useCallback(async () => {
     const supabase = createClient()
@@ -210,7 +225,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
       }}>
         {/* Logo */}
         <button
-          onClick={() => { setView('dashboard'); setSelectedAccount(null) }}
+          onClick={() => { setView('dashboard'); setSelectedAccount(null); navigate('dashboard') }}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
             background: 'none', border: 'none', cursor: 'pointer', padding: '0 8px 0 0', marginRight: 16,
@@ -237,7 +252,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
           {navItems.map(item => (
             <button
               key={item.id}
-              onClick={() => { setView(item.id); setSelectedAccount(null) }}
+              onClick={() => { setView(item.id); setSelectedAccount(null); navigate(item.id) }}
               style={{
                 background: isNavActive(item.id) ? 'var(--border)' : 'none',
                 border: 'none', borderRadius: 6, padding: '5px 10px',
@@ -336,7 +351,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
               boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
             }}>
               <button
-                onClick={() => { setView('settings'); setSelectedAccount(null); setUserMenuOpen(false) }}
+                onClick={() => { setView('settings'); setSelectedAccount(null); setUserMenuOpen(false); navigate('settings') }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, width: '100%',
                   background: 'none', border: 'none', borderRadius: 5,

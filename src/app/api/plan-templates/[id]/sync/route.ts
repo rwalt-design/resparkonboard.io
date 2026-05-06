@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // POST /api/plan-templates/[id]/sync
 // Additively pushes items from the template to accounts that use it.
-// Only adds missing items — never removes or modifies existing ones.
+// Creates missing stages; only adds missing items — never removes or modifies existing ones.
 // scope: 'linked' (default) = only accounts with plan_template_id set
 //        'all'              = every account in the org
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -50,22 +50,38 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       )
       if (!acctMilestone) continue
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const acctStages: any[] = acctMilestone.stages || []
+      const maxStageOrder: number = acctStages.reduce((max: number, s: { order_index?: number }) => Math.max(max, s.order_index ?? 0), acctStages.length - 1)
+      let nextStageOrder = maxStageOrder + 1
+
       for (const tmplStage of (tmplMilestone.stages || [])) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const acctStage = (acctMilestone.stages as any[] || []).find(
+        let acctStage: any = acctStages.find(
           (s: { name: string }) => s.name.toLowerCase() === tmplStage.name.toLowerCase()
         )
-        if (!acctStage) continue
+
+        // Stage doesn't exist yet — create it
+        if (!acctStage) {
+          const { data: newStage } = await supabase
+            .from('stages')
+            .insert({ milestone_id: acctMilestone.id, name: tmplStage.name, status: 'locked', order_index: nextStageOrder++ })
+            .select('id, name, order_index')
+            .single()
+          if (!newStage) continue
+          acctStage = { ...newStage, items: [] }
+          acctStages.push(acctStage)
+        }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const existingItems: any[] = acctStage.items || []
         const existingNames = new Set(
-          existingItems.map((i) =>
+          existingItems.map((i: { task_name?: string; session_name?: string; handoff_name?: string }) =>
             (i.task_name || i.session_name || i.handoff_name || '').toLowerCase()
           )
         )
         const maxOrder: number = existingItems.reduce(
-          (max, i) => Math.max(max, i.order_index ?? 0),
+          (max: number, i: { order_index?: number }) => Math.max(max, i.order_index ?? 0),
           existingItems.length - 1
         )
         let orderIdx = maxOrder + 1
