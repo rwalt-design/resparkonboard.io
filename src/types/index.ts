@@ -42,6 +42,7 @@ export interface Account {
   health_status: HealthStatus
   go_live_date?: string | null
   kickoff_date?: string | null
+  current_software?: string | null
   created_at: string
   updated_at: string
   // joined / computed

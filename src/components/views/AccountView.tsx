@@ -1771,12 +1771,20 @@ function DetailsTab({ account, planTemplates, onUpdate, onRefresh }: {
 }) {
   const [contextDraft, setContextDraft] = useState(account.sales_context || '')
   const [contextSaved, setContextSaved] = useState(true)
+  const [softwareDraft, setSoftwareDraft] = useState(account.current_software || '')
+  const [softwareSaved, setSoftwareSaved] = useState(true)
   const supabase = createClient()
 
   const saveContext = async () => {
     await supabase.from('accounts').update({ sales_context: contextDraft }).eq('id', account.id)
     onUpdate({ ...account, sales_context: contextDraft })
     setContextSaved(true)
+  }
+
+  const saveSoftware = async () => {
+    await supabase.from('accounts').update({ current_software: softwareDraft }).eq('id', account.id)
+    onUpdate({ ...account, current_software: softwareDraft })
+    setSoftwareSaved(true)
   }
 
   return (
@@ -1802,6 +1810,24 @@ function DetailsTab({ account, planTemplates, onUpdate, onRefresh }: {
           onBlur={saveContext}
           rows={4}
           placeholder="Add deal context, sales notes, key stakeholders…"
+          style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+        />
+      </section>
+
+      {/* Current software — always editable */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={sectionLabel}>Current Software</span>
+          {!softwareSaved && (
+            <button onClick={saveSoftware} style={primaryBtn}>Save</button>
+          )}
+        </div>
+        <textarea
+          value={softwareDraft}
+          onChange={e => { setSoftwareDraft(e.target.value); setSoftwareSaved(false) }}
+          onBlur={saveSoftware}
+          rows={3}
+          placeholder="What's the customer using today? Scrap software, accounting, compliance, ATMS…"
           style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
         />
       </section>
