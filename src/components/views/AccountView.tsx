@@ -575,18 +575,7 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, o
         </div>
         <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', width: 32, textAlign: 'right' }}>{pct}%</span>
         {onDelete && (
-          <button
-            onClick={e => { e.stopPropagation(); onDelete() }}
-            className="item-delete-btn"
-            title="Delete milestone"
-            style={{
-              background: 'none', border: 'none', padding: '0 4px',
-              color: 'var(--border-b)', fontSize: 16, lineHeight: 1,
-              cursor: 'pointer', flexShrink: 0, opacity: 0, transition: 'opacity 0.1s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
-          >×</button>
+          <DeleteBtn onClick={onDelete} size={16} />
         )}
       </div>
       {open && (
@@ -699,19 +688,23 @@ function SortableRow({ id, children }: { id: string; children: React.ReactNode }
   )
 }
 
-function DeleteBtn({ onClick }: { onClick: () => void }) {
+function useHover() {
+  const [hovered, setHovered] = useState(false)
+  return { hovered, onMouseEnter: () => setHovered(true), onMouseLeave: () => setHovered(false) }
+}
+
+function DeleteBtn({ onClick, size = 14, stopProp = true }: { onClick: () => void; size?: number; stopProp?: boolean }) {
+  const h = useHover()
   return (
     <button
-      onClick={e => { e.stopPropagation(); onClick() }}
-      className="item-delete-btn"
-      title="Remove from plan"
+      onClick={e => { if (stopProp) e.stopPropagation(); onClick() }}
+      title="Remove"
+      {...h}
       style={{
         background: 'none', border: 'none', padding: '0 3px',
-        color: 'var(--border-b)', fontSize: 14, lineHeight: 1,
-        cursor: 'pointer', flexShrink: 0, opacity: 0, transition: 'opacity 0.1s',
+        color: h.hovered ? '#ef4444' : 'var(--text-3)', fontSize: size, lineHeight: 1,
+        cursor: 'pointer', flexShrink: 0, opacity: h.hovered ? 1 : 0.25, transition: 'opacity 0.1s, color 0.1s',
       }}
-      onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-      onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
     >×</button>
   )
 }
@@ -1063,18 +1056,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
           </Tooltip>
         )}
         {onDelete && (
-          <button
-            onClick={e => { e.stopPropagation(); if (window.confirm('Delete this stage and all its items?')) onDelete() }}
-            className="item-delete-btn"
-            title="Delete stage"
-            style={{
-              background: 'none', border: 'none', padding: '0 4px',
-              color: 'var(--border-b)', fontSize: 15, lineHeight: 1,
-              cursor: 'pointer', flexShrink: 0, opacity: 0, transition: 'opacity 0.1s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
-          >×</button>
+          <DeleteBtn onClick={() => { if (window.confirm('Delete this stage and all its items?')) onDelete() }} size={15} />
         )}
       </div>
       {open && (
@@ -1957,18 +1939,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
                     title={new Date(interaction.created_at).toLocaleString()}
                     style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', cursor: 'default' }}
                   >{formatRelativeTime(interaction.created_at)}</span>
-                  <button
-                    className="item-delete-btn"
-                    onClick={() => handleDeleteInteraction(interaction.id)}
-                    title="Delete interaction"
-                    style={{
-                      background: 'none', border: 'none', padding: '0 2px',
-                      color: 'var(--border-b)', fontSize: 14, lineHeight: 1,
-                      cursor: 'pointer', flexShrink: 0, opacity: 0, transition: 'opacity 0.1s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
-                  >×</button>
+                  <DeleteBtn onClick={() => handleDeleteInteraction(interaction.id)} stopProp={false} />
                 </div>
                 {interaction.detail && (
                   <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, margin: '0 0 3px' }}>{interaction.detail}</p>
