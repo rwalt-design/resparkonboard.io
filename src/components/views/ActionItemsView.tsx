@@ -86,8 +86,21 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
   const allTasks = useMemo<FlatTask[]>(() => {
     const tasks: FlatTask[] = []
     accounts.forEach(account => {
+      // Names of tasks in stages that haven't been reached yet — used to suppress
+      // open_tasks that duplicate future-stage plan items.
+      const futureStageNames = new Set<string>()
+      ;(account.milestones || []).forEach(m => {
+        m.stages.forEach(s => {
+          if (s.status === 'locked' || s.status === 'unlocked') {
+            s.items.forEach(i => { if (i.task_name) futureStageNames.add(i.task_name.toLowerCase()) })
+          }
+        })
+      })
+
       ;(account.open_tasks || []).forEach(task => {
-        tasks.push({ ...task, account, fromPlan: false })
+        if (!futureStageNames.has(task.name.toLowerCase())) {
+          tasks.push({ ...task, account, fromPlan: false })
+        }
       })
       ;(account.milestones || []).forEach(m => {
         m.stages.forEach(s => {
