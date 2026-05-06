@@ -648,11 +648,18 @@ function loadDashState() {
   } catch { return { sortCol: null as SortCol | null, sortDir: 'asc' as 'asc' | 'desc', filterSearch: '', filterHealth: '' } }
 }
 
+function isHandedOff(account: Account): boolean {
+  return (account.milestones || []).some(m =>
+    m.stages.some(s => s.items.some(i => i.type === 'handoff' && i.task_done))
+  )
+}
+
 export function DashboardView({ accounts, currentMember: _currentMember, orgMembers, trainingTemplates, planTemplates, sessionTemplates, accountsWithSuggestions, onSelectAccount, onRefresh }: Props) {
   const [showCreate, setShowCreate] = useState(false)
   const [expandedTask, setExpandedTask] = useState<string | null>(null)
   const [showWeeklySummary, setShowWeeklySummary] = useState(false)
   const [healthUpdating, setHealthUpdating] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'onboarding' | 'handed_off'>('onboarding')
 
   const init = useMemo(loadDashState, [])
   const [sortCol, setSortCol] = useState<SortCol | null>(init.sortCol)
@@ -677,9 +684,11 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
   }
 
   const summaries = useMemo(() => accounts.map(computeSummary), [accounts])
+  const onboardingAccounts = useMemo(() => summaries.filter(a => !isHandedOff(a)), [summaries])
+  const handedOffAccounts = useMemo(() => summaries.filter(a => isHandedOff(a)), [summaries])
 
   const sorted = useMemo(() => {
-    let list = [...summaries]
+    let list = [...(activeTab === 'handed_off' ? handedOffAccounts : onboardingAccounts)]
 
     // Filter
     if (filterSearch.trim()) {
@@ -739,19 +748,40 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
   return (
     <div style={{ padding: '24px 28px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-h)', marginBottom: 2 }}>Accounts</h1>
-          <p style={{ fontSize: 12, color: 'var(--text-2)' }}>{accounts.length} account{accounts.length !== 1 ? 's' : ''}</p>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-h)' }}>Accounts</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setShowWeeklySummary(true)} style={secondaryBtnStyle}>
-            Weekly Summary
-          </button>
-          <button onClick={() => setShowCreate(true)} style={primaryBtnStyle}>
-            + New Account
-          </button>
+          <button onClick={() => setShowWeeklySummary(true)} style={secondaryBtnStyle}>Weekly Summary</button>
+          <button onClick={() => setShowCreate(true)} style={primaryBtnStyle}>+ New Account</button>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+        {([
+          { key: 'onboarding', label: 'Onboarding', count: onboardingAccounts.length },
+          { key: 'handed_off', label: 'Handed Off',  count: handedOffAccounts.length },
+        ] as const).map(({ key, label, count }) => {
+          const active = activeTab === key
+          return (
+            <button key={key} onClick={() => setActiveTab(key)} style={{
+              background: 'none', border: 'none', padding: '6px 14px 10px',
+              fontSize: 13, fontWeight: active ? 600 : 400,
+              color: active ? 'var(--text-h)' : 'var(--text-3)',
+              cursor: 'pointer', fontFamily: 'var(--font-ui)',
+              borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+              marginBottom: -1, transition: 'color 0.1s',
+            }}>
+              {label}
+              <span style={{
+                marginLeft: 6, fontSize: 11, fontWeight: 600,
+                background: active ? 'var(--accent)' : 'var(--bg-surface3)',
+                color: active ? '#fff' : 'var(--text-3)',
+                borderRadius: 99, padding: '1px 6px',
+              }}>{count}</span>
+            </button>
+          )
+        })}
       </div>
 
       {showWeeklySummary && <WeeklySummaryModal accounts={accounts} onClose={() => setShowWeeklySummary(false)} />}
