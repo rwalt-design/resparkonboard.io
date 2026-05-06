@@ -369,10 +369,9 @@ function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Accoun
           onUpdate={onUpdate}
           onOpenSession={setSessionModal}
           onDelete={async () => {
-            if (!window.confirm('Delete this milestone and all its stages and items?')) return
             const supabase = createClient()
             const { error } = await supabase.from('milestones').delete().eq('id', milestone.id)
-            if (error) { alert(`Delete failed: ${error.message}`); return }
+            if (error) { console.error('Delete milestone failed:', error.message); return }
             onUpdate({ ...account, milestones: (account.milestones || []).filter(m => m.id !== milestone.id) })
           }}
         />
@@ -525,7 +524,7 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, o
 
   const handleDeleteStage = async (stageId: string) => {
     const { error } = await supabase.from('stages').delete().eq('id', stageId)
-    if (error) { alert(`Delete failed: ${error.message}`); return }
+    if (error) { console.error('Delete failed:', error.message); return }
     const next = localStages.filter(s => s.id !== stageId)
     setLocalStages(next)
     onUpdate({ ...account, milestones: (account.milestones || []).map(m => m.id !== milestone.id ? m : { ...m, stages: next }) })
@@ -973,9 +972,8 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
   }
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!window.confirm('Remove this item from the plan?')) return
     const { error } = await supabase.from('items').delete().eq('id', itemId)
-    if (error) { alert(`Delete failed: ${error.message}`); return }
+    if (error) { console.error('Delete failed:', error.message); return }
     const next = localItems.filter(i => i.id !== itemId)
     setLocalItems(next)
     onUpdate({
@@ -1056,7 +1054,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
           </Tooltip>
         )}
         {onDelete && (
-          <DeleteBtn onClick={() => { if (window.confirm('Delete this stage and all its items?')) onDelete() }} size={15} />
+          <DeleteBtn onClick={onDelete} size={15} />
         )}
       </div>
       {open && (
@@ -1073,7 +1071,6 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
                       onUpdate={handleItemUpdate}
                       accountId={account.id}
                       onDelete={() => {
-                        if (!window.confirm('Remove this exchange from the plan?')) return
                         Promise.all([
                           supabase.from('items').delete().eq('id', group.send.id),
                           supabase.from('items').delete().eq('id', group.receive.id),
@@ -1645,7 +1642,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
 
   const handleDeleteInteraction = async (id: string) => {
     const { error } = await supabase.from('interactions').delete().eq('id', id)
-    if (error) { alert(`Delete failed: ${error.message}`); return }
+    if (error) { console.error('Delete failed:', error.message); return }
     onUpdate({
       ...account,
       interactions: (account.interactions || []).filter(i => i.id !== id),
