@@ -145,6 +145,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
   }, [accounts])
 
   const [tasks, setTasks]                 = useState<FlatTask[]>(allTasks)
+  useEffect(() => { setTasks(allTasks) }, [allTasks])
   const [filterMode, setFilterMode]       = useState<'all'|'me'|'customer'|'internal'>('all')
   const [filterAccount, setFilterAccount] = useState('all')
   const [filterSource, setFilterSource]   = useState('all')

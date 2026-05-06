@@ -89,6 +89,9 @@ export async function POST() {
         const msgData = await msgRes.json()
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const subject = msgData.payload?.headers?.find((h: any) => h.name === 'Subject')?.value || 'No subject'
+        const eventAt = msgData.internalDate
+          ? new Date(parseInt(msgData.internalDate)).toISOString()
+          : null
 
         await supabase.from('interactions').insert({
           account_id: contact.account_id,
@@ -96,6 +99,7 @@ export async function POST() {
           summary: `Email from ${contact.name}: ${subject}`,
           detail: null,
           gmail_message_id: msg.id,
+          event_at: eventAt,
         })
         logged++
       }

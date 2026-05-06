@@ -79,10 +79,10 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
   const completionPct = required.length ? Math.round((done.length / required.length) * 100) : 0
 
   const interactions = [...(localAccount.interactions || [])].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    (a, b) => new Date(b.event_at ?? b.created_at).getTime() - new Date(a.event_at ?? a.created_at).getTime()
   )
   const daysSinceContact = interactions.length > 0
-    ? Math.floor((Date.now() - new Date(interactions[0].created_at).getTime()) / 86400000)
+    ? Math.floor((Date.now() - new Date(interactions[0].event_at ?? interactions[0].created_at).getTime()) / 86400000)
     : null
 
   const openTaskCount = (localAccount.open_tasks || []).filter(t => !t.done).length
@@ -932,7 +932,11 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
       return
     }
 
-    const { data: newItem } = await supabase.from('items').insert(insertPayload).select().single()
+    const { data: newItem, error: insertError } = await supabase.from('items').insert(insertPayload).select().single()
+    if (insertError) {
+      alert(`Failed to add item: ${insertError.message}`)
+      return
+    }
     if (newItem) {
       setLocalItems(prev => [...prev, newItem as Item])
       onUpdate({
@@ -1593,7 +1597,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
   const supabase = createClient()
 
   const interactions = [...(account.interactions || [])].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    (a, b) => new Date(a.event_at ?? a.created_at).getTime() - new Date(b.event_at ?? b.created_at).getTime()
   )
 
   const memberName = (userId?: string) => {
@@ -1689,7 +1693,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
 
     if (data) {
       const merged = [data as Interaction, ...(account.interactions || [])]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .sort((a, b) => new Date(a.event_at ?? a.created_at).getTime() - new Date(b.event_at ?? b.created_at).getTime())
       onUpdate({ ...account, interactions: merged })
       setToast({ message: 'Logged ✓' })
       setTimeout(() => setToast(null), 3000)
