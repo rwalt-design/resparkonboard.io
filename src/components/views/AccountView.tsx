@@ -1597,7 +1597,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
   const supabase = createClient()
 
   const interactions = [...(account.interactions || [])].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   )
 
   const memberName = (userId?: string) => {
@@ -1693,7 +1693,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
 
     if (data) {
       const merged = [data as Interaction, ...(account.interactions || [])]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       onUpdate({ ...account, interactions: merged })
       setToast({ message: 'Logged ✓' })
       setTimeout(() => setToast(null), 3000)
