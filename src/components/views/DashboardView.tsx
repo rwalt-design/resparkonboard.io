@@ -655,8 +655,8 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
     setHealthUpdating(null)
   }
 
-  // Account | SKU | Stage | Completion | Last Outreach | Last Contact | Go Live | Days since KO | Tasks | Health
-  const cols = 'minmax(140px,1.6fr) minmax(90px,1fr) minmax(100px,1.2fr) 112px 128px 128px 96px 96px 80px 128px'
+  // Account | SKU | Stage | Completion | Last Outreach | Last Contact | Timeline | Tasks | Health
+  const cols = 'minmax(140px,1.6fr) minmax(90px,1fr) minmax(100px,1.2fr) 112px 128px 128px 120px 80px 128px'
 
   // Date helpers for header columns
   const startOfToday = () => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime() }
@@ -717,8 +717,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
               { label: 'Completion', align: 'left', nowrap: true },
               { label: 'Last Outreach', align: 'center', nowrap: true },
               { label: 'Last Contact', align: 'center', nowrap: true },
-              { label: 'Go Live', align: 'center', nowrap: true },
-              { label: 'Days Since KO', align: 'center', nowrap: true },
+              { label: 'Timeline', align: 'center', nowrap: true },
               { label: 'Tasks', align: 'center', nowrap: true },
               { label: 'Health', align: 'right', nowrap: true },
             ].map(({ label, align, nowrap }) => (
@@ -863,32 +862,31 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                     </span>
                   </div>
 
-                  {/* Go Live countdown */}
-                  <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                  {/* Timeline — KO and Go Live stacked */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, flexShrink: 0, lineHeight: 1.3 }}>
                     {(() => {
-                      const d = daysFromToday(account.go_live_date)
-                      if (d === null) return <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>—</span>
-                      const color = d < 0 ? '#ef4444' : d <= 14 ? '#f59e0b' : 'var(--text-2)'
-                      const label = d < 0 ? `${-d}d over` : d === 0 ? 'today' : `${d}d`
+                      const ko = daysSinceDate(account.kickoff_date)
+                      const gl = daysFromToday(account.go_live_date)
+                      if (ko === null && gl === null) {
+                        return <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>—</span>
+                      }
+                      const glColor = gl === null ? 'var(--text-3)' : gl < 0 ? '#ef4444' : gl <= 14 ? '#f59e0b' : 'var(--text-2)'
+                      const glLabel = gl === null ? '—' : gl < 0 ? `${-gl}d over` : gl === 0 ? 'today' : `in ${gl}d`
                       return (
-                        <span
-                          title={account.go_live_date ? new Date(account.go_live_date).toLocaleDateString() : undefined}
-                          style={{ fontSize: 11, whiteSpace: 'nowrap', color, fontFamily: 'var(--font-mono)' }}
-                        >{label}</span>
-                      )
-                    })()}
-                  </div>
-
-                  {/* Days since KO */}
-                  <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
-                    {(() => {
-                      const d = daysSinceDate(account.kickoff_date)
-                      if (d === null) return <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>—</span>
-                      return (
-                        <span
-                          title={account.kickoff_date ? new Date(account.kickoff_date).toLocaleDateString() : undefined}
-                          style={{ fontSize: 11, whiteSpace: 'nowrap', color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}
-                        >{d}d</span>
+                        <>
+                          <span
+                            title={account.kickoff_date ? `KO ${new Date(account.kickoff_date).toLocaleDateString()}` : 'KO not set'}
+                            style={{ fontSize: 10, whiteSpace: 'nowrap', color: ko === null ? 'var(--text-3)' : 'var(--text-2)', fontFamily: 'var(--font-mono)' }}
+                          >
+                            <span style={{ color: 'var(--text-3)' }}>KO </span>{ko === null ? '—' : `${ko}d ago`}
+                          </span>
+                          <span
+                            title={account.go_live_date ? `Go Live ${new Date(account.go_live_date).toLocaleDateString()}` : 'Go Live not set'}
+                            style={{ fontSize: 10, whiteSpace: 'nowrap', color: glColor, fontFamily: 'var(--font-mono)' }}
+                          >
+                            <span style={{ color: 'var(--text-3)' }}>GL </span>{glLabel}
+                          </span>
+                        </>
                       )
                     })()}
                   </div>
