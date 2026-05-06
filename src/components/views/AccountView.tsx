@@ -818,29 +818,58 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
 
   const statusColor = STAGE_STATUS_COLORS[stage.status] || 'var(--text-3)'
   const canAdvance = stage.status === 'unlocked' || stage.status === 'active'
+  const isGoLiveStage = /go.?live|launch/i.test(stage.name)
   const handleAdvance = async () => {
     await supabase.from('stages').update({ status: 'complete' }).eq('id', stage.id)
 
-    // Find next stage in milestone
     const stageIdx = milestone.stages.findIndex(s => s.id === stage.id)
-    if (stageIdx < milestone.stages.length - 1) {
+    const isLastInMilestone = stageIdx === milestone.stages.length - 1
+
+    let nextStageId: string | null = null
+    let nextStageMilestoneId: string | null = null
+
+    if (!isLastInMilestone) {
       const nextStage = milestone.stages[stageIdx + 1]
+      nextStageId = nextStage.id
+      nextStageMilestoneId = milestone.id
       await supabase.from('stages').update({ status: 'active' }).eq('id', nextStage.id)
+    } else {
+      // Activate first stage of next milestone
+      const allMilestones = account.milestones || []
+      const milestoneIdx = allMilestones.findIndex(m => m.id === milestone.id)
+      if (milestoneIdx >= 0 && milestoneIdx < allMilestones.length - 1) {
+        const nextMilestone = allMilestones[milestoneIdx + 1]
+        if (nextMilestone.stages.length > 0) {
+          nextStageId = nextMilestone.stages[0].id
+          nextStageMilestoneId = nextMilestone.id
+          await supabase.from('stages').update({ status: 'active' }).eq('id', nextStageId)
+        }
+      }
     }
 
     onUpdate({
       ...account,
-      milestones: (account.milestones || []).map(m =>
-        m.id !== milestone.id ? m : {
-          ...m,
-          stages: m.stages.map((s, si) => {
-            if (s.id === stage.id) return { ...s, status: 'complete' as const }
-            const stageIdx2 = milestone.stages.findIndex(x => x.id === stage.id)
-            if (si === stageIdx2 + 1) return { ...s, status: 'active' as const }
-            return s
-          }),
+      milestones: (account.milestones || []).map(m => {
+        if (m.id === milestone.id) {
+          return {
+            ...m,
+            stages: m.stages.map((s, si) => {
+              if (s.id === stage.id) return { ...s, status: 'complete' as const }
+              if (!isLastInMilestone && si === stageIdx + 1) return { ...s, status: 'active' as const }
+              return s
+            }),
+          }
         }
-      ),
+        if (nextStageMilestoneId && m.id === nextStageMilestoneId) {
+          return {
+            ...m,
+            stages: m.stages.map(s =>
+              s.id === nextStageId ? { ...s, status: 'active' as const } : s
+            ),
+          }
+        }
+        return m
+      }),
     })
   }
 
@@ -983,12 +1012,18 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
         {canAdvance && (
           <button
             onClick={e => { e.stopPropagation(); handleAdvance() }}
-            style={{
+            style={isGoLiveStage ? {
+              background: 'linear-gradient(135deg, #f59e0b22, #10b98122)',
+              border: '1px solid #10b98166',
+              borderRadius: 5, padding: '3px 10px',
+              color: '#10b981', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+              letterSpacing: '0.02em',
+            } : {
               background: '#10b98122', border: '1px solid #10b98144',
               borderRadius: 5, padding: '2px 8px',
               color: '#10b981', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
             }}
-          >Mark complete →</button>
+          >{isGoLiveStage ? '🚀 Go Live!' : 'Mark complete →'}</button>
         )}
       </div>
       {open && (
