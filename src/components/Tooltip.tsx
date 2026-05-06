@@ -15,7 +15,10 @@ export function setTooltipsEnabled(enabled: boolean) {
 }
 
 export function useTooltipsEnabled() {
-  const [enabled, setEnabled] = useState(false)
+  const [enabled, setEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true
+    return getTooltipsEnabled()
+  })
   useEffect(() => {
     setEnabled(getTooltipsEnabled())
     const handler = (e: Event) => setEnabled((e as CustomEvent<boolean>).detail)
