@@ -1507,13 +1507,16 @@ function LogItem({ item, locked, onUpdate, toggleBtn, panel }: {
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}
               style={{ ...inputStyle, width: 130, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
-            <input value={usageType} onChange={e => setUsageType(e.target.value)}
-              placeholder="Usage type"
-              style={{ ...inputStyle, flex: 1, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
+            <select value={usageType} onChange={e => setUsageType(e.target.value)}
+              style={{ ...inputStyle, width: 100, fontSize: 11, padding: '4px 8px', marginTop: 0, cursor: 'pointer' }}>
+              <option value="">Type</option>
+              <option value="Jobs">Jobs</option>
+              <option value="Tickets">Tickets</option>
+            </select>
             <input type="number" value={count} onChange={e => setCount(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') addEntry() }}
               placeholder="Count"
-              style={{ ...inputStyle, width: 72, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
+              style={{ ...inputStyle, flex: 1, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
             <button onClick={addEntry} disabled={!canLog}
               style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px', opacity: canLog ? 1 : 0.4, cursor: canLog ? 'pointer' : 'default', flexShrink: 0 }}>
               Log for day
@@ -2085,6 +2088,7 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
   const [arr, setArr] = useState(String(account.arr || ''))
   const [goLive, setGoLive] = useState<string>(account.go_live_date || '')
   const [kickoff, setKickoff] = useState<string>(account.kickoff_date || '')
+  const [pausedDays, setPausedDays] = useState<string>(String(account.paused_days ?? ''))
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const supabase = createClient()
@@ -2107,6 +2111,7 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
       arr: parsedArr,
       go_live_date: goLive || null,
       kickoff_date: kickoff || null,
+      paused_days: parseInt(pausedDays) || 0,
     }
     const { error } = await supabase.from('accounts').update(patch).eq('id', account.id)
     if (error) {
@@ -2123,6 +2128,7 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
       arr: parsedArr,
       go_live_date: patch.go_live_date,
       kickoff_date: patch.kickoff_date,
+      paused_days: patch.paused_days,
     })
     setSaving(false)
     onClose()
@@ -2173,6 +2179,11 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
             Go Live date
             <input value={goLive} onChange={e => setGoLive(e.target.value)} type="date"
               style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
+          </label>
+          <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }} title="Days spent on-hold or blocked — excluded from Days to Live">
+            Paused days
+            <input value={pausedDays} onChange={e => setPausedDays(e.target.value)} type="number" min="0"
+              placeholder="0" style={{ ...inputStyle, fontSize: 13, marginTop: 4, width: 80 }} />
           </label>
         </div>
 
