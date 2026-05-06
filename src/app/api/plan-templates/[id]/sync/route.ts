@@ -34,31 +34,62 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const details: { account_name: string; items_added: number }[] = []
 
   for (const account of accounts) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Fetch milestones explicitly (no nested selects — RLS on nested tables is unreliable)
     const { data: milestones } = await supabase
       .from('milestones')
-      .select('id, name, order_index, stages(id, name, order_index, items(id, type, task_name, session_name, handoff_name, order_index))')
+      .select('id, name, order_index')
       .eq('account_id', account.id)
       .order('order_index')
+
+    if (!milestones?.length) continue
+    const milestoneIds = milestones.map(m => m.id)
+
+    // Fetch all stages for these milestones in one query
+    const { data: allStages } = await supabase
+      .from('stages')
+      .select('id, name, order_index, milestone_id')
+      .in('milestone_id', milestoneIds)
+      .order('order_index')
+
+    // Fetch all items for these stages in one query
+    const stageIds = (allStages || []).map(s => s.id)
+    const { data: allItems } = stageIds.length
+      ? await supabase
+          .from('items')
+          .select('id, type, task_name, session_name, handoff_name, order_index, stage_id')
+          .in('stage_id', stageIds)
+      : { data: [] }
+
+    // Build lookup maps
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stagesByMilestone = new Map<string, any[]>()
+    for (const s of allStages || []) {
+      if (!stagesByMilestone.has(s.milestone_id)) stagesByMilestone.set(s.milestone_id, [])
+      stagesByMilestone.get(s.milestone_id)!.push(s)
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const itemsByStage = new Map<string, any[]>()
+    for (const i of allItems || []) {
+      if (!itemsByStage.has(i.stage_id)) itemsByStage.set(i.stage_id, [])
+      itemsByStage.get(i.stage_id)!.push(i)
+    }
 
     let accountAdded = 0
 
     for (const tmplMilestone of (template.structure?.milestones || [])) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const acctMilestone = (milestones as any[] || []).find(
-        (m: { name: string }) => m.name.toLowerCase() === tmplMilestone.name.toLowerCase()
+      const acctMilestone = milestones.find(
+        m => m.name.toLowerCase() === tmplMilestone.name.toLowerCase()
       )
       if (!acctMilestone) continue
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const acctStages: any[] = acctMilestone.stages || []
-      const maxStageOrder: number = acctStages.reduce((max: number, s: { order_index?: number }) => Math.max(max, s.order_index ?? 0), acctStages.length - 1)
+      const acctStages = stagesByMilestone.get(acctMilestone.id) || []
+      const maxStageOrder = acctStages.reduce((max, s) => Math.max(max, s.order_index ?? 0), acctStages.length - 1)
       let nextStageOrder = maxStageOrder + 1
 
       for (const tmplStage of (tmplMilestone.stages || [])) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let acctStage: any = acctStages.find(
-          (s: { name: string }) => s.name.toLowerCase() === tmplStage.name.toLowerCase()
+          s => s.name.toLowerCase() === tmplStage.name.toLowerCase()
         )
 
         // Stage doesn't exist yet — create it
@@ -66,22 +97,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           const { data: newStage } = await supabase
             .from('stages')
             .insert({ milestone_id: acctMilestone.id, name: tmplStage.name, status: 'locked', order_index: nextStageOrder++ })
-            .select('id, name, order_index')
+            .select('id, name, order_index, milestone_id')
             .single()
           if (!newStage) continue
-          acctStage = { ...newStage, items: [] }
+          acctStage = newStage
           acctStages.push(acctStage)
+          stagesByMilestone.set(acctMilestone.id, acctStages)
+          itemsByStage.set(acctStage.id, [])
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const existingItems: any[] = acctStage.items || []
+        const existingItems = itemsByStage.get(acctStage.id) || []
         const existingNames = new Set(
-          existingItems.map((i: { task_name?: string; session_name?: string; handoff_name?: string }) =>
+          existingItems.map(i =>
             (i.task_name || i.session_name || i.handoff_name || '').toLowerCase()
           )
         )
-        const maxOrder: number = existingItems.reduce(
-          (max: number, i: { order_index?: number }) => Math.max(max, i.order_index ?? 0),
+        const maxOrder = existingItems.reduce(
+          (max, i) => Math.max(max, i.order_index ?? 0),
           existingItems.length - 1
         )
         let orderIdx = maxOrder + 1
@@ -129,7 +161,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
         if (toInsert.length > 0) {
           const { error } = await supabase.from('items').insert(toInsert)
-          if (!error) accountAdded += toInsert.length
+          if (!error) {
+            accountAdded += toInsert.length
+            // Update local cache so subsequent stages in the same account don't re-add
+            itemsByStage.set(acctStage.id, [...existingItems, ...toInsert as any[]])
+          }
         }
       }
     }

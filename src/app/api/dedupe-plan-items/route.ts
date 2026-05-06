@@ -26,16 +26,22 @@ export async function POST(req: NextRequest) {
   const details: { account_name: string; removed: number }[] = []
 
   for (const account of accounts) {
-    const { data: stages } = await supabase
-      .from('stages')
-      .select('id, milestone_id, milestones!inner(account_id)')
-      .eq('milestones.account_id', account.id)
+    // Step 1: get milestone IDs for this account
+    const { data: milestones } = await supabase
+      .from('milestones').select('id').eq('account_id', account.id)
+    if (!milestones?.length) continue
 
+    const milestoneIds = milestones.map(m => m.id)
+
+    // Step 2: get all stage IDs under those milestones
+    const { data: stages } = await supabase
+      .from('stages').select('id').in('milestone_id', milestoneIds)
     if (!stages?.length) continue
 
     let accountRemoved = 0
 
     for (const stage of stages) {
+      // Step 3: get all items in this stage
       const { data: items } = await supabase
         .from('items')
         .select('id, type, task_name, session_name, handoff_name, task_done, order_index')
@@ -44,11 +50,11 @@ export async function POST(req: NextRequest) {
 
       if (!items || items.length < 2) continue
 
-      // Group by normalized display name + type
+      // Group by type + normalized display name
       const groups = new Map<string, typeof items>()
       for (const item of items) {
-        const displayName = (item.task_name || item.session_name || item.handoff_name || '').toLowerCase().trim()
-        const key = `${item.type}::${displayName}`
+        const name = (item.task_name || item.session_name || item.handoff_name || '').toLowerCase().trim()
+        const key = `${item.type}::${name}`
         if (!groups.has(key)) groups.set(key, [])
         groups.get(key)!.push(item)
       }
@@ -56,7 +62,7 @@ export async function POST(req: NextRequest) {
       const toDelete: string[] = []
       for (const group of Array.from(groups.values())) {
         if (group.length < 2) continue
-        // Keep the one that's done (if any), otherwise lowest order_index (first inserted)
+        // Keep the done one first, then lowest order_index (earliest inserted)
         const sorted = [...group].sort((a, b) => {
           if (a.task_done && !b.task_done) return -1
           if (!a.task_done && b.task_done) return 1
@@ -68,6 +74,7 @@ export async function POST(req: NextRequest) {
       if (toDelete.length > 0) {
         const { error } = await supabase.from('items').delete().in('id', toDelete)
         if (!error) accountRemoved += toDelete.length
+        else console.error('Dedup delete error:', error.message)
       }
     }
 
