@@ -825,49 +825,27 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
     const isLastInMilestone = stageIdx === milestone.stages.length - 1
 
     let nextStageId: string | null = null
-    let nextStageMilestoneId: string | null = null
 
     if (!isLastInMilestone) {
       const nextStage = milestone.stages[stageIdx + 1]
       nextStageId = nextStage.id
       nextStageMilestoneId = milestone.id
       await supabase.from('stages').update({ status: 'active' }).eq('id', nextStage.id)
-    } else {
-      // Activate first stage of next milestone
-      const allMilestones = account.milestones || []
-      const milestoneIdx = allMilestones.findIndex(m => m.id === milestone.id)
-      if (milestoneIdx >= 0 && milestoneIdx < allMilestones.length - 1) {
-        const nextMilestone = allMilestones[milestoneIdx + 1]
-        if (nextMilestone.stages.length > 0) {
-          nextStageId = nextMilestone.stages[0].id
-          nextStageMilestoneId = nextMilestone.id
-          await supabase.from('stages').update({ status: 'active' }).eq('id', nextStageId)
-        }
-      }
     }
+    // Cross-milestone advancement is intentionally omitted — CSM manually opens the next milestone.
 
     onUpdate({
       ...account,
       milestones: (account.milestones || []).map(m => {
-        if (m.id === milestone.id) {
-          return {
-            ...m,
-            stages: m.stages.map((s, si) => {
-              if (s.id === stage.id) return { ...s, status: 'complete' as const }
-              if (!isLastInMilestone && si === stageIdx + 1) return { ...s, status: 'active' as const }
-              return s
-            }),
-          }
+        if (m.id !== milestone.id) return m
+        return {
+          ...m,
+          stages: m.stages.map((s, si) => {
+            if (s.id === stage.id) return { ...s, status: 'complete' as const }
+            if (!isLastInMilestone && si === stageIdx + 1) return { ...s, status: 'active' as const }
+            return s
+          }),
         }
-        if (nextStageMilestoneId && m.id === nextStageMilestoneId) {
-          return {
-            ...m,
-            stages: m.stages.map(s =>
-              s.id === nextStageId ? { ...s, status: 'active' as const } : s
-            ),
-          }
-        }
-        return m
       }),
     })
   }
