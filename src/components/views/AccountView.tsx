@@ -824,12 +824,8 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
     const stageIdx = milestone.stages.findIndex(s => s.id === stage.id)
     const isLastInMilestone = stageIdx === milestone.stages.length - 1
 
-    let nextStageId: string | null = null
-
     if (!isLastInMilestone) {
       const nextStage = milestone.stages[stageIdx + 1]
-      nextStageId = nextStage.id
-      nextStageMilestoneId = milestone.id
       await supabase.from('stages').update({ status: 'active' }).eq('id', nextStage.id)
     }
     // Cross-milestone advancement is intentionally omitted — CSM manually opens the next milestone.
