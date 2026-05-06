@@ -760,7 +760,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
 }) {
   const [open, setOpen] = useState(stage.status === 'active' || stage.status === 'unlocked')
   const [addingItem, setAddingItem] = useState(false)
-  const [itemType, setItemType] = useState<'task' | 'dependency' | 'exchange' | 'session' | 'log' | 'handoff'>('task')
+  const [itemType, setItemType] = useState<'task' | 'dependency' | 'exchange' | 'session' | 'log' | 'handoff' | 'golive'>('task')
   const [itemName, setItemName] = useState('')
   const [itemRequired, setItemRequired] = useState(true)
   const [localItems, setLocalItems] = useState<Item[]>(stage.items)
@@ -821,26 +821,54 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
   const handleAdvance = async () => {
     await supabase.from('stages').update({ status: 'complete' }).eq('id', stage.id)
 
-    // Find next stage in milestone
     const stageIdx = milestone.stages.findIndex(s => s.id === stage.id)
-    if (stageIdx < milestone.stages.length - 1) {
+    const isLastInMilestone = stageIdx === milestone.stages.length - 1
+
+    let nextStageId: string | null = null
+    let nextStageMilestoneId: string | null = null
+
+    if (!isLastInMilestone) {
       const nextStage = milestone.stages[stageIdx + 1]
+      nextStageId = nextStage.id
+      nextStageMilestoneId = milestone.id
       await supabase.from('stages').update({ status: 'active' }).eq('id', nextStage.id)
+    } else {
+      // Activate first stage of next milestone
+      const allMilestones = account.milestones || []
+      const milestoneIdx = allMilestones.findIndex(m => m.id === milestone.id)
+      if (milestoneIdx >= 0 && milestoneIdx < allMilestones.length - 1) {
+        const nextMilestone = allMilestones[milestoneIdx + 1]
+        if (nextMilestone.stages.length > 0) {
+          nextStageId = nextMilestone.stages[0].id
+          nextStageMilestoneId = nextMilestone.id
+          await supabase.from('stages').update({ status: 'active' }).eq('id', nextStageId)
+        }
+      }
     }
 
     onUpdate({
       ...account,
-      milestones: (account.milestones || []).map(m =>
-        m.id !== milestone.id ? m : {
-          ...m,
-          stages: m.stages.map((s, si) => {
-            if (s.id === stage.id) return { ...s, status: 'complete' as const }
-            const stageIdx2 = milestone.stages.findIndex(x => x.id === stage.id)
-            if (si === stageIdx2 + 1) return { ...s, status: 'active' as const }
-            return s
-          }),
+      milestones: (account.milestones || []).map(m => {
+        if (m.id === milestone.id) {
+          return {
+            ...m,
+            stages: m.stages.map((s, si) => {
+              if (s.id === stage.id) return { ...s, status: 'complete' as const }
+              if (!isLastInMilestone && si === stageIdx + 1) return { ...s, status: 'active' as const }
+              return s
+            }),
+          }
         }
-      ),
+        if (nextStageMilestoneId && m.id === nextStageMilestoneId) {
+          return {
+            ...m,
+            stages: m.stages.map(s =>
+              s.id === nextStageId ? { ...s, status: 'active' as const } : s
+            ),
+          }
+        }
+        return m
+      }),
     })
   }
 
@@ -865,12 +893,15 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
     if (!itemName.trim()) return
     const insertPayload: Record<string, unknown> = {
       stage_id: stage.id,
-      type: itemType === 'exchange' ? 'task' : itemType, // exchange expands to 2 tasks
+      type: itemType === 'exchange' ? 'task' : itemType,
       required: itemRequired,
       order_index: stage.items.length,
     }
 
-    if (itemType === 'task' || itemType === 'log') {
+    if (itemType === 'golive') {
+      insertPayload.task_name = itemName.trim() || 'Go Live'
+      insertPayload.task_done = false
+    } else if (itemType === 'task' || itemType === 'log') {
       insertPayload.task_name     = itemName.trim()
       insertPayload.task_assignee = 'personal'
       insertPayload.task_source   = 'manual'
@@ -995,7 +1026,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
         <div style={{ paddingBottom: 4 }}>
           <DndContext sensors={itemSensors} collisionDetection={closestCenter} onDragEnd={handleItemDragEnd}>
             <SortableContext items={groupItems(localItems).map(g => g.id)} strategy={verticalListSortingStrategy}>
-              {groupItems(localItems).map(group => (
+              {groupItems(localItems).map((group) => (
                 <SortableRow key={group.id} id={group.id}>
                   {group.kind === 'exchange' ? (
                     <ExchangeRow
@@ -1017,7 +1048,17 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
                       }}
                     />
                   ) : (
-                    <ItemRow item={group.item} stageStatus={stage.status} onUpdate={handleItemUpdate} onOpenSession={onOpenSession} onDelete={() => handleDeleteItem(group.item.id)} />
+                    <ItemRow
+                      item={group.item}
+                      stageStatus={stage.status}
+                      onUpdate={handleItemUpdate}
+                      onOpenSession={onOpenSession}
+                      onDelete={() => handleDeleteItem(group.item.id)}
+                      onGoLive={async (date) => {
+                        await supabase.from('accounts').update({ go_live_date: date }).eq('id', account.id)
+                        onUpdate({ ...account, go_live_date: date })
+                      }}
+                    />
                   )}
                 </SortableRow>
               ))}
@@ -1035,6 +1076,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
                   { id: 'session',    label: 'Session',            color: '#10b981', hint: 'Meeting or training' },
                   { id: 'handoff',    label: 'Handoff',            color: '#6b7280', hint: 'Rep transition' },
                   { id: 'log',        label: 'Log',                color: '#6b7280', hint: 'Activity log entry' },
+                  { id: 'golive',     label: '🚀 Go Live',         color: '#10b981', hint: 'Mark the moment of going live' },
                 ] as const).map(({ id, label, color }) => (
                   <button key={id} onClick={() => setItemType(id)} title={id} style={{
                     padding: '3px 9px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer',
@@ -1162,12 +1204,46 @@ function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
   return { toggleBtn, panel }
 }
 
-function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete }: {
-  item: Item; stageStatus: string; onUpdate: (i: Item) => void; onOpenSession?: (item: Item) => void; onDelete?: () => void
+function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete, onGoLive }: {
+  item: Item; stageStatus: string; onUpdate: (i: Item) => void; onOpenSession?: (item: Item) => void; onDelete?: () => void; onGoLive?: (date: string) => void
 }) {
   const supabase = createClient()
   const locked = stageStatus === 'locked'
   const { toggleBtn, panel } = useItemChecklist(item, onUpdate)
+
+  if (item.type === 'golive') {
+    const done = !!item.task_done
+    const markLive = async () => {
+      if (locked || done) return
+      const today = new Date().toISOString().split('T')[0]
+      await supabase.from('items').update({ task_done: true }).eq('id', item.id)
+      onUpdate({ ...item, task_done: true })
+      onGoLive?.(today)
+    }
+    return (
+      <div style={{ padding: '8px 16px', opacity: locked ? 0.45 : 1 }}>
+        <button
+          onClick={markLive}
+          disabled={locked}
+          style={{
+            width: '100%', borderRadius: 8, padding: '12px 20px',
+            background: done ? '#10b98118' : 'linear-gradient(135deg, #059669, #10b981)',
+            border: done ? '1px solid #10b98155' : 'none',
+            color: done ? '#10b981' : '#fff',
+            fontSize: 15, fontWeight: 700, cursor: done || locked ? 'default' : 'pointer',
+            fontFamily: 'var(--font-ui)', letterSpacing: '0.02em',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'all 0.15s',
+          }}
+        >
+          {done ? '✓ Went Live' : '🚀 Go Live!'}
+          {onDelete && !done && (
+            <span onClick={e => { e.stopPropagation(); onDelete?.() }} style={{ marginLeft: 'auto', opacity: 0.5, fontSize: 12 }}>✕</span>
+          )}
+        </button>
+      </div>
+    )
+  }
 
   const toggleTask = async () => {
     if (locked || (item.type !== 'task' && item.type !== 'dependency')) return
@@ -1309,11 +1385,25 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete }: {
   }
 
   if (item.type === 'handoff') {
+    const toggleHandoff = async () => {
+      if (locked) return
+      const newDone = !item.task_done
+      await supabase.from('items').update({ task_done: newDone }).eq('id', item.id)
+      onUpdate({ ...item, task_done: newDone })
+    }
     return (
       <div style={{ opacity: locked ? 0.4 : 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px 7px 44px' }}>
-          <div style={{ width: 15, height: 15, borderRadius: 3, border: '1.5px solid var(--text-2)', flexShrink: 0 }} />
-          <InlineEdit value={item.handoff_name || ''} onSave={saveItemName} style={{ fontSize: 13, color: 'var(--text)' }} />
+          <div onClick={toggleHandoff} style={{
+            width: 15, height: 15, borderRadius: 3, flexShrink: 0,
+            border: item.task_done ? 'none' : '1.5px solid var(--text-2)',
+            background: item.task_done ? '#10b981' : 'transparent',
+            cursor: locked ? 'default' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {item.task_done && <span style={{ fontSize: 8, color: '#fff', fontWeight: 700 }}>✓</span>}
+          </div>
+          <InlineEdit value={item.handoff_name || ''} onSave={saveItemName} style={{ fontSize: 13, color: item.task_done ? 'var(--text-3)' : 'var(--text)', textDecoration: item.task_done ? 'line-through' : 'none' }} />
           <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: 'var(--bg-surface3)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>handoff</span>
           {toggleBtn}
           {onDelete && <DeleteBtn onClick={onDelete} />}
@@ -1335,46 +1425,99 @@ function LogItem({ item, locked, onUpdate, toggleBtn, panel }: {
   toggleBtn: React.ReactNode; panel: React.ReactNode
 }) {
   const [entries, setEntries] = useState<LogEntry[]>(item.log_entries ?? [])
-  const [text, setText] = useState('')
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [usageType, setUsageType] = useState('')
+  const [count, setCount] = useState('')
   const supabase = createClient()
 
+  const canLog = !locked && date && usageType.trim() && count !== '' && !isNaN(Number(count))
+
   const addEntry = async () => {
-    if (!text.trim() || locked) return
-    const entry: LogEntry = { id: crypto.randomUUID(), text: text.trim(), created_at: new Date().toISOString() }
+    if (!canLog) return
+    const entry: LogEntry = {
+      id: crypto.randomUUID(),
+      date,
+      usage_type: usageType.trim(),
+      count: Number(count),
+      created_at: new Date().toISOString(),
+    }
     const next = [...entries, entry]
     setEntries(next)
-    setText('')
+    setCount('')
     await supabase.from('items').update({ log_entries: next }).eq('id', item.id)
     onUpdate({ ...item, log_entries: next })
   }
 
+  const toggleDone = async () => {
+    if (locked) return
+    const newDone = !item.task_done
+    await supabase.from('items').update({ task_done: newDone }).eq('id', item.id)
+    onUpdate({ ...item, task_done: newDone })
+  }
+
+  const fmtDate = (e: LogEntry) => {
+    const d = e.date ? new Date(e.date + 'T00:00:00') : new Date(e.created_at)
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
   return (
     <div style={{ opacity: locked ? 0.45 : 1 }}>
-      <div style={{ padding: '8px 16px 2px 44px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{item.task_name ?? 'Usage Log'}</span>
+      <div style={{ padding: '8px 16px 6px 44px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          {entries.length > 0 && (
+            <div onClick={toggleDone} title={item.task_done ? 'Mark incomplete' : 'Mark complete'} style={{
+              width: 15, height: 15, borderRadius: 3, flexShrink: 0,
+              border: item.task_done ? 'none' : '1.5px solid var(--text-3)',
+              background: item.task_done ? '#10b981' : 'transparent',
+              cursor: locked ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {item.task_done && <span style={{ fontSize: 8, color: '#fff', fontWeight: 700 }}>✓</span>}
+            </div>
+          )}
+          <span style={{
+            fontSize: 12, fontWeight: 600, flex: 1,
+            color: item.task_done ? 'var(--text-3)' : 'var(--text)',
+            textDecoration: item.task_done ? 'line-through' : 'none',
+          }}>{item.task_name ?? 'Usage Log'}</span>
           {toggleBtn}
         </div>
-        {entries.length === 0
-          ? <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 6 }}>No entries yet</div>
-          : <div style={{ marginBottom: 6 }}>
-              {entries.map(e => (
-                <div key={e.id} style={{ display: 'flex', gap: 10, padding: '3px 0', alignItems: 'baseline' }}>
-                  <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                    {new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </span>
-                  <span style={{ fontSize: 12, color: 'var(--text)' }}>{e.text}</span>
-                </div>
+
+        {/* Entry list */}
+        {entries.length > 0 && (
+          <div style={{ marginBottom: 8, borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '72px 1fr 56px', gap: 8, padding: '4px 10px', background: 'var(--bg-surface2)', borderBottom: '1px solid var(--border)' }}>
+              {['Date', 'Type', 'Count'].map(h => (
+                <span key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: h === 'Count' ? 'right' : 'left' }}>{h}</span>
               ))}
             </div>
-        }
+            {entries.map((e, i) => (
+              <div key={e.id} style={{ display: 'grid', gridTemplateColumns: '72px 1fr 56px', gap: 8, padding: '5px 10px', borderBottom: i < entries.length - 1 ? '1px solid var(--border)' : 'none', background: 'var(--bg-surface)' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{fmtDate(e)}</span>
+                <span style={{ fontSize: 11, color: 'var(--text)' }}>{e.usage_type ?? e.text}</span>
+                <span style={{ fontSize: 11, color: 'var(--text)', fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{e.count != null ? e.count : ''}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Input row */}
         {!locked && (
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-            <input value={text} onChange={e => setText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') addEntry() }}
-              placeholder="e.g. 14 jobs dispatched, drivers adapting well..."
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              style={{ ...inputStyle, width: 130, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
+            <input value={usageType} onChange={e => setUsageType(e.target.value)}
+              placeholder="Usage type"
               style={{ ...inputStyle, flex: 1, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
-            {text.trim() && <button onClick={addEntry} style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px' }}>Log</button>}
+            <input type="number" value={count} onChange={e => setCount(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addEntry() }}
+              placeholder="Count"
+              style={{ ...inputStyle, width: 72, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
+            <button onClick={addEntry} disabled={!canLog}
+              style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px', opacity: canLog ? 1 : 0.4, cursor: canLog ? 'pointer' : 'default', flexShrink: 0 }}>
+              Log for day
+            </button>
           </div>
         )}
       </div>

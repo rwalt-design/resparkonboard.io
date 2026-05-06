@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
 
 type View = 'dashboard' | 'account' | 'actions' | 'ttl' | 'templates' | 'settings'
-type ThemePref = 'dark' | 'light' | 'system'
+type ThemePref = 'dark' | 'light'
 
 interface ConnectorToken {
   provider: string
@@ -35,37 +35,35 @@ interface Props {
 }
 
 function useTheme() {
-  const [pref, setPref] = useState<ThemePref>('system')
+  const [pref, setPref] = useState<ThemePref>('dark')
+
+  const applyTheme = (next: ThemePref) => {
+    if (next === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light')
+    } else {
+      document.documentElement.removeAttribute('data-theme')
+    }
+  }
 
   useEffect(() => {
-    const stored = (localStorage.getItem('theme') as ThemePref) || 'system'
-    setPref(stored)
+    const raw = localStorage.getItem('theme') || 'dark'
+    const resolved = (raw === 'light' ? 'light' : 'dark') as ThemePref
+    setPref(resolved)
+    applyTheme(resolved)
   }, [])
 
   const setTheme = (next: ThemePref) => {
     setPref(next)
     localStorage.setItem('theme', next)
-    if (next === 'dark') {
-      document.documentElement.removeAttribute('data-theme')
-    } else if (next === 'light') {
-      document.documentElement.setAttribute('data-theme', 'light')
-    } else {
-      const sys = window.matchMedia('(prefers-color-scheme: light)').matches
-      if (sys) document.documentElement.setAttribute('data-theme', 'light')
-      else document.documentElement.removeAttribute('data-theme')
-    }
+    applyTheme(next)
   }
 
-  const cycle = () => {
-    const order: ThemePref[] = ['dark', 'light', 'system']
-    const next = order[(order.indexOf(pref) + 1) % order.length]
-    setTheme(next)
-  }
+  const toggle = () => setTheme(pref === 'dark' ? 'light' : 'dark')
 
-  const icon = pref === 'light' ? '☀' : pref === 'system' ? '⬡' : '☽'
-  const label = pref === 'light' ? 'Light' : pref === 'system' ? 'System' : 'Dark'
+  const icon = pref === 'light' ? '☀' : '☽'
+  const label = pref === 'light' ? 'Light' : 'Dark'
 
-  return { pref, cycle, icon, label }
+  return { pref, cycle: toggle, icon, label }
 }
 
 export function AppShell({ accounts: initialAccounts, currentUser, currentMember, orgMembers, trainingTemplates: initialTraining, planTemplates: initialPlans, sessionTemplates: initialSessions, connectors, connectorTokens, accountsWithSuggestions }: Props) {

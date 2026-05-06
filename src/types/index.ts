@@ -1,7 +1,7 @@
 export type Sku = 'dispatch' | 'facility_management' | 'full_suite'
 export type Addon = 'brokerage' | 'export' | 'api'
 export type StageStatus = 'locked' | 'active' | 'unlocked' | 'complete'
-export type ItemType = 'task' | 'session' | 'record' | 'handoff' | 'log' | 'dependency'
+export type ItemType = 'task' | 'session' | 'record' | 'handoff' | 'log' | 'dependency' | 'golive'
 
 export interface ChecklistItem {
   id: string
@@ -12,8 +12,11 @@ export interface ChecklistItem {
 
 export interface LogEntry {
   id: string
-  text: string
+  date: string        // YYYY-MM-DD
+  usage_type: string  // e.g. "Jobs", "Drivers"
+  count: number
   created_at: string
+  text?: string       // legacy free-text entries
 }
 export type AssigneeKey = 'personal' | 'customer' | 'internal' | string
 export type TaskSource = 'plan' | 'email' | 'session' | 'manual'
