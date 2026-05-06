@@ -9,6 +9,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { Tooltip } from '@/components/Tooltip'
 
 const SKU_LABELS: Record<string, string> = {
   dispatch: 'Dispatch',
@@ -21,12 +22,19 @@ const SKU_COLORS: Record<string, string> = {
   full_suite: '#3b82f6',
 }
 const HEALTH_OPTIONS = [
-  { value: 'active',       label: 'Active',       color: '#10b981' },
-  { value: 'stalled',      label: 'Stalled',      color: '#f59e0b' },
-  { value: 'on_hold',      label: 'On Hold',      color: '#6b7280' },
-  { value: 'unresponsive', label: 'Unresponsive', color: '#ef4444' },
-  { value: 'blocked',      label: 'Blocked',      color: '#ef4444' },
+  { value: 'active',       label: 'Active',       color: '#10b981', tip: 'Onboarding is progressing normally' },
+  { value: 'stalled',      label: 'Stalled',      color: '#f59e0b', tip: 'Progress has slowed — follow-up needed' },
+  { value: 'on_hold',      label: 'On Hold',      color: '#6b7280', tip: 'Intentionally paused by the customer' },
+  { value: 'unresponsive', label: 'Unresponsive', color: '#ef4444', tip: 'Customer not responding to outreach' },
+  { value: 'blocked',      label: 'Blocked',      color: '#ef4444', tip: 'External blocker preventing progress' },
 ]
+
+const STAGE_STATUS_TIPS: Record<string, string> = {
+  locked:   'Not yet available — previous stage must be completed first',
+  active:   'Currently in progress',
+  unlocked: 'Available to start',
+  complete: 'All required items finished',
+}
 const STAGE_STATUS_COLORS: Record<string, string> = {
   locked: 'var(--text-3)',
   active: '#3b82f6',
@@ -349,7 +357,7 @@ function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Accoun
 
   return (
     <div style={{ padding: '20px 24px' }}>
-      <style>{`.drag-handle { opacity: 0 } *:hover > .drag-handle { opacity: 1 } .timeline-row:hover .item-delete-btn { opacity: 1 }`}</style>
+      <style>{`.drag-handle { opacity: 0 } *:hover > .drag-handle { opacity: 1 } .timeline-row:hover .item-delete-btn { opacity: 1 } *:hover > .item-delete-btn { opacity: 1 !important }`}</style>
       {(account.milestones || []).map((milestone, mi) => (
         <MilestoneBlock
           key={milestone.id}
@@ -1000,6 +1008,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
       >
         <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{open ? '▾' : '▸'}</span>
         <InlineEdit value={stage.name} onSave={saveStageName} style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }} />
+        <Tooltip content={STAGE_STATUS_TIPS[stage.status] ?? stage.status} placement="bottom">
         <select
           value={stage.status}
           onClick={e => e.stopPropagation()}
@@ -1029,11 +1038,15 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
+        </Tooltip>
         {(stage.status === 'unlocked' || stage.status === 'active') && (
+          <Tooltip
+            content={allRequiredDone ? 'Mark this stage complete and unlock the next one' : `Complete all required items to advance (${incompleteRequired.length} remaining)`}
+            placement="bottom"
+          >
           <button
             onClick={e => { e.stopPropagation(); if (allRequiredDone) handleAdvance() }}
             disabled={!allRequiredDone}
-            title={allRequiredDone ? undefined : `${incompleteRequired.length} required item${incompleteRequired.length !== 1 ? 's' : ''} not done`}
             style={{
               background: allRequiredDone ? '#10b98122' : 'var(--bg-surface2)',
               border: `1px solid ${allRequiredDone ? '#10b98144' : 'var(--border)'}`,
@@ -1044,6 +1057,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
               fontFamily: 'var(--font-ui)',
             }}
           >{allRequiredDone ? 'Mark complete →' : `${incompleteRequired.length} required left`}</button>
+          </Tooltip>
         )}
         {onDelete && (
           <button
@@ -1360,8 +1374,10 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete, onGoLiv
             onSave={saveItemName}
             style={{ fontSize: 13, color: item.task_done ? 'var(--text-3)' : 'var(--text)', textDecoration: item.task_done ? 'line-through' : 'none' }}
           />
-          {!item.required && <span style={{ fontSize: 10, color: 'var(--text-3)', flexShrink: 0 }}>optional</span>}
-          <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: color + '18', color, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{item.task_assignee}</span>
+          {!item.required && <Tooltip content="Optional — not required to advance the stage"><span style={{ fontSize: 10, color: 'var(--text-3)', flexShrink: 0 }}>optional</span></Tooltip>}
+          <Tooltip content={item.task_assignee === 'personal' ? 'Assigned to you / your team' : item.task_assignee === 'customer' ? 'Customer must complete this' : 'Internal team task'} placement="bottom">
+            <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: color + '18', color, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{item.task_assignee}</span>
+          </Tooltip>
           {toggleBtn}
           {onDelete && <DeleteBtn onClick={onDelete} />}
         </div>

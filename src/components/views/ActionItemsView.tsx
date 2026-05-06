@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Account, OpenTask, AiSuggestion, HealthStatus } from '@/types'
+import { Tooltip } from '@/components/Tooltip'
 
 // ── Visual constants ───────────────────────────────────────────────────────────
 
@@ -318,27 +319,32 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 4 }}>
-          {pill('All',      filterMode === 'all',      'var(--text-h)', () => setFilterMode('all'))}
-          {pill('Me',       filterMode === 'me',        '#3b82f6',       () => setFilterMode('me'))}
-          {pill('Customer', filterMode === 'customer',  '#f59e0b',       () => setFilterMode('customer'))}
-          {pill('Internal', filterMode === 'internal',  '#6b7280',       () => setFilterMode('internal'))}
+          <Tooltip content="Show all action items" placement="bottom">{pill('All',      filterMode === 'all',      'var(--text-h)', () => setFilterMode('all'))}</Tooltip>
+          <Tooltip content="Tasks assigned to you or your team" placement="bottom">{pill('Me',       filterMode === 'me',        '#3b82f6',       () => setFilterMode('me'))}</Tooltip>
+          <Tooltip content="Items waiting on the customer to complete" placement="bottom">{pill('Customer', filterMode === 'customer',  '#f59e0b',       () => setFilterMode('customer'))}</Tooltip>
+          <Tooltip content="Internal tasks not visible to the customer" placement="bottom">{pill('Internal', filterMode === 'internal',  '#6b7280',       () => setFilterMode('internal'))}</Tooltip>
         </div>
-        <select value={filterAccount} onChange={e => setFilterAccount(e.target.value)} style={selectStyle}>
-          <option value="all">All Accounts</option>
-          {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
-        <select value={filterSource} onChange={e => setFilterSource(e.target.value)} style={selectStyle}>
-          <option value="all">All Sources</option>
-          <option value="plan">From Plan</option>
-          <option value="email">From Email</option>
-          <option value="session">From Session</option>
-          <option value="manual">Manual</option>
-        </select>
+        <Tooltip content="Filter by account" placement="bottom">
+          <select value={filterAccount} onChange={e => setFilterAccount(e.target.value)} style={selectStyle}>
+            <option value="all">All Accounts</option>
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </Tooltip>
+        <Tooltip content="Filter by where this item came from" placement="bottom">
+          <select value={filterSource} onChange={e => setFilterSource(e.target.value)} style={selectStyle}>
+            <option value="all">All Sources</option>
+            <option value="plan">From Plan</option>
+            <option value="email">From Email</option>
+            <option value="session">From Session</option>
+            <option value="manual">Manual</option>
+          </select>
+        </Tooltip>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {HEALTH_OPTIONS.map(h => {
             const active = filterHealth.has(h.value)
             return (
-              <button key={h.value} onClick={() => toggleHealth(h.value)} style={{
+              <Tooltip key={h.value} content={`Filter to ${h.label.toLowerCase()} accounts`} placement="bottom">
+              <button onClick={() => toggleHealth(h.value)} style={{
                 background: active ? h.color + '22' : 'var(--bg-surface)',
                 border: `1px solid ${active ? h.color + '66' : 'var(--border)'}`,
                 borderRadius: 5, padding: '4px 8px',
@@ -349,6 +355,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: active ? h.color : 'var(--text-3)', display: 'inline-block', flexShrink: 0 }} />
                 {h.label}
               </button>
+              </Tooltip>
             )
           })}
         </div>
