@@ -1344,11 +1344,25 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete }: {
   }
 
   if (item.type === 'handoff') {
+    const toggleHandoff = async () => {
+      if (locked) return
+      const newDone = !item.task_done
+      await supabase.from('items').update({ task_done: newDone }).eq('id', item.id)
+      onUpdate({ ...item, task_done: newDone })
+    }
     return (
       <div style={{ opacity: locked ? 0.4 : 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px 7px 44px' }}>
-          <div style={{ width: 15, height: 15, borderRadius: 3, border: '1.5px solid var(--text-2)', flexShrink: 0 }} />
-          <InlineEdit value={item.handoff_name || ''} onSave={saveItemName} style={{ fontSize: 13, color: 'var(--text)' }} />
+          <div onClick={toggleHandoff} style={{
+            width: 15, height: 15, borderRadius: 3, flexShrink: 0,
+            border: item.task_done ? 'none' : '1.5px solid var(--text-2)',
+            background: item.task_done ? '#10b981' : 'transparent',
+            cursor: locked ? 'default' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {item.task_done && <span style={{ fontSize: 8, color: '#fff', fontWeight: 700 }}>✓</span>}
+          </div>
+          <InlineEdit value={item.handoff_name || ''} onSave={saveItemName} style={{ fontSize: 13, color: item.task_done ? 'var(--text-3)' : 'var(--text)', textDecoration: item.task_done ? 'line-through' : 'none' }} />
           <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: 'var(--bg-surface3)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>handoff</span>
           {toggleBtn}
           {onDelete && <DeleteBtn onClick={onDelete} />}
