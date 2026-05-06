@@ -698,7 +698,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
     else if (sortCol === 'contact') list.sort((a, b) => (a.daysSinceContact - b.daysSinceContact) * dir)
     else if (sortCol === 'tasks') list.sort((a, b) => (a.openTaskCount - b.openTaskCount) * dir)
     else if (sortCol === 'health') list.sort((a, b) => (a.health_status || 'active').localeCompare(b.health_status || 'active') * dir)
-    else if (sortCol === 'stage') list.sort((a, b) => a.currentStage.localeCompare(b.currentStage) * dir)
+    else if (sortCol === 'stage') list.sort((a, b) => (a.currentStage || '').localeCompare(b.currentStage || '') * dir)
     else list.sort((a, b) => a.completionPct - b.completionPct || a.name.localeCompare(b.name))
 
     return list
