@@ -1136,7 +1136,6 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
               </div>
             )
           })}
-        </div>
         </>
         )}
         </div>
