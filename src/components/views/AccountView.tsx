@@ -1370,46 +1370,99 @@ function LogItem({ item, locked, onUpdate, toggleBtn, panel }: {
   toggleBtn: React.ReactNode; panel: React.ReactNode
 }) {
   const [entries, setEntries] = useState<LogEntry[]>(item.log_entries ?? [])
-  const [text, setText] = useState('')
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [usageType, setUsageType] = useState('')
+  const [count, setCount] = useState('')
   const supabase = createClient()
 
+  const canLog = !locked && date && usageType.trim() && count !== '' && !isNaN(Number(count))
+
   const addEntry = async () => {
-    if (!text.trim() || locked) return
-    const entry: LogEntry = { id: crypto.randomUUID(), text: text.trim(), created_at: new Date().toISOString() }
+    if (!canLog) return
+    const entry: LogEntry = {
+      id: crypto.randomUUID(),
+      date,
+      usage_type: usageType.trim(),
+      count: Number(count),
+      created_at: new Date().toISOString(),
+    }
     const next = [...entries, entry]
     setEntries(next)
-    setText('')
+    setCount('')
     await supabase.from('items').update({ log_entries: next }).eq('id', item.id)
     onUpdate({ ...item, log_entries: next })
   }
 
+  const toggleDone = async () => {
+    if (locked) return
+    const newDone = !item.task_done
+    await supabase.from('items').update({ task_done: newDone }).eq('id', item.id)
+    onUpdate({ ...item, task_done: newDone })
+  }
+
+  const fmtDate = (e: LogEntry) => {
+    const d = e.date ? new Date(e.date + 'T00:00:00') : new Date(e.created_at)
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
   return (
     <div style={{ opacity: locked ? 0.45 : 1 }}>
-      <div style={{ padding: '8px 16px 2px 44px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{item.task_name ?? 'Usage Log'}</span>
+      <div style={{ padding: '8px 16px 6px 44px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          {entries.length > 0 && (
+            <div onClick={toggleDone} title={item.task_done ? 'Mark incomplete' : 'Mark complete'} style={{
+              width: 15, height: 15, borderRadius: 3, flexShrink: 0,
+              border: item.task_done ? 'none' : '1.5px solid var(--text-3)',
+              background: item.task_done ? '#10b981' : 'transparent',
+              cursor: locked ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {item.task_done && <span style={{ fontSize: 8, color: '#fff', fontWeight: 700 }}>✓</span>}
+            </div>
+          )}
+          <span style={{
+            fontSize: 12, fontWeight: 600, flex: 1,
+            color: item.task_done ? 'var(--text-3)' : 'var(--text)',
+            textDecoration: item.task_done ? 'line-through' : 'none',
+          }}>{item.task_name ?? 'Usage Log'}</span>
           {toggleBtn}
         </div>
-        {entries.length === 0
-          ? <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 6 }}>No entries yet</div>
-          : <div style={{ marginBottom: 6 }}>
-              {entries.map(e => (
-                <div key={e.id} style={{ display: 'flex', gap: 10, padding: '3px 0', alignItems: 'baseline' }}>
-                  <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                    {new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </span>
-                  <span style={{ fontSize: 12, color: 'var(--text)' }}>{e.text}</span>
-                </div>
+
+        {/* Entry list */}
+        {entries.length > 0 && (
+          <div style={{ marginBottom: 8, borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '72px 1fr 56px', gap: 8, padding: '4px 10px', background: 'var(--bg-surface2)', borderBottom: '1px solid var(--border)' }}>
+              {['Date', 'Type', 'Count'].map(h => (
+                <span key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: h === 'Count' ? 'right' : 'left' }}>{h}</span>
               ))}
             </div>
-        }
+            {entries.map((e, i) => (
+              <div key={e.id} style={{ display: 'grid', gridTemplateColumns: '72px 1fr 56px', gap: 8, padding: '5px 10px', borderBottom: i < entries.length - 1 ? '1px solid var(--border)' : 'none', background: 'var(--bg-surface)' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{fmtDate(e)}</span>
+                <span style={{ fontSize: 11, color: 'var(--text)' }}>{e.usage_type ?? e.text}</span>
+                <span style={{ fontSize: 11, color: 'var(--text)', fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{e.count != null ? e.count : ''}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Input row */}
         {!locked && (
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-            <input value={text} onChange={e => setText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') addEntry() }}
-              placeholder="e.g. 14 jobs dispatched, drivers adapting well..."
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              style={{ ...inputStyle, width: 130, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
+            <input value={usageType} onChange={e => setUsageType(e.target.value)}
+              placeholder="Usage type"
               style={{ ...inputStyle, flex: 1, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
-            {text.trim() && <button onClick={addEntry} style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px' }}>Log</button>}
+            <input type="number" value={count} onChange={e => setCount(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addEntry() }}
+              placeholder="Count"
+              style={{ ...inputStyle, width: 72, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
+            <button onClick={addEntry} disabled={!canLog}
+              style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px', opacity: canLog ? 1 : 0.4, cursor: canLog ? 'pointer' : 'default', flexShrink: 0 }}>
+              Log for day
+            </button>
           </div>
         )}
       </div>
