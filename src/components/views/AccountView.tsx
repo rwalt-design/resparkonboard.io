@@ -39,6 +39,19 @@ const INTERACTION_ICONS: Record<string, string> = {
   internal_note: '📝', custom: '⚡',
 }
 
+// Date helpers
+const startOfToday = () => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime() }
+const daysFromToday = (dateStr?: string | null): number | null => {
+  if (!dateStr) return null
+  const target = new Date(dateStr); target.setHours(0,0,0,0)
+  return Math.round((target.getTime() - startOfToday()) / 86400000)
+}
+const daysSince = (dateStr?: string | null): number | null => {
+  if (!dateStr) return null
+  const past = new Date(dateStr); past.setHours(0,0,0,0)
+  return Math.max(0, Math.round((startOfToday() - past.getTime()) / 86400000))
+}
+
 interface Props {
   account: Account
   orgMembers: OrgMember[]
@@ -57,6 +70,7 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
   const [localAccount, setLocalAccount] = useState<Account>(account)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [editingDetails, setEditingDetails] = useState(false)
 
   // Compute stats
   const allItems = (localAccount.milestones || []).flatMap(m => m.stages.flatMap(s => s.items))
@@ -130,7 +144,7 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
         </div>
 
         {/* Meta row */}
-        <div style={{ display: 'flex', gap: 20, alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 20, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
           {localAccount.arr > 0 && (
             <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
               ARR <strong style={{ color: 'var(--text-h)' }}>${localAccount.arr.toLocaleString()}</strong>
@@ -139,6 +153,30 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
           <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
             Progress <strong style={{ color: 'var(--text-h)' }}>{completionPct}%</strong>
           </span>
+          {(() => {
+            const d = daysFromToday(localAccount.go_live_date)
+            if (d === null) return (
+              <span style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>Go Live not set</span>
+            )
+            const color = d < 0 ? '#ef4444' : d <= 14 ? '#f59e0b' : 'var(--text-h)'
+            const label = d < 0 ? `${-d}d overdue` : d === 0 ? 'today' : `in ${d}d`
+            return (
+              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                Go Live <strong style={{ color }}>{label}</strong>
+              </span>
+            )
+          })()}
+          {(() => {
+            const d = daysSince(localAccount.kickoff_date)
+            if (d === null) return (
+              <span style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>KO not set</span>
+            )
+            return (
+              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                Days since KO <strong style={{ color: 'var(--text-h)' }}>{d}</strong>
+              </span>
+            )
+          })()}
           {daysSinceContact !== null && (
             <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
               Last contact <strong style={{ color: daysSinceContact >= 14 ? '#ef4444' : 'var(--text-h)' }}>
@@ -170,6 +208,7 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
           })()}
 
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button onClick={() => setEditingDetails(true)} style={ghostBtn}>✎ Edit Details</button>
             <button onClick={() => setTab('timeline')} style={ghostBtn}>+ Log Interaction</button>
             <button onClick={exportPlan} style={ghostBtn}>⬇ Export Plan</button>
             {confirmDelete ? (
@@ -246,6 +285,14 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
           <AITab account={localAccount} />
         )}
       </div>
+
+      {editingDetails && (
+        <AccountDetailsModal
+          account={localAccount}
+          onClose={() => setEditingDetails(false)}
+          onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
+        />
+      )}
     </div>
   )
 }
@@ -1734,8 +1781,7 @@ function DetailsTab({ account, planTemplates, onUpdate, onRefresh }: {
 
   return (
     <div style={{ padding: '20px 24px', maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Account details editing */}
-      <AccountDetailsSection account={account} onUpdate={onUpdate} />
+      {/* Account name/SKU/ARR/dates moved to header — edit via the "Edit Details" button there */}
 
       {/* Plan template assignment */}
       {planTemplates.length > 0 && (
@@ -1863,12 +1909,13 @@ function ApplyPlanTemplateSection({ account, planTemplates, onRefresh }: {
   )
 }
 
-function AccountDetailsSection({ account, onUpdate }: { account: Account; onUpdate: (a: Account) => void }) {
-  const [editing, setEditing] = useState(false)
+function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account; onClose: () => void; onUpdate: (a: Account) => void }) {
   const [name, setName] = useState(account.name)
   const [sku, setSku] = useState<string>(account.sku)
   const [addons, setAddons] = useState<string[]>(account.addons || [])
   const [arr, setArr] = useState(String(account.arr || ''))
+  const [goLive, setGoLive] = useState<string>(account.go_live_date || '')
+  const [kickoff, setKickoff] = useState<string>(account.kickoff_date || '')
   const [saving, setSaving] = useState(false)
   const supabase = createClient()
 
@@ -1879,105 +1926,115 @@ function AccountDetailsSection({ account, onUpdate }: { account: Account; onUpda
   const toggleAddon = (addon: string) =>
     setAddons(prev => prev.includes(addon) ? prev.filter(a => a !== addon) : [...prev, addon])
 
-  const cancel = () => {
-    setName(account.name); setSku(account.sku); setAddons(account.addons || []); setArr(String(account.arr || ''))
-    setEditing(false)
-  }
-
   const save = async () => {
     setSaving(true)
     const parsedArr = parseInt(arr) || 0
-    await supabase.from('accounts').update({
+    const patch = {
       name: name.trim() || account.name,
       sku,
       addons,
       arr: parsedArr,
-    }).eq('id', account.id)
-    onUpdate({ ...account, name: name.trim() || account.name, sku: sku as Sku, addons: addons as Addon[], arr: parsedArr })
-    setEditing(false)
+      go_live_date: goLive || null,
+      kickoff_date: kickoff || null,
+    }
+    await supabase.from('accounts').update(patch).eq('id', account.id)
+    onUpdate({
+      ...account,
+      name: patch.name,
+      sku: sku as Sku,
+      addons: addons as Addon[],
+      arr: parsedArr,
+      go_live_date: patch.go_live_date,
+      kickoff_date: patch.kickoff_date,
+    })
     setSaving(false)
+    onClose()
   }
 
   return (
-    <section>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={sectionLabel}>Account Details</span>
-        {!editing && <button onClick={() => setEditing(true)} style={ghostBtn}>Edit</button>}
-      </div>
-
-      {editing ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }}>
-            Name
-            <input value={name} onChange={e => setName(e.target.value)}
-              style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
-          </label>
-          <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }}>
-            ARR ($)
-            <input value={arr} onChange={e => setArr(e.target.value)} type="number"
-              style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
-          </label>
-          <div>
-            <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 6 }}>SKU</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {SKU_OPTIONS.map(([val, label]) => (
-                <button key={val} onClick={() => setSku(val)} style={{
-                  flex: 1, padding: '6px 0', borderRadius: 6,
-                  background: sku === val ? SKU_COLORS_MAP[val] + '22' : 'var(--bg-surface2)',
-                  border: `1px solid ${sku === val ? SKU_COLORS_MAP[val] : 'var(--border-b)'}`,
-                  color: sku === val ? SKU_COLORS_MAP[val] : 'var(--text-2)',
-                  fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                }}>{label}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 6 }}>Add-ons</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {ADDON_OPTIONS.map(val => (
-                <button key={val} onClick={() => toggleAddon(val)} style={{
-                  flex: 1, padding: '5px 0', borderRadius: 6,
-                  background: addons.includes(val) ? '#3b82f622' : 'var(--bg-surface2)',
-                  border: `1px solid ${addons.includes(val) ? '#3b82f6' : 'var(--border-b)'}`,
-                  color: addons.includes(val) ? '#3b82f6' : 'var(--text-2)',
-                  fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', textTransform: 'capitalize',
-                }}>{val}</button>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-            <button onClick={cancel} style={ghostBtn}>Cancel</button>
-            <button onClick={save} disabled={saving} style={primaryBtn}>{saving ? 'Saving…' : 'Save'}</button>
-          </div>
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 100,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'var(--bg-surface)', border: '1px solid var(--border)',
+          borderRadius: 10, padding: 24, width: 480, maxWidth: '90vw',
+          maxHeight: '90vh', overflow: 'auto',
+          display: 'flex', flexDirection: 'column', gap: 14,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-h)', margin: 0 }}>Account Details</h2>
+          <button onClick={onClose} style={{ ...ghostBtn, padding: '4px 10px' }}>Close</button>
         </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)' }}>{account.name}</span>
-            <span style={{ fontSize: 12, color: account.arr > 0 ? 'var(--text-2)' : 'var(--text-3)' }}>
-              ARR{' '}
-              {account.arr > 0
-                ? <strong style={{ color: 'var(--text-h)' }}>${account.arr.toLocaleString()}</strong>
-                : <span style={{ fontStyle: 'italic' }}>not set — click Edit</span>}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            <span style={{
-              fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-              background: (SKU_COLORS_MAP[account.sku] || 'var(--text-2)') + '22',
-              color: SKU_COLORS_MAP[account.sku] || 'var(--text-2)',
-              fontFamily: 'var(--font-mono)',
-            }}>{SKU_LABELS[account.sku] || account.sku}</span>
-            {(account.addons || []).map(a => (
-              <span key={a} style={{
-                fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 3,
-                background: 'var(--border)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)',
-              }}>{a}</span>
+
+        <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }}>
+          Name
+          <input value={name} onChange={e => setName(e.target.value)}
+            style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
+        </label>
+
+        <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }}>
+          ARR ($)
+          <input value={arr} onChange={e => setArr(e.target.value)} type="number"
+            style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
+        </label>
+
+        <div style={{ display: 'flex', gap: 12 }}>
+          <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, flex: 1 }}>
+            Kickoff date
+            <input value={kickoff} onChange={e => setKickoff(e.target.value)} type="date"
+              style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
+          </label>
+          <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, flex: 1 }}>
+            Go Live date
+            <input value={goLive} onChange={e => setGoLive(e.target.value)} type="date"
+              style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
+          </label>
+        </div>
+
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 6 }}>SKU</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {SKU_OPTIONS.map(([val, label]) => (
+              <button key={val} onClick={() => setSku(val)} style={{
+                flex: 1, padding: '6px 0', borderRadius: 6,
+                background: sku === val ? SKU_COLORS_MAP[val] + '22' : 'var(--bg-surface2)',
+                border: `1px solid ${sku === val ? SKU_COLORS_MAP[val] : 'var(--border-b)'}`,
+                color: sku === val ? SKU_COLORS_MAP[val] : 'var(--text-2)',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+              }}>{label}</button>
             ))}
           </div>
         </div>
-      )}
-    </section>
+
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 6 }}>Add-ons</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {ADDON_OPTIONS.map(val => (
+              <button key={val} onClick={() => toggleAddon(val)} style={{
+                flex: 1, padding: '5px 0', borderRadius: 6,
+                background: addons.includes(val) ? '#3b82f622' : 'var(--bg-surface2)',
+                border: `1px solid ${addons.includes(val) ? '#3b82f6' : 'var(--border-b)'}`,
+                color: addons.includes(val) ? '#3b82f6' : 'var(--text-2)',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', textTransform: 'capitalize',
+              }}>{val}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+          <button onClick={onClose} style={ghostBtn}>Cancel</button>
+          <button onClick={save} disabled={saving} style={primaryBtn}>{saving ? 'Saving…' : 'Save'}</button>
+        </div>
+      </div>
+    </div>
   )
 }
 

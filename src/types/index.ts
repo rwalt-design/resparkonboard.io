@@ -40,7 +40,8 @@ export interface Account {
   sales_context?: string
   owner_id?: string
   health_status: HealthStatus
-  target_launch_date?: string | null
+  go_live_date?: string | null
+  kickoff_date?: string | null
   created_at: string
   updated_at: string
   // joined / computed

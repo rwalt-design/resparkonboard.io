@@ -655,8 +655,21 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
     setHealthUpdating(null)
   }
 
-  // Account | SKU | Stage | Completion | Last Outreach | Last Contact | Tasks | Health
-  const cols = 'minmax(140px,1.6fr) minmax(90px,1fr) minmax(100px,1.2fr) 112px 128px 128px 80px 128px'
+  // Account | SKU | Stage | Completion | Last Outreach | Last Contact | Go Live | Days since KO | Tasks | Health
+  const cols = 'minmax(140px,1.6fr) minmax(90px,1fr) minmax(100px,1.2fr) 112px 128px 128px 96px 96px 80px 128px'
+
+  // Date helpers for header columns
+  const startOfToday = () => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime() }
+  const daysFromToday = (dateStr?: string | null): number | null => {
+    if (!dateStr) return null
+    const target = new Date(dateStr); target.setHours(0,0,0,0)
+    return Math.round((target.getTime() - startOfToday()) / 86400000)
+  }
+  const daysSinceDate = (dateStr?: string | null): number | null => {
+    if (!dateStr) return null
+    const past = new Date(dateStr); past.setHours(0,0,0,0)
+    return Math.max(0, Math.round((startOfToday() - past.getTime()) / 86400000))
+  }
 
   // Light green → rich green based on completion %
   const stageColor = (pct: number) => {
@@ -704,6 +717,8 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
               { label: 'Completion', align: 'left', nowrap: true },
               { label: 'Last Outreach', align: 'center', nowrap: true },
               { label: 'Last Contact', align: 'center', nowrap: true },
+              { label: 'Go Live', align: 'center', nowrap: true },
+              { label: 'Days Since KO', align: 'center', nowrap: true },
               { label: 'Tasks', align: 'center', nowrap: true },
               { label: 'Health', align: 'right', nowrap: true },
             ].map(({ label, align, nowrap }) => (
@@ -846,6 +861,36 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                     >
                       {account.daysSinceContact === 999 ? '—' : account.daysSinceContact === 0 ? 'today' : `${account.daysSinceContact}d ago`}
                     </span>
+                  </div>
+
+                  {/* Go Live countdown */}
+                  <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                    {(() => {
+                      const d = daysFromToday(account.go_live_date)
+                      if (d === null) return <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>—</span>
+                      const color = d < 0 ? '#ef4444' : d <= 14 ? '#f59e0b' : 'var(--text-2)'
+                      const label = d < 0 ? `${-d}d over` : d === 0 ? 'today' : `${d}d`
+                      return (
+                        <span
+                          title={account.go_live_date ? new Date(account.go_live_date).toLocaleDateString() : undefined}
+                          style={{ fontSize: 11, whiteSpace: 'nowrap', color, fontFamily: 'var(--font-mono)' }}
+                        >{label}</span>
+                      )
+                    })()}
+                  </div>
+
+                  {/* Days since KO */}
+                  <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                    {(() => {
+                      const d = daysSinceDate(account.kickoff_date)
+                      if (d === null) return <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>—</span>
+                      return (
+                        <span
+                          title={account.kickoff_date ? new Date(account.kickoff_date).toLocaleDateString() : undefined}
+                          style={{ fontSize: 11, whiteSpace: 'nowrap', color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}
+                        >{d}d</span>
+                      )
+                    })()}
                   </div>
 
                   {/* Tasks */}
