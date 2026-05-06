@@ -164,7 +164,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
   const toggleHealth = (h: HealthStatus) =>
     setFilterHealth(prev => {
       const next = new Set(prev)
-      next.has(h) ? next.delete(h) : next.add(h)
+      if (next.has(h)) { next.delete(h) } else { next.add(h) }
       return next
     })
 

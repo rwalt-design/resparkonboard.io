@@ -827,7 +827,6 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
   })
   const allRequiredDone = incompleteRequired.length === 0
 
-  const canAdvance = (stage.status === 'unlocked' || stage.status === 'active') && allRequiredDone
   const handleAdvance = async () => {
     await supabase.from('stages').update({ status: 'complete' }).eq('id', stage.id)
 
