@@ -60,6 +60,7 @@ export async function POST() {
           summary: `Slack mention in #${channelName}`,
           detail: text,
           slack_ts: match.ts,
+          event_at: new Date(parseFloat(match.ts) * 1000).toISOString(),
         })
         logged++
       }

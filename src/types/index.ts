@@ -154,6 +154,7 @@ export interface Interaction {
   summary: string
   detail?: string
   user_id?: string
+  event_at?: string | null
   created_at: string
 }
 
