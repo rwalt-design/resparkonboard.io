@@ -360,6 +360,12 @@ function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Accoun
           account={account}
           onUpdate={onUpdate}
           onOpenSession={setSessionModal}
+          onDelete={async () => {
+            if (!window.confirm('Delete this milestone and all its stages and items?')) return
+            const supabase = createClient()
+            await supabase.from('milestones').delete().eq('id', milestone.id)
+            onUpdate({ ...account, milestones: (account.milestones || []).filter(m => m.id !== milestone.id) })
+          }}
         />
       ))}
       {sessionModal && (
@@ -460,9 +466,9 @@ function InlineEdit({ value, onSave, style }: {
   )
 }
 
-function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, onOpenSession }: {
+function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, onOpenSession, onDelete }: {
   milestone: Milestone; index: number; open: boolean; onToggle: () => void
-  account: Account; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void
+  account: Account; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void; onDelete?: () => void
 }) {
   const [localStages, setLocalStages] = useState<Stage[]>(milestone.stages)
   useEffect(() => { setLocalStages(milestone.stages) }, [milestone.stages])
@@ -508,6 +514,13 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, o
   const [addingStage, setAddingStage] = useState(false)
   const [stageName, setStageName] = useState('')
 
+  const handleDeleteStage = async (stageId: string) => {
+    await supabase.from('stages').delete().eq('id', stageId)
+    const next = localStages.filter(s => s.id !== stageId)
+    setLocalStages(next)
+    onUpdate({ ...account, milestones: (account.milestones || []).map(m => m.id !== milestone.id ? m : { ...m, stages: next }) })
+  }
+
   const handleAddStage = async () => {
     if (!stageName.trim()) return
     const { data: stage } = await supabase.from('stages').insert({
@@ -551,6 +564,20 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, o
           <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#10b981' : '#3b82f6', borderRadius: 99 }} />
         </div>
         <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', width: 32, textAlign: 'right' }}>{pct}%</span>
+        {onDelete && (
+          <button
+            onClick={e => { e.stopPropagation(); onDelete() }}
+            className="item-delete-btn"
+            title="Delete milestone"
+            style={{
+              background: 'none', border: 'none', padding: '0 4px',
+              color: 'var(--border-b)', fontSize: 16, lineHeight: 1,
+              cursor: 'pointer', flexShrink: 0, opacity: 0, transition: 'opacity 0.1s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
+          >×</button>
+        )}
       </div>
       {open && (
         <div>
@@ -565,6 +592,7 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, o
                     milestone={{ ...milestone, stages: localStages }}
                     onUpdate={onUpdate}
                     onOpenSession={onOpenSession}
+                    onDelete={() => handleDeleteStage(stage.id)}
                   />
                 </SortableRow>
               ))}
@@ -755,8 +783,8 @@ function ExchangeRow({ sendItem, returnItem, stageStatus, onUpdate, accountId, o
 }
 
 
-function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpenSession }: {
-  stage: Stage; index: number; account: Account; milestone: Milestone; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void
+function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpenSession, onDelete }: {
+  stage: Stage; index: number; account: Account; milestone: Milestone; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void; onDelete?: () => void
 }) {
   const [open, setOpen] = useState(stage.status === 'active' || stage.status === 'unlocked')
   const [addingItem, setAddingItem] = useState(false)
@@ -1016,6 +1044,20 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
               fontFamily: 'var(--font-ui)',
             }}
           >{allRequiredDone ? 'Mark complete →' : `${incompleteRequired.length} required left`}</button>
+        )}
+        {onDelete && (
+          <button
+            onClick={e => { e.stopPropagation(); if (window.confirm('Delete this stage and all its items?')) onDelete() }}
+            className="item-delete-btn"
+            title="Delete stage"
+            style={{
+              background: 'none', border: 'none', padding: '0 4px',
+              color: 'var(--border-b)', fontSize: 15, lineHeight: 1,
+              cursor: 'pointer', flexShrink: 0, opacity: 0, transition: 'opacity 0.1s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--border-b)')}
+          >×</button>
         )}
       </div>
       {open && (
@@ -1411,14 +1453,14 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete, onGoLiv
   }
 
   if (item.type === 'log') {
-    return <LogItem item={item} locked={locked} onUpdate={onUpdate} toggleBtn={toggleBtn} panel={panel} />
+    return <LogItem item={item} locked={locked} onUpdate={onUpdate} onDelete={onDelete} toggleBtn={toggleBtn} panel={panel} />
   }
 
   return null
 }
 
-function LogItem({ item, locked, onUpdate, toggleBtn, panel }: {
-  item: Item; locked: boolean; onUpdate: (i: Item) => void
+function LogItem({ item, locked, onUpdate, onDelete, toggleBtn, panel }: {
+  item: Item; locked: boolean; onUpdate: (i: Item) => void; onDelete?: () => void
   toggleBtn: React.ReactNode; panel: React.ReactNode
 }) {
   const [entries, setEntries] = useState<LogEntry[]>(item.log_entries ?? [])
@@ -1479,6 +1521,7 @@ function LogItem({ item, locked, onUpdate, toggleBtn, panel }: {
             textDecoration: item.task_done ? 'line-through' : 'none',
           }}>{item.task_name ?? 'Usage Log'}</span>
           {toggleBtn}
+          {onDelete && <DeleteBtn onClick={onDelete} />}
         </div>
 
         {/* Entry list */}
