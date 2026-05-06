@@ -278,6 +278,10 @@ export async function POST() {
             const headers: any[] = fullData.payload?.headers || []
             const subject = headers.find((h: any) => h.name === 'Subject')?.value || 'No subject'
             const body = extractEmailBody(fullData.payload)
+            // Use internalDate (ms since epoch) for the actual send time
+            const emailDate = fullData.internalDate
+              ? new Date(parseInt(fullData.internalDate)).toISOString()
+              : null
 
             // Log interaction
             await supabase.from('interactions').insert({
@@ -286,6 +290,7 @@ export async function POST() {
               summary: `Email from ${contact.name}: ${subject}`,
               detail: body.slice(0, 500) || null,
               gmail_message_id: msg.id,
+              event_at: emailDate,
             })
             emailCount++
             touchedAccountIds.add(contact.account_id)
@@ -359,12 +364,16 @@ export async function POST() {
                     .from('interactions').select('id')
                     .eq('account_id', matchedAccount.id).eq('gmail_message_id', msg.id).single()
                   if (!existingInteraction) {
+                    const autoEmailDate = msgData.internalDate
+                      ? new Date(parseInt(msgData.internalDate)).toISOString()
+                      : null
                     await supabase.from('interactions').insert({
                       account_id: matchedAccount.id,
                       type: 'email',
                       summary: `Email from ${senderName}: ${subject}`,
                       detail: 'Sender not in contacts — auto-matched by subject',
                       gmail_message_id: msg.id,
+                      event_at: autoEmailDate,
                     })
                     emailCount++
                     touchedAccountIds.add(matchedAccount.id)
@@ -488,7 +497,7 @@ export async function POST() {
               type: 'call',
               summary: `Meeting: ${eventTitle}`,
               detail: `gcal:${event.id}`,
-              created_at: startTime || undefined,
+              event_at: startTime || null,
             })
             calCount++
             touchedAccountIds.add(matchedAccountId)
@@ -555,12 +564,16 @@ export async function POST() {
 
             const text = match.text?.slice(0, 500) || ''
 
+            const slackDate = match.ts
+              ? new Date(parseFloat(match.ts) * 1000).toISOString()
+              : null
             await supabase.from('interactions').insert({
               account_id: account.id,
               type: 'note',
               summary: `Slack: mention in #${channelName}`,
               detail: text,
               slack_ts: match.ts,
+              event_at: slackDate,
             })
             count++
             touchedAccountIds.add(account.id)
