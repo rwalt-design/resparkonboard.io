@@ -46,6 +46,7 @@ export interface Account {
   go_live_date?: string | null
   kickoff_date?: string | null
   current_software?: string | null
+  paused_days?: number | null
   created_at: string
   updated_at: string
   // joined / computed

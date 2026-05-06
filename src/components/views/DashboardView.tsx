@@ -51,6 +51,13 @@ function computeSummary(account: Account): AccountSummary {
   // Outreach = CSM-initiated contact (not internal notes or inbound sessions)
   const OUTREACH_TYPES = new Set(['called', 'texted', 'bumped_email', 'sent_follow_up', 'custom', 'email', 'call', 'meeting'])
 
+  // Use calendar-day diff so "yesterday at 11pm" = 1d ago, not 0d ago
+  const calendarDaysAgo = (dateStr: string) => {
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const d = new Date(dateStr); d.setHours(0, 0, 0, 0)
+    return Math.round((today.getTime() - d.getTime()) / 86400000)
+  }
+
   // Last Contact = any qualifying interaction (not internal_note)
   const allInteractions = (account.interactions || []).filter(i => i.type !== 'internal_note')
   let daysSinceContact = 999
@@ -60,7 +67,7 @@ function computeSummary(account: Account): AccountSummary {
       new Date(a.created_at) > new Date(b.created_at) ? a : b
     )
     lastContactDate = latest.created_at
-    daysSinceContact = Math.floor((Date.now() - new Date(latest.created_at).getTime()) / 86400000)
+    daysSinceContact = calendarDaysAgo(latest.created_at)
   }
 
   // Last Outreach = last CSM-initiated interaction only
@@ -72,7 +79,7 @@ function computeSummary(account: Account): AccountSummary {
       new Date(a.created_at) > new Date(b.created_at) ? a : b
     )
     lastOutreachDate = latest.created_at
-    daysSinceOutreach = Math.floor((Date.now() - new Date(latest.created_at).getTime()) / 86400000)
+    daysSinceOutreach = calendarDaysAgo(latest.created_at)
   }
 
   return {
@@ -649,9 +656,18 @@ function loadDashState() {
 }
 
 function isHandedOff(account: Account): boolean {
-  return (account.milestones || []).some(m =>
-    m.stages.some(s => s.items.some(i => i.type === 'handoff' && i.task_done))
+  const milestones = account.milestones || []
+  if (milestones.length === 0) return false
+  // Explicit handoff item completed
+  const hasCompletedHandoff = milestones.some(m =>
+    m.stages.some(s => s.items.some(i =>
+      (i.type === 'handoff' || /hand.?off/i.test(i.task_name || '') || /hand.?off/i.test(i.handoff_name || ''))
+      && i.task_done
+    ))
   )
+  if (hasCompletedHandoff) return true
+  // Fallback: every milestone has all stages complete
+  return milestones.every(m => m.stages.length > 0 && m.stages.every(s => s.status === 'complete'))
 }
 
 export function DashboardView({ accounts, currentMember: _currentMember, orgMembers, trainingTemplates, planTemplates, sessionTemplates, accountsWithSuggestions, onSelectAccount, onRefresh }: Props) {
@@ -711,7 +727,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
     else list.sort((a, b) => a.completionPct - b.completionPct || a.name.localeCompare(b.name))
 
     return list
-  }, [summaries, sortCol, sortDir, filterSearch, filterHealth])
+  }, [summaries, sortCol, sortDir, filterSearch, filterHealth, activeTab])
 
   const updateHealth = async (accountId: string, status: HealthStatus) => {
     setHealthUpdating(accountId)
@@ -833,6 +849,47 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
         </div>
 
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
+          {activeTab === 'handed_off' ? (
+            /* ── Handed-off columns ── */
+            <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px,2fr) minmax(90px,1fr) 100px 100px 100px 80px 100px', columnGap: 16, padding: '8px 16px', borderBottom: '1px solid var(--border)', minWidth: 780 }}>
+              {['Account', 'SKU', 'KO Date', 'Went Live', 'Days to Live', 'Paused', 'Since Live'].map((label, i) => (
+                <span key={label} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i > 1 ? 'right' : 'left', whiteSpace: 'nowrap' }}>{label}</span>
+              ))}
+            </div>
+            {sorted.map(account => {
+              const ko   = account.kickoff_date ? new Date(account.kickoff_date + 'T00:00:00') : null
+              const live = account.go_live_date ? new Date(account.go_live_date + 'T00:00:00') : null
+              const paused = account.paused_days ?? 0
+              const rawDays = ko && live ? Math.round((live.getTime() - ko.getTime()) / 86400000) : null
+              const daysToLive = rawDays != null ? Math.max(0, rawDays - paused) : null
+              const daysSinceLive = live ? Math.round((Date.now() - live.getTime()) / 86400000) : null
+              const fmtDate = (d: Date | null) => d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—'
+              return (
+                <div key={account.id}
+                  onClick={() => onSelectAccount(account)}
+                  style={{ display: 'grid', gridTemplateColumns: 'minmax(160px,2fr) minmax(90px,1fr) 100px 100px 100px 80px 100px', columnGap: 16, padding: '10px 16px', borderBottom: '1px solid var(--border)', alignItems: 'center', cursor: 'pointer', minWidth: 780 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>{account.name}</div>
+                    {account.arr > 0 && <div style={{ fontSize: 11, color: 'var(--text-3)' }}>${account.arr.toLocaleString()}</div>}
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{account.sku}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-2)', textAlign: 'right' }}>{fmtDate(ko)}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-2)', textAlign: 'right' }}>{fmtDate(live)}</span>
+                  <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', textAlign: 'right', color: daysToLive != null ? 'var(--text)' : 'var(--text-3)' }}>{daysToLive != null ? `${daysToLive}d` : '—'}</span>
+                  <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', textAlign: 'right', color: paused > 0 ? '#f59e0b' : 'var(--text-3)' }}>{paused > 0 ? `${paused}d` : '—'}</span>
+                  <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', textAlign: 'right', color: 'var(--text-2)' }}>{daysSinceLive != null ? `${daysSinceLive}d` : '—'}</span>
+                </div>
+              )
+            })}
+            {sorted.length === 0 && <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>No handed-off accounts yet</div>}
+            </>
+          ) : (
+          /* ── Onboarding columns ── */
+          <>
           {/* Table header */}
           <div style={{ display: 'grid', gridTemplateColumns: cols, columnGap: 16, padding: '8px 16px', borderBottom: '1px solid var(--border)', minWidth: 900 }}>
             {([
@@ -849,17 +906,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
               const active = sortCol === sortKey
               const indicator = active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
               return sortKey ? (
-                <button
-                  key={label}
-                  onClick={() => setSort(sortKey)}
-                  style={{
-                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                    fontSize: 10, fontWeight: 700, color: active ? 'var(--accent)' : 'var(--text-3)',
-                    textTransform: 'uppercase', letterSpacing: '0.06em',
-                    textAlign: align as 'left' | 'center' | 'right', whiteSpace: 'nowrap',
-                    fontFamily: 'var(--font-ui)',
-                  }}
-                >{label}{indicator}</button>
+                <button key={label} onClick={() => setSort(sortKey)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 10, fontWeight: 700, color: active ? 'var(--accent)' : 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: align as 'left' | 'center' | 'right', whiteSpace: 'nowrap', fontFamily: 'var(--font-ui)' }}>{label}{indicator}</button>
               ) : (
                 <span key={label} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: align as 'left' | 'center' | 'right', whiteSpace: 'nowrap' }}>{label}</span>
               )
@@ -1089,6 +1136,9 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
               </div>
             )
           })}
+        </div>
+        </>
+        )}
         </div>
         </>
       )}

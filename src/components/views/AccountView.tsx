@@ -2088,6 +2088,7 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
   const [arr, setArr] = useState(String(account.arr || ''))
   const [goLive, setGoLive] = useState<string>(account.go_live_date || '')
   const [kickoff, setKickoff] = useState<string>(account.kickoff_date || '')
+  const [pausedDays, setPausedDays] = useState<string>(String(account.paused_days ?? ''))
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const supabase = createClient()
@@ -2110,6 +2111,7 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
       arr: parsedArr,
       go_live_date: goLive || null,
       kickoff_date: kickoff || null,
+      paused_days: parseInt(pausedDays) || 0,
     }
     const { error } = await supabase.from('accounts').update(patch).eq('id', account.id)
     if (error) {
@@ -2126,6 +2128,7 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
       arr: parsedArr,
       go_live_date: patch.go_live_date,
       kickoff_date: patch.kickoff_date,
+      paused_days: patch.paused_days,
     })
     setSaving(false)
     onClose()
@@ -2176,6 +2179,11 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
             Go Live date
             <input value={goLive} onChange={e => setGoLive(e.target.value)} type="date"
               style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
+          </label>
+          <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }} title="Days spent on-hold or blocked — excluded from Days to Live">
+            Paused days
+            <input value={pausedDays} onChange={e => setPausedDays(e.target.value)} type="number" min="0"
+              placeholder="0" style={{ ...inputStyle, fontSize: 13, marginTop: 4, width: 80 }} />
           </label>
         </div>
 
