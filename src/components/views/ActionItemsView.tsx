@@ -24,10 +24,65 @@ const HEALTH_OPTIONS: { value: HealthStatus; label: string; color: string }[] = 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface FlatTask extends OpenTask {
+  kind:       'task'
   account:    Account
   fromPlan:   boolean
   milestone?: string
   stage?:     string
+}
+
+interface ExchangeRow {
+  kind:       'exchange'
+  id:         string
+  name:       string      // artifact name, e.g. "Data Template"
+  account:    Account
+  send:       FlatTask    // "Send X" — respark's task
+  receive:    FlatTask    // "Return X" — waiting on customer
+  milestone?: string
+  stage?:     string
+  source:     string
+}
+
+type ListRow = FlatTask | ExchangeRow
+
+function pairExchanges(tasks: FlatTask[]): ListRow[] {
+  const sendMap    = new Map<string, FlatTask>()
+  const receiveMap = new Map<string, FlatTask>()
+
+  for (const t of tasks) {
+    const s = t.name.match(/^Send (.+)$/i)
+    const r = t.name.match(/^Return (.+)$/i)
+    if (s) sendMap.set(`${t.account.id}:${s[1].toLowerCase()}`, t)
+    else if (r) receiveMap.set(`${t.account.id}:${r[1].toLowerCase()}`, t)
+  }
+
+  const result: ListRow[]    = []
+  const emitted = new Set<string>()
+
+  for (const t of tasks) {
+    const s = t.name.match(/^Send (.+)$/i)
+    const r = t.name.match(/^Return (.+)$/i)
+    if (s) {
+      const key     = `${t.account.id}:${s[1].toLowerCase()}`
+      if (emitted.has(key)) continue
+      const receive = receiveMap.get(key)
+      if (receive) {
+        result.push({ kind: 'exchange', id: `x:${t.id}:${receive.id}`, name: s[1], account: t.account, send: t, receive, milestone: t.milestone, stage: t.stage, source: t.source })
+        emitted.add(key)
+      } else { result.push(t) }
+    } else if (r) {
+      const key  = `${t.account.id}:${r[1].toLowerCase()}`
+      if (emitted.has(key)) continue
+      const send = sendMap.get(key)
+      if (send) {
+        result.push({ kind: 'exchange', id: `x:${send.id}:${t.id}`, name: r[1], account: t.account, send, receive: t, milestone: send.milestone, stage: send.stage, source: send.source })
+        emitted.add(key)
+      } else { result.push(t) }
+    } else {
+      result.push(t)
+    }
+  }
+  return result
 }
 
 interface Props {
@@ -107,7 +162,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
 
       ;(account.open_tasks || []).forEach(task => {
         if (!futureStageNames.has(task.name.toLowerCase())) {
-          tasks.push({ ...task, account, fromPlan: false })
+          tasks.push({ kind: 'task', ...task, account, fromPlan: false })
         }
       })
       ;(account.milestones || []).forEach(m => {
@@ -127,7 +182,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                   item_type:   item.task_assignee === 'customer' ? 'dependency' : 'task',
                   item_owner:  item.task_assignee === 'customer' ? 'customer'   : 'respark',
                   item_status: item.task_done ? 'done' : item.task_assignee === 'customer' ? 'waiting' : 'open',
-                  account, fromPlan: true, milestone: m.name, stage: s.name,
+                  kind: 'task', account, fromPlan: true, milestone: m.name, stage: s.name,
                 })
               }
             }
@@ -141,7 +196,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                   source: item.task_source || 'plan', done: item.task_done || false,
                   created_at: item.created_at || new Date().toISOString(),
                   item_type: 'dependency', item_owner: 'customer', item_status: 'waiting',
-                  account, fromPlan: true, milestone: m.name, stage: s.name,
+                  kind: 'task', account, fromPlan: true, milestone: m.name, stage: s.name,
                 })
               }
             }
@@ -227,14 +282,17 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
   const doneCount    = tasks.filter(t => resolveItemMeta(t).item_status === 'done').length
 
   const grouped = useMemo(() => {
-    const map: Record<string, FlatTask[]> = {}
-    if (groupBy === 'none') { map['All Items'] = filtered; return map }
-    filtered.forEach(t => {
+    const rows = pairExchanges(filtered)
+    const map: Record<string, ListRow[]> = {}
+    if (groupBy === 'none') { map['All Items'] = rows; return map }
+    rows.forEach(row => {
       const key = groupBy === 'account'
-        ? t.account.name
-        : resolveItemMeta(t).item_type === 'dependency' ? 'Waiting on Customer' : 'My Tasks'
+        ? row.account.name
+        : row.kind === 'exchange'
+          ? 'Exchanges'
+          : resolveItemMeta(row).item_type === 'dependency' ? 'Waiting on Customer' : 'My Tasks'
       if (!map[key]) map[key] = []
-      map[key].push(t)
+      map[key].push(row)
     })
     return map
   }, [filtered, groupBy])
@@ -321,41 +379,112 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
           <p style={{ fontSize: 14 }}>No open action items.</p>
         </div>
       ) : (
-        Object.entries(grouped).map(([groupKey, groupTasks]) => (
+        Object.entries(grouped).map(([groupKey, groupRows]) => (
           <div key={groupKey} style={{ marginBottom: 20 }}>
             {groupBy !== 'none' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                 {groupBy === 'account' ? (
-                  <span onClick={() => onSelectAccount(groupTasks[0].account)}
+                  <span onClick={() => onSelectAccount(groupRows[0].account)}
                     style={{ fontSize: 13, fontWeight: 700, color: 'var(--link)', cursor: 'pointer' }}
                     onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                     onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                   >{groupKey}</span>
                 ) : (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: groupKey === 'Waiting on Customer' ? '#f59e0b' : '#3b82f6' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: groupKey === 'Waiting on Customer' ? '#f59e0b' : groupKey === 'Exchanges' ? '#8b5cf6' : '#3b82f6' }}>
                     {groupKey}
                   </span>
                 )}
                 <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
-                  {groupTasks.filter(t => resolveItemMeta(t).item_status !== 'done').length} open
+                  {groupRows.filter(r => r.kind === 'exchange'
+                    ? (resolveItemMeta(r.send).item_status !== 'done' || resolveItemMeta(r.receive).item_status !== 'done')
+                    : resolveItemMeta(r as FlatTask).item_status !== 'done'
+                  ).length} open
                 </span>
               </div>
             )}
             <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 7, overflow: 'hidden' }}>
-              {groupTasks.map((task, idx) => {
+              {groupRows.map((row, idx) => {
+                const borderBottom = idx < groupRows.length - 1 ? '1px solid var(--bg-surface3)' : 'none'
+
+                // ── Exchange row ──────────────────────────────────────────────
+                if (row.kind === 'exchange') {
+                  const sendMeta    = resolveItemMeta(row.send)
+                  const recvMeta    = resolveItemMeta(row.receive)
+                  const sendDone    = sendMeta.item_status === 'done' || sendMeta.item_status === 'cancelled'
+                  const recvDone    = recvMeta.item_status === 'done' || recvMeta.item_status === 'cancelled'
+                  const bothDone    = sendDone && recvDone
+                  return (
+                    <div key={row.id} style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderBottom,
+                      background: bothDone ? 'var(--bg-surface2)' : 'transparent',
+                    }}
+                      onMouseEnter={e => !bothDone && (e.currentTarget.style.background = 'var(--bg-hover)')}
+                      onMouseLeave={e => { e.currentTarget.style.background = bothDone ? 'var(--bg-surface2)' : 'transparent' }}
+                    >
+                      {/* Send checkbox */}
+                      <div onClick={() => !sendDone && markTaskDone(row.send, true)}
+                        title={sendDone ? 'Sent' : 'Mark sent'}
+                        style={{ marginTop: 2, width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                          border: sendDone ? 'none' : '1.5px solid #3b82f6',
+                          background: sendDone ? '#10b981' : 'transparent',
+                          cursor: sendDone ? 'default' : 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>{sendDone && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>✓</span>}</div>
+                      {/* Name + sub-labels */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: bothDone ? 'var(--text-3)' : 'var(--text)', textDecoration: bothDone ? 'line-through' : 'none', lineHeight: 1.4 }}>
+                          {row.name}
+                        </div>
+                        {row.stage && !bothDone && (
+                          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
+                            {row.milestone} › {row.stage}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3,
+                            background: sendDone ? '#10b98118' : '#3b82f614', color: sendDone ? '#10b981' : '#3b82f6',
+                            border: `1px solid ${sendDone ? '#10b98130' : '#3b82f630'}`, fontFamily: 'var(--font-mono)',
+                          }}>{sendDone ? '✓ Sent' : 'Send'}</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3,
+                            background: recvDone ? '#10b98118' : '#f59e0b18', color: recvDone ? '#10b981' : '#f59e0b',
+                            border: `1px solid ${recvDone ? '#10b98130' : '#f59e0b30'}`, fontFamily: 'var(--font-mono)',
+                          }}>{recvDone ? '✓ Received' : '⏳ Waiting on customer'}</span>
+                        </div>
+                      </div>
+                      {groupBy !== 'account' && (
+                        <span onClick={() => onSelectAccount(row.account)}
+                          style={{ fontSize: 11, color: '#3b82f6', cursor: 'pointer', whiteSpace: 'nowrap',
+                            background: '#3b82f614', border: '1px solid #3b82f630',
+                            borderRadius: 4, padding: '1px 6px', fontWeight: 500, alignSelf: 'center',
+                          }}>{row.account.name}</span>
+                      )}
+                      <span style={{ alignSelf: 'center', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+                        background: '#8b5cf614', border: '1px solid #8b5cf630', color: '#8b5cf6', fontFamily: 'var(--font-mono)',
+                      }}>exchange</span>
+                      {!recvDone && (
+                        <button onClick={() => markDependencyReceived(row.receive)} style={{
+                          alignSelf: 'center', background: 'none', border: '1px solid #f59e0b60',
+                          borderRadius: 5, padding: '3px 9px', color: '#f59e0b',
+                          fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap',
+                        }}>Mark received</button>
+                      )}
+                    </div>
+                  )
+                }
+
+                // ── Regular task row ──────────────────────────────────────────
+                const task = row as FlatTask
                 const { item_type, item_status } = resolveItemMeta(task)
                 const isDep  = item_type === 'dependency'
                 const isDone = item_status === 'done' || item_status === 'cancelled'
                 return (
                   <div key={task.id} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px',
-                    borderBottom: idx < groupTasks.length - 1 ? '1px solid var(--bg-surface3)' : 'none',
+                    display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderBottom,
                     background: isDone ? 'var(--bg-surface2)' : 'transparent',
                   }}
                     onMouseEnter={e => !isDone && (e.currentTarget.style.background = 'var(--bg-hover)')}
                     onMouseLeave={e => { e.currentTarget.style.background = isDone ? 'var(--bg-surface2)' : 'transparent' }}
                   >
-                    {/* Control */}
                     {isDep ? (
                       <div onClick={() => !isDone && markDependencyReceived(task)}
                         title={isDone ? 'Received' : 'Mark received'}
@@ -375,7 +504,6 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>{isDone && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>✓</span>}</div>
                     )}
-                    {/* Name + context */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, color: isDone ? 'var(--text-3)' : 'var(--text)', textDecoration: isDone ? 'line-through' : 'none', lineHeight: 1.4 }}>
                         {task.name}
