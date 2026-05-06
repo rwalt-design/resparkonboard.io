@@ -1917,6 +1917,7 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
   const [goLive, setGoLive] = useState<string>(account.go_live_date || '')
   const [kickoff, setKickoff] = useState<string>(account.kickoff_date || '')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const supabase = createClient()
 
   const SKU_OPTIONS = [['dispatch', 'Dispatch'], ['facility_management', 'Facility Mgmt'], ['full_suite', 'Full Suite']] as const
@@ -1928,6 +1929,7 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
 
   const save = async () => {
     setSaving(true)
+    setSaveError(null)
     const parsedArr = parseInt(arr) || 0
     const patch = {
       name: name.trim() || account.name,
@@ -1937,7 +1939,13 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
       go_live_date: goLive || null,
       kickoff_date: kickoff || null,
     }
-    await supabase.from('accounts').update(patch).eq('id', account.id)
+    const { error } = await supabase.from('accounts').update(patch).eq('id', account.id)
+    if (error) {
+      console.error('[AccountDetailsModal] save failed', error)
+      setSaveError(error.message || 'Save failed')
+      setSaving(false)
+      return
+    }
     onUpdate({
       ...account,
       name: patch.name,
@@ -2029,6 +2037,15 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
           </div>
         </div>
 
+        {saveError && (
+          <div style={{
+            fontSize: 12, color: '#ef4444',
+            background: '#ef444415', border: '1px solid #ef444440',
+            borderRadius: 6, padding: '8px 10px',
+          }}>
+            {saveError}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
           <button onClick={onClose} style={ghostBtn}>Cancel</button>
           <button onClick={save} disabled={saving} style={primaryBtn}>{saving ? 'Saving…' : 'Save'}</button>
