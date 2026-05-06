@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext, createContext } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Account, Milestone, Stage, Item, Interaction, OrgMember, Contact, Request, ChecklistItem, LogEntry, Sku, Addon, SessionActionItem, PlanTemplate, TrainingTemplate, SessionTemplate, QuickLogType, QuickLogOutcome } from '@/types'
 import {
@@ -313,6 +313,10 @@ const ghostBtn: React.CSSProperties = {
 
 // ─── Plan Tab ────────────────────────────────────────────────────────────────
 
+// Signals to nested stage/checklist components whether to force-expand or force-collapse.
+// undefined = let the component decide on its own.
+const ExpandAllCtx = createContext<boolean | undefined>(undefined)
+
 function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Account) => void }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     [account.milestones?.[0]?.id || '']: true,
@@ -324,6 +328,14 @@ function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Accoun
 
   const toggleMilestone = (id: string) =>
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
+
+  const [expandAllState, setExpandAllState] = useState<boolean | undefined>(undefined)
+  const allExpanded = (account.milestones || []).every(m => !!expanded[m.id])
+  const toggleAll = () => {
+    const next = !allExpanded
+    setExpanded(Object.fromEntries((account.milestones || []).map(m => [m.id, next])))
+    setExpandAllState(next)
+  }
 
   const handleAddMilestone = async () => {
     if (!milestoneName.trim()) return
@@ -356,8 +368,21 @@ function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Accoun
   }
 
   return (
+    <ExpandAllCtx.Provider value={expandAllState}>
     <div style={{ padding: '20px 24px' }}>
       <style>{`.drag-handle { opacity: 0 } *:hover > .drag-handle { opacity: 1 } .timeline-row:hover .item-delete-btn { opacity: 1 } *:hover > .item-delete-btn { opacity: 1 !important }`}</style>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button
+          onClick={toggleAll}
+          style={{
+            background: 'none', border: '1px solid var(--border)', borderRadius: 5,
+            padding: '3px 10px', fontSize: 11, color: 'var(--text-2)', cursor: 'pointer',
+            fontFamily: 'var(--font-ui)', fontWeight: 500,
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}
+        >{allExpanded ? '↑ Collapse all' : '↓ Expand all'}</button>
+      </div>
       {(account.milestones || []).map((milestone, mi) => (
         <MilestoneBlock
           key={milestone.id}
@@ -413,6 +438,7 @@ function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Accoun
         >+ Add Milestone</button>
       )}
     </div>
+    </ExpandAllCtx.Provider>
   )
 }
 
@@ -789,6 +815,8 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
   stage: Stage; index: number; account: Account; milestone: Milestone; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void; onDelete?: () => void
 }) {
   const [open, setOpen] = useState(stage.status === 'active' || stage.status === 'unlocked')
+  const expandAll = useContext(ExpandAllCtx)
+  useEffect(() => { if (expandAll !== undefined) setOpen(expandAll) }, [expandAll])
   const [addingItem, setAddingItem] = useState(false)
   const [itemType, setItemType] = useState<'task' | 'dependency' | 'exchange' | 'session' | 'log' | 'handoff' | 'golive'>('task')
   const [itemName, setItemName] = useState('')
@@ -1174,6 +1202,8 @@ const ASSIGNEE_COLORS: Record<string, string> = {
 function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
   const supabase = createClient()
   const [open, setOpen] = useState((item.checklist ?? []).length > 0)
+  const expandAll = useContext(ExpandAllCtx)
+  useEffect(() => { if (expandAll !== undefined) setOpen(expandAll) }, [expandAll])
   const [items, setItems] = useState<ChecklistItem[]>(item.checklist ?? [])
   const [input, setInput] = useState('')
 
