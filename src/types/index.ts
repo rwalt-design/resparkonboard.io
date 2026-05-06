@@ -1,7 +1,7 @@
 export type Sku = 'dispatch' | 'facility_management' | 'full_suite'
 export type Addon = 'brokerage' | 'export' | 'api'
 export type StageStatus = 'locked' | 'active' | 'unlocked' | 'complete'
-export type ItemType = 'task' | 'session' | 'record' | 'handoff' | 'log' | 'dependency'
+export type ItemType = 'task' | 'session' | 'record' | 'handoff' | 'log' | 'dependency' | 'golive'
 
 export interface ChecklistItem {
   id: string

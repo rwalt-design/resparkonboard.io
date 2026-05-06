@@ -760,7 +760,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
 }) {
   const [open, setOpen] = useState(stage.status === 'active' || stage.status === 'unlocked')
   const [addingItem, setAddingItem] = useState(false)
-  const [itemType, setItemType] = useState<'task' | 'dependency' | 'exchange' | 'session' | 'log' | 'handoff'>('task')
+  const [itemType, setItemType] = useState<'task' | 'dependency' | 'exchange' | 'session' | 'log' | 'handoff' | 'golive'>('task')
   const [itemName, setItemName] = useState('')
   const [itemRequired, setItemRequired] = useState(true)
   const [localItems, setLocalItems] = useState<Item[]>(stage.items)
@@ -818,7 +818,6 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
 
   const statusColor = STAGE_STATUS_COLORS[stage.status] || 'var(--text-3)'
   const canAdvance = stage.status === 'unlocked' || stage.status === 'active'
-  const isGoLiveStage = /go.?live|launch/i.test(stage.name)
   const handleAdvance = async () => {
     await supabase.from('stages').update({ status: 'complete' }).eq('id', stage.id)
 
@@ -894,12 +893,15 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
     if (!itemName.trim()) return
     const insertPayload: Record<string, unknown> = {
       stage_id: stage.id,
-      type: itemType === 'exchange' ? 'task' : itemType, // exchange expands to 2 tasks
+      type: itemType === 'exchange' ? 'task' : itemType,
       required: itemRequired,
       order_index: stage.items.length,
     }
 
-    if (itemType === 'task' || itemType === 'log') {
+    if (itemType === 'golive') {
+      insertPayload.task_name = itemName.trim() || 'Go Live'
+      insertPayload.task_done = false
+    } else if (itemType === 'task' || itemType === 'log') {
       insertPayload.task_name     = itemName.trim()
       insertPayload.task_assignee = 'personal'
       insertPayload.task_source   = 'manual'
@@ -1012,25 +1014,19 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
         {canAdvance && (
           <button
             onClick={e => { e.stopPropagation(); handleAdvance() }}
-            style={isGoLiveStage ? {
-              background: 'linear-gradient(135deg, #f59e0b22, #10b98122)',
-              border: '1px solid #10b98166',
-              borderRadius: 5, padding: '3px 10px',
-              color: '#10b981', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-ui)',
-              letterSpacing: '0.02em',
-            } : {
+            style={{
               background: '#10b98122', border: '1px solid #10b98144',
               borderRadius: 5, padding: '2px 8px',
               color: '#10b981', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
             }}
-          >{isGoLiveStage ? '🚀 Go Live!' : 'Mark complete →'}</button>
+          >Mark complete →</button>
         )}
       </div>
       {open && (
         <div style={{ paddingBottom: 4 }}>
           <DndContext sensors={itemSensors} collisionDetection={closestCenter} onDragEnd={handleItemDragEnd}>
             <SortableContext items={groupItems(localItems).map(g => g.id)} strategy={verticalListSortingStrategy}>
-              {groupItems(localItems).map(group => (
+              {groupItems(localItems).map((group) => (
                 <SortableRow key={group.id} id={group.id}>
                   {group.kind === 'exchange' ? (
                     <ExchangeRow
@@ -1052,7 +1048,17 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
                       }}
                     />
                   ) : (
-                    <ItemRow item={group.item} stageStatus={stage.status} onUpdate={handleItemUpdate} onOpenSession={onOpenSession} onDelete={() => handleDeleteItem(group.item.id)} />
+                    <ItemRow
+                      item={group.item}
+                      stageStatus={stage.status}
+                      onUpdate={handleItemUpdate}
+                      onOpenSession={onOpenSession}
+                      onDelete={() => handleDeleteItem(group.item.id)}
+                      onGoLive={async (date) => {
+                        await supabase.from('accounts').update({ go_live_date: date }).eq('id', account.id)
+                        onUpdate({ ...account, go_live_date: date })
+                      }}
+                    />
                   )}
                 </SortableRow>
               ))}
@@ -1070,6 +1076,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
                   { id: 'session',    label: 'Session',            color: '#10b981', hint: 'Meeting or training' },
                   { id: 'handoff',    label: 'Handoff',            color: '#6b7280', hint: 'Rep transition' },
                   { id: 'log',        label: 'Log',                color: '#6b7280', hint: 'Activity log entry' },
+                  { id: 'golive',     label: '🚀 Go Live',         color: '#10b981', hint: 'Mark the moment of going live' },
                 ] as const).map(({ id, label, color }) => (
                   <button key={id} onClick={() => setItemType(id)} title={id} style={{
                     padding: '3px 9px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer',
@@ -1197,12 +1204,46 @@ function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
   return { toggleBtn, panel }
 }
 
-function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete }: {
-  item: Item; stageStatus: string; onUpdate: (i: Item) => void; onOpenSession?: (item: Item) => void; onDelete?: () => void
+function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete, onGoLive }: {
+  item: Item; stageStatus: string; onUpdate: (i: Item) => void; onOpenSession?: (item: Item) => void; onDelete?: () => void; onGoLive?: (date: string) => void
 }) {
   const supabase = createClient()
   const locked = stageStatus === 'locked'
   const { toggleBtn, panel } = useItemChecklist(item, onUpdate)
+
+  if (item.type === 'golive') {
+    const done = !!item.task_done
+    const markLive = async () => {
+      if (locked || done) return
+      const today = new Date().toISOString().split('T')[0]
+      await supabase.from('items').update({ task_done: true }).eq('id', item.id)
+      onUpdate({ ...item, task_done: true })
+      onGoLive?.(today)
+    }
+    return (
+      <div style={{ padding: '8px 16px', opacity: locked ? 0.45 : 1 }}>
+        <button
+          onClick={markLive}
+          disabled={locked}
+          style={{
+            width: '100%', borderRadius: 8, padding: '12px 20px',
+            background: done ? '#10b98118' : 'linear-gradient(135deg, #059669, #10b981)',
+            border: done ? '1px solid #10b98155' : 'none',
+            color: done ? '#10b981' : '#fff',
+            fontSize: 15, fontWeight: 700, cursor: done || locked ? 'default' : 'pointer',
+            fontFamily: 'var(--font-ui)', letterSpacing: '0.02em',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'all 0.15s',
+          }}
+        >
+          {done ? '✓ Went Live' : '🚀 Go Live!'}
+          {onDelete && !done && (
+            <span onClick={e => { e.stopPropagation(); onDelete?.() }} style={{ marginLeft: 'auto', opacity: 0.5, fontSize: 12 }}>✕</span>
+          )}
+        </button>
+      </div>
+    )
+  }
 
   const toggleTask = async () => {
     if (locked || (item.type !== 'task' && item.type !== 'dependency')) return
