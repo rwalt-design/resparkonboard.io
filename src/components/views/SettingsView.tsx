@@ -332,7 +332,10 @@ export function SettingsView({ section, trainingTemplates: initial, planTemplate
 }
 
 function PreferencesSection() {
-  const [tooltips, setTooltips] = useState(false)
+  const [tooltips, setTooltips] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true
+    return getTooltipsEnabled()
+  })
   useEffect(() => { setTooltips(getTooltipsEnabled()) }, [])
 
   const toggle = () => {
