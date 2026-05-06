@@ -755,7 +755,22 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [pushingId, setPushingId] = useState<string | null>(null)
   const [pushResult, setPushResult] = useState<{ id: string; message: string } | null>(null)
+  const [deduping, setDeduping] = useState(false)
+  const [dedupeResult, setDedupeResult] = useState<string | null>(null)
   const supabase = createClient()
+
+  const handleDedupeAll = async () => {
+    setDeduping(true)
+    setDedupeResult(null)
+    const res = await fetch('/api/dedupe-plan-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+    const data = await res.json()
+    setDeduping(false)
+    if (data.error) {
+      setDedupeResult(`Error: ${data.error}`)
+    } else {
+      setDedupeResult(data.removed === 0 ? 'No duplicates found.' : `Removed ${data.removed} duplicate item${data.removed !== 1 ? 's' : ''} across ${data.details?.length ?? 0} account${data.details?.length !== 1 ? 's' : ''}.`)
+    }
+  }
 
   const handlePushToAccounts = async (templateId: string, scope: 'linked' | 'all') => {
     setPushingId(templateId)
@@ -933,6 +948,21 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
           ))}
         </div>
       )}
+      {/* Org-wide dedupe tool */}
+      <div style={{ marginTop: 20, padding: '12px 16px', background: 'var(--bg-surface2)', borderRadius: 8, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Clean up duplicate items</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>Removes duplicate plan items (same name in the same stage) across all accounts. Keeps the most-complete copy.</div>
+        </div>
+        <button
+          onClick={handleDedupeAll}
+          disabled={deduping}
+          style={{ background: '#f59e0b18', border: '1px solid #f59e0b40', borderRadius: 5, padding: '4px 12px', color: deduping ? 'var(--text-3)' : '#f59e0b', fontSize: 11, fontWeight: 600, cursor: deduping ? 'default' : 'pointer', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap' }}
+        >{deduping ? 'Cleaning…' : '⌫ Remove duplicates'}</button>
+        {dedupeResult && (
+          <span style={{ fontSize: 11, color: dedupeResult.startsWith('Error') ? '#ef4444' : '#10b981' }}>{dedupeResult}</span>
+        )}
+      </div>
     </div>
   )
 }
