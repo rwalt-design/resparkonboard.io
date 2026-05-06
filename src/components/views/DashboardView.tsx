@@ -632,21 +632,77 @@ interface Props {
   onRefresh: () => void
 }
 
+type SortCol = 'name' | 'completion' | 'outreach' | 'contact' | 'tasks' | 'health' | 'stage'
+
+function loadDashState() {
+  if (typeof window === 'undefined') return { sortCol: null as SortCol | null, sortDir: 'asc' as 'asc' | 'desc', filterSearch: '', filterHealth: '' }
+  try {
+    const sort = JSON.parse(localStorage.getItem('dash-sort') || 'null')
+    const filter = JSON.parse(localStorage.getItem('dash-filter') || 'null')
+    return {
+      sortCol: (sort?.col ?? null) as SortCol | null,
+      sortDir: (sort?.dir ?? 'asc') as 'asc' | 'desc',
+      filterSearch: filter?.search ?? '',
+      filterHealth: filter?.health ?? '',
+    }
+  } catch { return { sortCol: null as SortCol | null, sortDir: 'asc' as 'asc' | 'desc', filterSearch: '', filterHealth: '' } }
+}
+
 export function DashboardView({ accounts, currentMember: _currentMember, orgMembers, trainingTemplates, planTemplates, sessionTemplates, accountsWithSuggestions, onSelectAccount, onRefresh }: Props) {
   const [showCreate, setShowCreate] = useState(false)
   const [expandedTask, setExpandedTask] = useState<string | null>(null)
   const [showWeeklySummary, setShowWeeklySummary] = useState(false)
-
   const [healthUpdating, setHealthUpdating] = useState<string | null>(null)
+
+  const init = useMemo(loadDashState, [])
+  const [sortCol, setSortCol] = useState<SortCol | null>(init.sortCol)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(init.sortDir)
+  const [filterSearch, setFilterSearch] = useState(init.filterSearch)
+  const [filterHealth, setFilterHealth] = useState(init.filterHealth)
+
   const supabase = createClient()
+
+  const setSort = (col: SortCol) => {
+    const next = sortCol === col ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'
+    setSortCol(col)
+    setSortDir(next)
+    localStorage.setItem('dash-sort', JSON.stringify({ col, dir: next }))
+  }
+
+  const updateFilter = (patch: { search?: string; health?: string }) => {
+    const next = { search: filterSearch, health: filterHealth, ...patch }
+    if (patch.search !== undefined) setFilterSearch(patch.search)
+    if (patch.health !== undefined) setFilterHealth(patch.health)
+    localStorage.setItem('dash-filter', JSON.stringify(next))
+  }
 
   const summaries = useMemo(() => accounts.map(computeSummary), [accounts])
 
-  // Sort: least completed → most completed; ties broken by name
-  const sorted = useMemo(() =>
-    [...summaries].sort((a, b) => a.completionPct - b.completionPct || a.name.localeCompare(b.name)),
-    [summaries]
-  )
+  const sorted = useMemo(() => {
+    let list = [...summaries]
+
+    // Filter
+    if (filterSearch.trim()) {
+      const q = filterSearch.trim().toLowerCase()
+      list = list.filter(a => a.name.toLowerCase().includes(q))
+    }
+    if (filterHealth) {
+      list = list.filter(a => (a.health_status || 'active') === filterHealth)
+    }
+
+    // Sort
+    const dir = sortDir === 'asc' ? 1 : -1
+    if (sortCol === 'name') list.sort((a, b) => a.name.localeCompare(b.name) * dir)
+    else if (sortCol === 'completion') list.sort((a, b) => (a.completionPct - b.completionPct) * dir)
+    else if (sortCol === 'outreach') list.sort((a, b) => (a.daysSinceOutreach - b.daysSinceOutreach) * dir)
+    else if (sortCol === 'contact') list.sort((a, b) => (a.daysSinceContact - b.daysSinceContact) * dir)
+    else if (sortCol === 'tasks') list.sort((a, b) => (a.openTaskCount - b.openTaskCount) * dir)
+    else if (sortCol === 'health') list.sort((a, b) => (a.health_status || 'active').localeCompare(b.health_status || 'active') * dir)
+    else if (sortCol === 'stage') list.sort((a, b) => a.currentStage.localeCompare(b.currentStage) * dir)
+    else list.sort((a, b) => a.completionPct - b.completionPct || a.name.localeCompare(b.name))
+
+    return list
+  }, [summaries, sortCol, sortDir, filterSearch, filterHealth])
 
   const updateHealth = async (accountId: string, status: HealthStatus) => {
     setHealthUpdating(accountId)
@@ -707,22 +763,77 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
           <button onClick={() => setShowCreate(true)} style={primaryBtnStyle}>Create your first account</button>
         </div>
       ) : (
+        <>
+        {/* Filter bar */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+          <input
+            value={filterSearch}
+            onChange={e => updateFilter({ search: e.target.value })}
+            placeholder="Search accounts…"
+            style={{
+              background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 6,
+              padding: '5px 10px', fontSize: 12, color: 'var(--text)', fontFamily: 'var(--font-ui)',
+              outline: 'none', width: 200,
+            }}
+          />
+          <select
+            value={filterHealth}
+            onChange={e => updateFilter({ health: e.target.value })}
+            style={{
+              background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 6,
+              padding: '5px 8px', fontSize: 12, color: filterHealth ? 'var(--text)' : 'var(--text-3)',
+              fontFamily: 'var(--font-ui)', cursor: 'pointer', outline: 'none',
+            }}
+          >
+            <option value="">All health</option>
+            {HEALTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          {(filterSearch || filterHealth) && (
+            <button
+              onClick={() => updateFilter({ search: '', health: '' })}
+              style={{
+                background: 'none', border: '1px solid var(--border)', borderRadius: 6,
+                padding: '5px 8px', fontSize: 11, color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'var(--font-ui)',
+              }}
+            >Clear</button>
+          )}
+          {sorted.length !== summaries.length && (
+            <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 4 }}>{sorted.length} of {summaries.length}</span>
+          )}
+        </div>
+
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
           {/* Table header */}
           <div style={{ display: 'grid', gridTemplateColumns: cols, columnGap: 16, padding: '8px 16px', borderBottom: '1px solid var(--border)', minWidth: 900 }}>
-            {[
-              { label: 'Account', align: 'left', nowrap: false },
-              { label: 'SKU', align: 'left', nowrap: false },
-              { label: 'Current Stage', align: 'left', nowrap: false },
-              { label: 'Completion', align: 'left', nowrap: true },
-              { label: 'Last Outreach', align: 'center', nowrap: true },
-              { label: 'Last Contact', align: 'center', nowrap: true },
-              { label: 'Timeline', align: 'center', nowrap: true },
-              { label: 'Tasks', align: 'center', nowrap: true },
-              { label: 'Health', align: 'right', nowrap: true },
-            ].map(({ label, align, nowrap }) => (
-              <span key={label} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: align as 'left' | 'center' | 'right', whiteSpace: nowrap ? 'nowrap' : undefined }}>{label}</span>
-            ))}
+            {([
+              { label: 'Account',       align: 'left',   sortKey: 'name'       },
+              { label: 'SKU',           align: 'left',   sortKey: null         },
+              { label: 'Current Stage', align: 'left',   sortKey: 'stage'      },
+              { label: 'Completion',    align: 'left',   sortKey: 'completion' },
+              { label: 'Last Outreach', align: 'center', sortKey: 'outreach'   },
+              { label: 'Last Contact',  align: 'center', sortKey: 'contact'    },
+              { label: 'Timeline',      align: 'center', sortKey: null         },
+              { label: 'Tasks',         align: 'center', sortKey: 'tasks'      },
+              { label: 'Health',        align: 'right',  sortKey: 'health'     },
+            ] as { label: string; align: string; sortKey: SortCol | null }[]).map(({ label, align, sortKey }) => {
+              const active = sortCol === sortKey
+              const indicator = active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
+              return sortKey ? (
+                <button
+                  key={label}
+                  onClick={() => setSort(sortKey)}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    fontSize: 10, fontWeight: 700, color: active ? 'var(--accent)' : 'var(--text-3)',
+                    textTransform: 'uppercase', letterSpacing: '0.06em',
+                    textAlign: align as 'left' | 'center' | 'right', whiteSpace: 'nowrap',
+                    fontFamily: 'var(--font-ui)',
+                  }}
+                >{label}{indicator}</button>
+              ) : (
+                <span key={label} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: align as 'left' | 'center' | 'right', whiteSpace: 'nowrap' }}>{label}</span>
+              )
+            })}
           </div>
 
           {sorted.map((account) => {
@@ -949,6 +1060,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
             )
           })}
         </div>
+        </>
       )}
 
       {showCreate && (
