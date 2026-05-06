@@ -91,7 +91,9 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
       })
       ;(account.milestones || []).forEach(m => {
         m.stages.forEach(s => {
-          if (s.status === 'locked' || s.status === 'complete') return
+          // Only show items from the current (active) stage and stages before it (complete).
+          // Skip later stages (unlocked = available but not yet current, locked = not yet available).
+          if (s.status !== 'active' && s.status !== 'complete') return
           s.items.forEach(item => {
             if (item.type === 'task' && !item.task_done && item.required) {
               const alreadyIn = tasks.some(t => t.name === item.task_name && t.account.id === account.id)
