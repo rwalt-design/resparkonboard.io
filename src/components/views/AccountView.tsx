@@ -932,7 +932,11 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
       return
     }
 
-    const { data: newItem } = await supabase.from('items').insert(insertPayload).select().single()
+    const { data: newItem, error: insertError } = await supabase.from('items').insert(insertPayload).select().single()
+    if (insertError) {
+      alert(`Failed to add item: ${insertError.message}`)
+      return
+    }
     if (newItem) {
       setLocalItems(prev => [...prev, newItem as Item])
       onUpdate({
