@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Account, OpenTask, AiSuggestion } from '@/types'
+import type { Account, OpenTask, AiSuggestion, HealthStatus } from '@/types'
 
 // ── Visual constants ───────────────────────────────────────────────────────────
 
@@ -12,6 +12,14 @@ const SOURCE_COLORS: Record<string, string> = {
   session: '#10b981',
   manual:  '#f59e0b',
 }
+
+const HEALTH_OPTIONS: { value: HealthStatus; label: string; color: string }[] = [
+  { value: 'active',       label: 'Active',       color: '#10b981' },
+  { value: 'stalled',      label: 'Stalled',      color: '#f59e0b' },
+  { value: 'on_hold',      label: 'On Hold',      color: '#6b7280' },
+  { value: 'unresponsive', label: 'Unresponsive', color: '#ef4444' },
+  { value: 'blocked',      label: 'Blocked',      color: '#ef4444' },
+]
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -149,8 +157,16 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
   const [filterMode, setFilterMode]       = useState<'all'|'me'|'customer'|'internal'>('all')
   const [filterAccount, setFilterAccount] = useState('all')
   const [filterSource, setFilterSource]   = useState('all')
+  const [filterHealth, setFilterHealth]   = useState<Set<HealthStatus>>(new Set())
   const [showDone, setShowDone]           = useState(false)
   const [groupBy, setGroupBy]             = useState<'account'|'type'|'none'>('account')
+
+  const toggleHealth = (h: HealthStatus) =>
+    setFilterHealth(prev => {
+      const next = new Set(prev)
+      if (next.has(h)) { next.delete(h) } else { next.add(h) }
+      return next
+    })
 
   const markTaskDone = async (task: FlatTask, done: boolean) => {
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, done, item_status: done ? 'done' : 'open' } : t))
@@ -202,10 +218,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
     if (filterMode === 'internal') return item_owner === 'respark'   && t.assignee === 'internal'
     if (filterAccount !== 'all' && t.account.id !== filterAccount) return false
     if (filterSource  !== 'all' && t.source      !== filterSource)  return false
-    return true
-  }).filter(t => {
-    if (filterAccount !== 'all' && t.account.id !== filterAccount) return false
-    if (filterSource  !== 'all' && t.source      !== filterSource)  return false
+    if (filterHealth.size > 0 && !filterHealth.has((t.account.health_status || 'active') as HealthStatus)) return false
     return true
   })
 
@@ -263,6 +276,24 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
           <option value="session">From Session</option>
           <option value="manual">Manual</option>
         </select>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          {HEALTH_OPTIONS.map(h => {
+            const active = filterHealth.has(h.value)
+            return (
+              <button key={h.value} onClick={() => toggleHealth(h.value)} style={{
+                background: active ? h.color + '22' : 'var(--bg-surface)',
+                border: `1px solid ${active ? h.color + '66' : 'var(--border)'}`,
+                borderRadius: 5, padding: '4px 8px',
+                color: active ? h.color : 'var(--text-3)',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: active ? h.color : 'var(--text-3)', display: 'inline-block', flexShrink: 0 }} />
+                {h.label}
+              </button>
+            )
+          })}
+        </div>
         <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', alignItems: 'center' }}>
           <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, marginRight: 2 }}>Group:</span>
           {(['account', 'type', 'none'] as const).map(g => (
