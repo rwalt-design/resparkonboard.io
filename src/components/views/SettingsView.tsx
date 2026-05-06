@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { TrainingTemplate, SessionTemplate, Connector, PlanTemplate, PlanTemplateMilestone, PlanTemplateStage, PlanTemplateItem } from '@/types'
+import { getTooltipsEnabled, setTooltipsEnabled } from '@/components/Tooltip'
 
 const SKU_OPTIONS = ['dispatch', 'facility_management', 'full_suite']
 const SKU_LABELS: Record<string, string> = { dispatch: 'Dispatch', facility_management: 'Facility Mgmt', full_suite: 'Full Suite' }
@@ -324,6 +325,46 @@ export function SettingsView({ section, trainingTemplates: initial, planTemplate
           <UnmatchedSignalsPanel />
         </>
       )}
+
+      <PreferencesSection />
+    </div>
+  )
+}
+
+function PreferencesSection() {
+  const [tooltips, setTooltips] = useState(false)
+  useEffect(() => { setTooltips(getTooltipsEnabled()) }, [])
+
+  const toggle = () => {
+    const next = !tooltips
+    setTooltips(next)
+    setTooltipsEnabled(next)
+  }
+
+  return (
+    <div style={{ marginTop: 32, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
+      <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-h)', margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Preferences</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 7 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>Hover Tooltips</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Show explanatory tooltips on badges, buttons, and status labels</div>
+        </div>
+        <button
+          onClick={toggle}
+          style={{
+            width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer',
+            background: tooltips ? '#3b82f6' : 'var(--bg-surface3)',
+            position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+          }}
+        >
+          <span style={{
+            position: 'absolute', top: 3, left: tooltips ? 21 : 3,
+            width: 16, height: 16, borderRadius: '50%', background: '#fff',
+            transition: 'left 0.2s', display: 'block',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+          }} />
+        </button>
+      </div>
     </div>
   )
 }
