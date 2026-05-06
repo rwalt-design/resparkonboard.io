@@ -46,9 +46,8 @@ function useTheme() {
   }
 
   useEffect(() => {
-    const stored = (localStorage.getItem('theme') as ThemePref) || 'dark'
-    // Normalize legacy 'system' value
-    const resolved = stored === 'system' ? 'dark' : stored
+    const raw = localStorage.getItem('theme') || 'dark'
+    const resolved = (raw === 'light' ? 'light' : 'dark') as ThemePref
     setPref(resolved)
     applyTheme(resolved)
   }, [])
