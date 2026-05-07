@@ -246,12 +246,9 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
             background: 'none', border: 'none', cursor: 'pointer', padding: '0 8px 0 0', marginRight: 16,
           }}
         >
-          <div style={{
-            width: 28, height: 28, borderRadius: 8, background: 'var(--border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
-            <svg viewBox="0 0 14 18" width="9" height="12" fill="none">
-              <path d="M8.5 1 L4 9.5 H7.5 L4.5 17 L13.5 7.5 H9 L12.5 1 Z" fill="#3b82f6"/>
+          <div style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 105 105" width="24" height="24" fill="none">
+              <path d="M97.67 82.5C96.47 91.24 88.98 98 79.93 98H24.91C15.03 98 6.99 89.95 6.99 80.05V24.95C6.99 15.05 15.03 7 24.91 7H79.93C88.98 7 96.47 13.76 97.67 22.5H104.73C103.5 9.87 92.87 0 79.94 0H24.91C11.15 0 0 11.17 0 24.95V80.05C0 93.83 11.15 105 24.91 105H79.93C92.86 105 103.49 95.13 104.72 82.5H97.66H97.67Z" fill="#00C9D4"/>
             </svg>
           </div>
           <div style={{ lineHeight: 1.1, textAlign: 'left' }}>
@@ -388,7 +385,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
                   onClick={toggleTooltips}
                   style={{
                     width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', flexShrink: 0,
-                    background: tooltips ? '#3b82f6' : 'var(--bg-surface3)',
+                    background: tooltips ? '#1BB3BB' : 'var(--bg-surface3)',
                     position: 'relative', transition: 'background 0.2s',
                   }}
                 >

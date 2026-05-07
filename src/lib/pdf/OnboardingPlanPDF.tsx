@@ -43,8 +43,8 @@ function generatedDate() {
 
 const c = {
   navy: '#1e293b',
-  blue: '#3b82f6',
-  blueLight: '#dbeafe',
+  blue: '#1BB3BB',
+  blueLight: '#E0F7F8',
   muted: '#64748b',
   dim: '#94a3b8',
   border: '#e2e8f0',
@@ -107,7 +107,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   milestoneBoxName: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: c.blue, marginBottom: 4, textAlign: 'center' },
-  milestoneBoxDesc: { fontSize: 9, color: '#1d4ed8', textAlign: 'center', lineHeight: 1.4 },
+  milestoneBoxDesc: { fontSize: 9, color: '#007580', textAlign: 'center', lineHeight: 1.4 },
 
   // Plan pages
   milestoneHeader: {
@@ -146,7 +146,7 @@ const s = StyleSheet.create({
   },
   itemBulletDone: { backgroundColor: c.green, borderColor: c.green },
   itemBulletCheck: { fontSize: 7, color: c.white, fontFamily: 'Helvetica-Bold' },
-  itemBulletSession: { backgroundColor: '#ede9fe', borderColor: '#8b5cf6' },
+  itemBulletSession: { backgroundColor: '#ede9fe', borderColor: '#7757F5' },
   itemName: { fontSize: 10, color: c.navy, flex: 1, lineHeight: 1.4 },
   itemNameDone: { color: c.dim },
   itemDue: { fontSize: 9, color: c.muted, marginLeft: 8, flexShrink: 0 },
@@ -316,7 +316,7 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
               {visibleRequests.map(r => {
                 const dotColor = r.status === 'received' ? c.green : r.status === 'sent' ? c.blue : c.dim
                 const bgColor = r.status === 'received' ? c.greenLight : r.status === 'sent' ? c.blueLight : '#f1f5f9'
-                const textColor = r.status === 'received' ? '#065f46' : r.status === 'sent' ? '#1d4ed8' : c.muted
+                const textColor = r.status === 'received' ? '#065f46' : r.status === 'sent' ? '#007580' : c.muted
                 return (
                   <View key={r.id} style={s.requestRow}>
                     <View style={[s.requestDot, { backgroundColor: dotColor }]} />

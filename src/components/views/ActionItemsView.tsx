@@ -8,8 +8,8 @@ import { Tooltip } from '@/components/Tooltip'
 // ── Visual constants ───────────────────────────────────────────────────────────
 
 const SOURCE_COLORS: Record<string, string> = {
-  plan:    '#8b5cf6',
-  email:   '#3b82f6',
+  plan:    '#7757F5',
+  email:   '#1BB3BB',
   session: '#10b981',
   manual:  '#f59e0b',
 }
@@ -114,7 +114,7 @@ export function ActionItemsView({ accounts, onSelectAccount }: Props) {
           {(['items', 'suggestions'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
               background: 'none', border: 'none',
-              borderBottom: tab === t ? '2px solid #3b82f6' : '2px solid transparent',
+              borderBottom: tab === t ? '2px solid #1BB3BB' : '2px solid transparent',
               padding: '8px 16px', marginBottom: -1,
               color: tab === t ? 'var(--text-h)' : 'var(--text-2)',
               fontSize: 13, fontWeight: tab === t ? 600 : 400,
@@ -124,7 +124,7 @@ export function ActionItemsView({ accounts, onSelectAccount }: Props) {
               {t === 'items' ? 'Action Items' : 'AI Suggestions'}
               {t === 'suggestions' && suggestionCount > 0 && (
                 <span style={{
-                  background: '#3b82f6', color: '#fff',
+                  background: '#1BB3BB', color: '#fff',
                   fontSize: 10, fontWeight: 700, borderRadius: 99,
                   padding: '1px 6px', minWidth: 18, textAlign: 'center',
                 }}>{suggestionCount}</span>
@@ -320,7 +320,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 4 }}>
           <Tooltip content="Show all action items" placement="bottom">{pill('All',      filterMode === 'all',      'var(--text-h)', () => setFilterMode('all'))}</Tooltip>
-          <Tooltip content="Tasks assigned to you or your team" placement="bottom">{pill('Me',       filterMode === 'me',        '#3b82f6',       () => setFilterMode('me'))}</Tooltip>
+          <Tooltip content="Tasks assigned to you or your team" placement="bottom">{pill('Me',       filterMode === 'me',        '#1BB3BB',       () => setFilterMode('me'))}</Tooltip>
           <Tooltip content="Items waiting on the customer to complete" placement="bottom">{pill('Customer', filterMode === 'customer',  '#f59e0b',       () => setFilterMode('customer'))}</Tooltip>
           <Tooltip content="Internal tasks not visible to the customer" placement="bottom">{pill('Internal', filterMode === 'internal',  '#6b7280',       () => setFilterMode('internal'))}</Tooltip>
         </div>
@@ -364,7 +364,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
           {(['account', 'type', 'none'] as const).map(g => (
             <button key={g} onClick={() => setGroupBy(g)} style={{
               background: groupBy === g ? 'var(--border)' : 'none',
-              border: `1px solid ${groupBy === g ? '#3b82f666' : 'var(--border)'}`,
+              border: `1px solid ${groupBy === g ? '#1BB3BB66' : 'var(--border)'}`,
               borderRadius: 5, padding: '3px 9px',
               color: groupBy === g ? 'var(--text)' : 'var(--text-2)',
               fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 500,
@@ -397,7 +397,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                     onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                   >{groupKey}</span>
                 ) : (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: groupKey === 'Waiting on Customer' ? '#f59e0b' : groupKey === 'Exchanges' ? '#8b5cf6' : '#3b82f6' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: groupKey === 'Waiting on Customer' ? '#f59e0b' : groupKey === 'Exchanges' ? '#7757F5' : '#1BB3BB' }}>
                     {groupKey}
                   </span>
                 )}
@@ -432,7 +432,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                       <div onClick={() => !sendDone && markTaskDone(row.send, true)}
                         title={sendDone ? 'Sent' : 'Mark sent'}
                         style={{ marginTop: 2, width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                          border: sendDone ? 'none' : '1.5px solid #3b82f6',
+                          border: sendDone ? 'none' : '1.5px solid #1BB3BB',
                           background: sendDone ? '#10b981' : 'transparent',
                           cursor: sendDone ? 'default' : 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -449,8 +449,8 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                         )}
                         <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3,
-                            background: sendDone ? '#10b98118' : '#3b82f614', color: sendDone ? '#10b981' : '#3b82f6',
-                            border: `1px solid ${sendDone ? '#10b98130' : '#3b82f630'}`, fontFamily: 'var(--font-mono)',
+                            background: sendDone ? '#10b98118' : '#1BB3BB14', color: sendDone ? '#10b981' : '#1BB3BB',
+                            border: `1px solid ${sendDone ? '#10b98130' : '#1BB3BB30'}`, fontFamily: 'var(--font-mono)',
                           }}>{sendDone ? '✓ Sent' : 'Send'}</span>
                           <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3,
                             background: recvDone ? '#10b98118' : '#f59e0b18', color: recvDone ? '#10b981' : '#f59e0b',
@@ -460,13 +460,13 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                       </div>
                       {groupBy !== 'account' && (
                         <span onClick={() => onSelectAccount(row.account)}
-                          style={{ fontSize: 11, color: '#3b82f6', cursor: 'pointer', whiteSpace: 'nowrap',
-                            background: '#3b82f614', border: '1px solid #3b82f630',
+                          style={{ fontSize: 11, color: '#1BB3BB', cursor: 'pointer', whiteSpace: 'nowrap',
+                            background: '#1BB3BB14', border: '1px solid #1BB3BB30',
                             borderRadius: 4, padding: '1px 6px', fontWeight: 500, alignSelf: 'center',
                           }}>{row.account.name}</span>
                       )}
                       <span style={{ alignSelf: 'center', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-                        background: '#8b5cf614', border: '1px solid #8b5cf630', color: '#8b5cf6', fontFamily: 'var(--font-mono)',
+                        background: '#7757F514', border: '1px solid #7757F530', color: '#7757F5', fontFamily: 'var(--font-mono)',
                       }}>exchange</span>
                       {!recvDone && (
                         <button onClick={() => markDependencyReceived(row.receive)} style={{
@@ -506,7 +506,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                       <div onClick={() => markTaskDone(task, !isDone)}
                         title={isDone ? 'Done' : 'Mark done'}
                         style={{ marginTop: 1, width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                          border: isDone ? 'none' : '1.5px solid #3b82f6',
+                          border: isDone ? 'none' : '1.5px solid #1BB3BB',
                           background: isDone ? '#10b981' : 'transparent', cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>{isDone && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>✓</span>}</div>
@@ -526,17 +526,17 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                     </div>
                     {groupBy !== 'account' && (
                       <span onClick={() => onSelectAccount(task.account)}
-                        style={{ fontSize: 11, color: '#3b82f6', cursor: 'pointer', whiteSpace: 'nowrap',
-                          background: '#3b82f614', border: '1px solid #3b82f630',
+                        style={{ fontSize: 11, color: '#1BB3BB', cursor: 'pointer', whiteSpace: 'nowrap',
+                          background: '#1BB3BB14', border: '1px solid #1BB3BB30',
                           borderRadius: 4, padding: '1px 6px', fontWeight: 500, alignSelf: 'center',
                         }}>{task.account.name}</span>
                     )}
                     {(filterMode === 'all' || groupBy === 'account') && (
                       <span style={{ alignSelf: 'center', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap',
                         padding: '2px 7px', borderRadius: 4,
-                        background: isDep ? '#f59e0b18' : '#3b82f614',
-                        border: `1px solid ${isDep ? '#f59e0b40' : '#3b82f630'}`,
-                        color: isDep ? '#f59e0b' : '#3b82f6', fontFamily: 'var(--font-mono)',
+                        background: isDep ? '#f59e0b18' : '#1BB3BB14',
+                        border: `1px solid ${isDep ? '#f59e0b40' : '#1BB3BB30'}`,
+                        color: isDep ? '#f59e0b' : '#1BB3BB', fontFamily: 'var(--font-mono)',
                       }}>{isDep ? 'waiting on' : 'my task'}</span>
                     )}
                     <span style={{ alignSelf: 'center', fontSize: 10, whiteSpace: 'nowrap',
@@ -647,10 +647,10 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
       const p = s.meta?.priority
       if (p === 'high') return { label: '▲ High priority', color: '#ef4444' }
       if (p === 'low')  return { label: '▽ Low priority',  color: '#6b7280' }
-      return { label: '◆ Next action', color: '#8b5cf6' }
+      return { label: '◆ Next action', color: '#7757F5' }
     }
     if (s.type === 'dependency') return { label: 'Waiting on customer', color: '#f59e0b' }
-    return { label: 'My task', color: '#3b82f6' }
+    return { label: 'My task', color: '#1BB3BB' }
   }
 
   const priorityBadge = (s: AiSuggestion) => {
@@ -685,9 +685,9 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
           onClick={scanPlans}
           disabled={scanning}
           style={{
-            background: scanning ? 'var(--bg-surface2)' : '#3b82f618',
-            border: '1px solid #3b82f640', borderRadius: 6,
-            padding: '6px 14px', color: '#93c5fd',
+            background: scanning ? 'var(--bg-surface2)' : '#1BB3BB18',
+            border: '1px solid #1BB3BB40', borderRadius: 6,
+            padding: '6px 14px', color: '#5DDDE3',
             fontSize: 12, fontWeight: 600, cursor: scanning ? 'default' : 'pointer',
             fontFamily: 'var(--font-ui)',
           }}
@@ -726,8 +726,8 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
                       {priorityBadge(s)}
                       {account && (
                         <span onClick={() => onSelectAccount(account)}
-                          style={{ fontSize: 11, color: '#3b82f6', cursor: 'pointer',
-                            background: '#3b82f614', border: '1px solid #3b82f630',
+                          style={{ fontSize: 11, color: '#1BB3BB', cursor: 'pointer',
+                            background: '#1BB3BB14', border: '1px solid #1BB3BB30',
                             borderRadius: 4, padding: '1px 6px', fontWeight: 500,
                           }}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
