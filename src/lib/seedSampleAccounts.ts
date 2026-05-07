@@ -12,25 +12,18 @@ export async function seedSampleAccountsIfNeeded(
   orgId: string,
   userId: string,
 ) {
-  // Check the per-user flag — once seeded, never seed again even if the user deleted the accounts
-  const { data: member } = await admin
-    .from('org_members')
-    .select('seeded_sample_accounts')
-    .eq('org_id', orgId)
-    .eq('user_id', userId)
-    .single()
-
-  if (member?.seeded_sample_accounts) return
+  // Use auth user_metadata to track whether seeding has run — no schema migration needed.
+  // Once true, the seed never runs again even if the user deletes the accounts.
+  const { data: authData } = await admin.auth.admin.getUserById(userId)
+  if (authData?.user?.user_metadata?.seeded_sample_accounts) return
 
   const now = Date.now()
   await seedAbcAccount(admin, orgId, userId, now)
   await seedLakeshoreAccount(admin, orgId, userId, now)
 
-  await admin
-    .from('org_members')
-    .update({ seeded_sample_accounts: true })
-    .eq('org_id', orgId)
-    .eq('user_id', userId)
+  await admin.auth.admin.updateUserById(userId, {
+    user_metadata: { seeded_sample_accounts: true },
+  })
 }
 
 async function seedAbcAccount(
