@@ -11,6 +11,7 @@ import { SettingsView } from './views/SettingsView'
 import { TimeToLaunchView } from './views/TimeToLaunchView'
 import { ResourcesView } from './views/ResourcesView'
 import { DemoWelcomeModal } from './DemoWelcomeModal'
+import { WelcomeModal } from './WelcomeModal'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
 
@@ -63,10 +64,7 @@ function useTheme() {
 
   const toggle = () => setTheme(pref === 'dark' ? 'light' : 'dark')
 
-  const icon = pref === 'light' ? '☀' : '☽'
-  const label = pref === 'light' ? 'Light' : 'Dark'
-
-  return { pref, cycle: toggle, icon, label }
+  return { pref, cycle: toggle, setTheme }
 }
 
 export function AppShell({ accounts: initialAccounts, currentUser, currentMember, orgMembers, trainingTemplates: initialTraining, planTemplates: initialPlans, sessionTemplates: initialSessions, connectors, connectorTokens, accountsWithSuggestions }: Props) {
@@ -259,8 +257,8 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
   const isNavActive = (id: View) => view === id && selectedAccount === null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-base)' }}>
-      {(currentUser as any).is_anonymous && <DemoWelcomeModal />}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--bg-base)' }}>
+      {(currentUser as any).is_anonymous ? <DemoWelcomeModal /> : <WelcomeModal />}
       {/* Top nav */}
       <header style={{
         display: 'flex', alignItems: 'center', height: 48,
@@ -288,7 +286,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
         </button>
 
         {/* Nav */}
-        <nav style={{ display: 'flex', gap: 2, flex: 1 }}>
+        <nav className="hide-mobile" style={{ display: 'flex', gap: 2, flex: 1 }}>
           {navItems.map(item => (
             <Tooltip key={item.id} content={item.tip} placement="bottom">
             <button
@@ -311,24 +309,36 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
           ))}
         </nav>
 
-        {/* Theme toggle */}
-        <button
-          onClick={theme.cycle}
-          title={`Theme: ${theme.label} — click to cycle`}
-          style={{
-            background: 'none', border: '1px solid var(--border)', borderRadius: 6,
-            padding: '4px 8px', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer',
-            fontFamily: 'var(--font-ui)', marginRight: 8,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-b)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-        >
-          {theme.icon}
-        </button>
+        {/* Theme toggle — segmented pill (desktop only) */}
+        <div className="hide-mobile" style={{
+          display: 'flex', background: 'var(--border)', borderRadius: 8,
+          padding: 2, gap: 0, marginRight: 8, flexShrink: 0,
+        }}>
+          {(['dark', 'light'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => theme.setTheme(mode)}
+              title={mode === 'dark' ? 'Dark mode' : 'Light mode'}
+              style={{
+                background: theme.pref === mode ? 'var(--bg-surface)' : 'none',
+                border: 'none', borderRadius: 6,
+                padding: '4px 10px',
+                color: theme.pref === mode ? 'var(--text-h)' : 'var(--text-3)',
+                fontSize: 11, fontWeight: 600,
+                cursor: theme.pref === mode ? 'default' : 'pointer',
+                fontFamily: 'var(--font-ui)',
+                transition: 'all 0.15s',
+                display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
+              }}
+            >
+              {mode === 'dark' ? '☽' : '☀'} {mode === 'dark' ? 'Dark' : 'Light'}
+            </button>
+          ))}
+        </div>
 
         {/* Sync */}
         {hasConnectors && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 12 }}>
+          <div className="hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 12 }}>
             {syncMsg ? (
               <span style={{
                 fontSize: 11, color: '#10b981', background: '#10b98115',
@@ -362,7 +372,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
         )}
 
         {/* View filter */}
-        <div ref={viewMenuRef} style={{ position: 'relative', marginRight: 8 }}>
+        <div ref={viewMenuRef} className="hide-mobile" style={{ position: 'relative', marginRight: 8 }}>
           <button
             onClick={() => setViewMenuOpen(v => !v)}
             style={{
@@ -483,6 +493,31 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
               >
                 <span style={{ fontSize: 12 }}>⚙</span> Settings
               </button>
+              {/* Theme toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-ui)' }}>
+                  {theme.pref === 'dark' ? '☽ Dark mode' : '☀ Light mode'}
+                </span>
+                <div style={{ display: 'flex', background: 'var(--border)', borderRadius: 6, padding: 2, gap: 0 }}>
+                  {(['dark', 'light'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => theme.setTheme(mode)}
+                      style={{
+                        background: theme.pref === mode ? 'var(--bg-surface)' : 'none',
+                        border: 'none', borderRadius: 4,
+                        padding: '3px 7px',
+                        color: theme.pref === mode ? 'var(--text-h)' : 'var(--text-3)',
+                        fontSize: 11, fontWeight: 600,
+                        cursor: theme.pref === mode ? 'default' : 'pointer',
+                        fontFamily: 'var(--font-ui)',
+                      }}
+                    >
+                      {mode === 'dark' ? '☽' : '☀'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {/* Tooltips toggle */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px' }}>
                 <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-ui)' }}>Tooltips</span>
@@ -522,7 +557,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
       </header>
 
       {/* Main content */}
-      <main style={{ flex: 1, overflow: 'auto' }}>
+      <main className="main-content" style={{ flex: 1, overflow: 'auto' }}>
         {view === 'account' && selectedAccount ? (
           <AccountView
             account={selectedAccount}
@@ -582,6 +617,32 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
           />
         )}
       </main>
+
+      {/* Mobile bottom nav */}
+      <nav className="bottom-nav">
+        {navItems.map(item => {
+          const active = isNavActive(item.id)
+          return (
+            <button
+              key={item.id}
+              onClick={() => { setView(item.id); setSelectedAccount(null); navigate(item.id) }}
+              style={{
+                flex: 1, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 3,
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: '8px 0', minHeight: 56,
+                color: active ? 'var(--accent)' : 'var(--text-2)',
+                fontFamily: 'var(--font-ui)',
+              }}
+            >
+              <span style={{ fontSize: 17 }}>{item.icon}</span>
+              <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: '0.02em' }}>
+                {item.label.split(' ')[0]}
+              </span>
+            </button>
+          )
+        })}
+      </nav>
     </div>
   )
 }

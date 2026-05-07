@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { DM_Mono, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
@@ -11,8 +11,8 @@ const dmMono = DM_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'resparkonboard',
-  description: 'Customer onboarding platform for Respark',
+  title: 'ReSPARK Onboard',
+  description: 'Customer onboarding platform for ReSPARK',
   icons: {
     icon: [
       { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
@@ -20,7 +20,18 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
-  themeColor: [{ media: '(prefers-color-scheme: dark)', color: '#12233E' }, { media: '(prefers-color-scheme: light)', color: '#ffffff' }],
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'black-translucent',
+    'apple-mobile-web-app-title': 'Onboard',
+    'mobile-web-app-capable': 'yes',
+  },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 }
 
 // Inline script sets data-theme before first paint — prevents flash

@@ -401,7 +401,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                         <div style={{ fontSize: 13, color: bothDone ? 'var(--text-3)' : 'var(--text)', textDecoration: bothDone ? 'line-through' : 'none', lineHeight: 1.4, display: 'flex', alignItems: 'baseline', gap: 5 }}>
                           <span>{row.name}</span>
                           {sourceEmoji(row.source) && (
-                            <span style={{ fontSize: 11, opacity: 0.55, flexShrink: 0 }} title={row.source}>{sourceEmoji(row.source)}</span>
+                            <span style={{ fontSize: 12, flexShrink: 0, background: 'var(--border)', borderRadius: 4, padding: '1px 4px', lineHeight: 1.4 }} title={row.source}>{sourceEmoji(row.source)}</span>
                           )}
                         </div>
                         {row.stage && !bothDone && (
@@ -470,7 +470,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                       <div style={{ fontSize: 13, color: isDone ? 'var(--text-3)' : 'var(--text)', textDecoration: isDone ? 'line-through' : 'none', lineHeight: 1.4, display: 'flex', alignItems: 'baseline', gap: 5 }}>
                         <span>{task.name}</span>
                         {sourceEmoji(task.source) && (
-                          <span style={{ fontSize: 11, opacity: 0.55, flexShrink: 0 }} title={task.source}>{sourceEmoji(task.source)}</span>
+                          <span style={{ fontSize: 12, flexShrink: 0, background: 'var(--border)', borderRadius: 4, padding: '1px 4px', lineHeight: 1.4 }} title={task.source}>{sourceEmoji(task.source)}</span>
                         )}
                       </div>
                       {task.notes && !isDone && (
@@ -724,7 +724,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)', marginBottom: s.body ? 4 : 0, lineHeight: 1.4, display: 'flex', alignItems: 'baseline', gap: 5 }}>
                       <span>{s.title}</span>
                       {sourceEmoji(s.meta?.source) && (
-                        <span style={{ fontSize: 11, opacity: 0.55, flexShrink: 0 }} title={s.meta?.source}>{sourceEmoji(s.meta?.source)}</span>
+                        <span style={{ fontSize: 12, flexShrink: 0, background: 'var(--border)', borderRadius: 4, padding: '1px 4px', lineHeight: 1.4 }} title={s.meta?.source}>{sourceEmoji(s.meta?.source)}</span>
                       )}
                     </div>
                     {s.body && (
