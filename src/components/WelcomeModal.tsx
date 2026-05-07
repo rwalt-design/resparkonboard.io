@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 
-const STORAGE_KEY = 'welcome-seen'
+// Bump this key whenever you want everyone to see the modal again
+const STORAGE_KEY = 'welcome-seen-v2'
 
 export function WelcomeModal() {
   const [visible, setVisible] = useState(false)
@@ -43,24 +44,20 @@ export function WelcomeModal() {
             Welcome to ReSPARK Onboard
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text)', margin: 0, lineHeight: 1.6 }}>
-            One thing to know before you dive in.
+            A couple things before you dive in.
           </p>
         </div>
 
-        <div style={{
-          display: 'flex', gap: 14, alignItems: 'flex-start',
-          background: 'var(--bg-surface2)',
-          border: '1px solid var(--border)',
-          borderRadius: 9,
-          padding: '14px 16px',
-        }}>
-          <span style={{ fontSize: 20, lineHeight: 1, marginTop: 1, flexShrink: 0 }}>💬</span>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-h)', marginBottom: 4 }}>Tooltips</div>
-            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>
-              Hover over column headers, status badges, stage names, and health labels to see what they mean. Toggle them on or off from your user menu.
-            </div>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          <Tip icon="🌗" title="Light &amp; dark mode">
+            Use the <strong style={{ color: 'var(--text-h)' }}>☽ Dark / ☀ Light</strong> toggle in your user menu (top-right) to switch themes any time.
+          </Tip>
+
+          <Tip icon="💬" title="Tooltips">
+            Hover over column headers, status badges, stage names, and health labels to see what they mean. Toggle them on or off from your user menu.
+          </Tip>
+
         </div>
 
         <button
@@ -80,6 +77,24 @@ export function WelcomeModal() {
         >
           Got it →
         </button>
+      </div>
+    </div>
+  )
+}
+
+function Tip({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      display: 'flex', gap: 14, alignItems: 'flex-start',
+      background: 'var(--bg-surface2)',
+      border: '1px solid var(--border)',
+      borderRadius: 9,
+      padding: '14px 16px',
+    }}>
+      <span style={{ fontSize: 20, lineHeight: 1, marginTop: 1, flexShrink: 0 }}>{icon}</span>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-h)', marginBottom: 4 }}>{title}</div>
+        <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>{children}</div>
       </div>
     </div>
   )
