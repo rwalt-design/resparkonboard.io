@@ -220,8 +220,9 @@ Return JSON only: an array of suggestion objects.`
           const title = (s.label as string) || `Mark complete: ${s.task_name}`
           const { data: existing } = await supabase
             .from('ai_suggestions').select('id')
-            .eq('account_id', account.id).eq('status', 'pending')
-            .eq('title', title).single()
+            .eq('account_id', account.id)
+            .eq('title', title)
+            .limit(1).single()
           if (existing) continue
           await supabase.from('ai_suggestions').insert({
             account_id: account.id,
@@ -247,8 +248,9 @@ Return JSON only: an array of suggestion objects.`
           if (!title) continue
           const { data: existing } = await supabase
             .from('ai_suggestions').select('id')
-            .eq('account_id', account.id).eq('status', 'pending')
-            .eq('title', title).single()
+            .eq('account_id', account.id)
+            .eq('title', title)
+            .limit(1).single()
           if (existing) continue
           await supabase.from('ai_suggestions').insert({
             account_id: account.id,

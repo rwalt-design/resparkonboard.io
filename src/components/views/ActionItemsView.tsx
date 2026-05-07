@@ -268,50 +268,18 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
       </p>
 
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 4 }}>
-          <Tooltip content="Show all action items" placement="bottom">{pill('All',      filterMode === 'all',      'var(--text-h)', () => setFilterMode('all'))}</Tooltip>
-          <Tooltip content="Tasks assigned to you or your team" placement="bottom">{pill('Me',       filterMode === 'me',        '#1BB3BB',       () => setFilterMode('me'))}</Tooltip>
-          <Tooltip content="Items waiting on the customer to complete" placement="bottom">{pill('Customer', filterMode === 'customer',  '#f59e0b',       () => setFilterMode('customer'))}</Tooltip>
-          <Tooltip content="Internal tasks not visible to the customer" placement="bottom">{pill('Internal', filterMode === 'internal',  '#6b7280',       () => setFilterMode('internal'))}</Tooltip>
+          {pill('All',      filterMode === 'all',      'var(--text-h)', () => setFilterMode('all'))}
+          {pill('Mine',     filterMode === 'me',        '#1BB3BB',       () => setFilterMode('me'))}
+          {pill('Customer', filterMode === 'customer',  '#f59e0b',       () => setFilterMode('customer'))}
         </div>
-        <Tooltip content="Filter by account" placement="bottom">
-          <select name="filter-account" value={filterAccount} onChange={e => setFilterAccount(e.target.value)} style={selectStyle}>
-            <option value="all">All Accounts</option>
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-        </Tooltip>
-        <Tooltip content="Filter by where this item came from" placement="bottom">
-          <select name="filter-source" value={filterSource} onChange={e => setFilterSource(e.target.value)} style={selectStyle}>
-            <option value="all">All Sources</option>
-            <option value="plan">From Plan</option>
-            <option value="email">From Email</option>
-            <option value="session">From Session</option>
-            <option value="manual">Manual</option>
-          </select>
-        </Tooltip>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          {HEALTH_OPTIONS.map(h => {
-            const active = filterHealth.has(h.value)
-            return (
-              <Tooltip key={h.value} content={`Filter to ${h.label.toLowerCase()} accounts`} placement="bottom">
-              <button onClick={() => toggleHealth(h.value)} style={{
-                background: active ? h.color + '22' : 'var(--bg-surface)',
-                border: `1px solid ${active ? h.color + '66' : 'var(--border)'}`,
-                borderRadius: 5, padding: '4px 8px',
-                color: active ? h.color : 'var(--text-3)',
-                fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                display: 'flex', alignItems: 'center', gap: 4,
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: active ? h.color : 'var(--text-3)', display: 'inline-block', flexShrink: 0 }} />
-                {h.label}
-              </button>
-              </Tooltip>
-            )
-          })}
-        </div>
+        <select name="filter-account" value={filterAccount} onChange={e => setFilterAccount(e.target.value)} style={selectStyle}>
+          <option value="all">All Accounts</option>
+          {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </select>
         <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, marginRight: 2 }}>Group:</span>
+          <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>Group:</span>
           {(['account', 'type', 'none'] as const).map(g => (
             <button key={g} onClick={() => setGroupBy(g)} style={{
               background: groupBy === g ? 'var(--border)' : 'none',
@@ -328,7 +296,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
           borderRadius: 5, padding: '4px 10px',
           color: showDone ? '#10b981' : 'var(--text-2)',
           fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
-        }}>{showDone ? '✓ Showing done' : 'Show done'}</button>
+        }}>{showDone ? '✓ Done' : 'Show done'}</button>
       </div>
 
       {Object.keys(grouped).length === 0 ? (
@@ -374,6 +342,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                   return (
                     <div key={row.id} style={{
                       display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderBottom,
+                      borderLeft: `3px solid ${bothDone ? 'var(--border)' : '#7757F5'}`,
                       background: bothDone ? 'var(--bg-surface2)' : 'transparent',
                     }}
                       onMouseEnter={e => !bothDone && (e.currentTarget.style.background = 'var(--bg-hover)')}
@@ -416,14 +385,13 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                             borderRadius: 4, padding: '1px 6px', fontWeight: 500, alignSelf: 'center',
                           }}>{row.account.name}</span>
                       )}
-                      <span style={{ alignSelf: 'center', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-                        background: '#7757F514', border: '1px solid #7757F530', color: '#7757F5', fontFamily: 'var(--font-mono)',
-                      }}>exchange</span>
                       {!recvDone && (
                         <button onClick={() => markDependencyReceived(row.receive)} style={{
-                          alignSelf: 'center', background: 'none', border: '1px solid #f59e0b60',
-                          borderRadius: 5, padding: '3px 9px', color: '#f59e0b',
-                          fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap',
+                          alignSelf: 'center', background: 'none', border: 'none',
+                          padding: 0, color: '#f59e0b',
+                          fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                          fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap',
+                          textDecoration: 'underline', textUnderlineOffset: 2,
                         }}>Mark received</button>
                       )}
                     </div>
@@ -435,10 +403,14 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                 const { item_type, item_status } = resolveItemMeta(task)
                 const isDep  = item_type === 'dependency'
                 const isDone = item_status === 'done' || item_status === 'cancelled'
+                const accentColor = isDone ? 'var(--border)' : isDep ? '#f59e0b' : '#1BB3BB'
                 return (
                   <div key={task.id} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderBottom,
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    padding: '10px 14px', borderBottom,
+                    borderLeft: `3px solid ${accentColor}`,
                     background: isDone ? 'var(--bg-surface2)' : 'transparent',
+                    transition: 'background 0.1s',
                   }}
                     onMouseEnter={e => !isDone && (e.currentTarget.style.background = 'var(--bg-hover)')}
                     onMouseLeave={e => { e.currentTarget.style.background = isDone ? 'var(--bg-surface2)' : 'transparent' }}
@@ -446,17 +418,16 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                     {isDep ? (
                       <div onClick={() => !isDone && markDependencyReceived(task)}
                         title={isDone ? 'Received' : 'Mark received'}
-                        style={{ marginTop: 1, width: 18, height: 18, borderRadius: 9, flexShrink: 0,
+                        style={{ marginTop: 2, width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
                           border: isDone ? 'none' : '1.5px solid #f59e0b',
                           background: isDone ? '#10b981' : 'transparent',
                           cursor: isDone ? 'default' : 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: isDone ? 9 : 10, color: isDone ? '#fff' : '#f59e0b', fontWeight: 700,
-                        }}>{isDone ? '✓' : '⏳'}</div>
+                        }}>{isDone && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>✓</span>}</div>
                     ) : (
                       <div onClick={() => markTaskDone(task, !isDone)}
                         title={isDone ? 'Done' : 'Mark done'}
-                        style={{ marginTop: 1, width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                        style={{ marginTop: 2, width: 16, height: 16, borderRadius: 4, flexShrink: 0,
                           border: isDone ? 'none' : '1.5px solid #1BB3BB',
                           background: isDone ? '#10b981' : 'transparent', cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -469,11 +440,6 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                       {task.notes && !isDone && (
                         <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, lineHeight: 1.4 }}>{task.notes}</div>
                       )}
-                      {task.fromPlan && task.stage && !isDone && (
-                        <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
-                          {task.milestone} › {task.stage}
-                        </div>
-                      )}
                     </div>
                     {groupBy !== 'account' && (
                       <span onClick={() => onSelectAccount(task.account)}
@@ -482,26 +448,13 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                           borderRadius: 4, padding: '1px 6px', fontWeight: 500, alignSelf: 'center',
                         }}>{task.account.name}</span>
                     )}
-                    {(filterMode === 'all' || groupBy === 'account') && (
-                      <span style={{ alignSelf: 'center', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap',
-                        padding: '2px 7px', borderRadius: 4,
-                        background: isDep ? '#f59e0b18' : '#1BB3BB14',
-                        border: `1px solid ${isDep ? '#f59e0b40' : '#1BB3BB30'}`,
-                        color: isDep ? '#f59e0b' : '#1BB3BB', fontFamily: 'var(--font-mono)',
-                      }}>{isDep ? 'waiting on' : 'my task'}</span>
-                    )}
-                    <span style={{ alignSelf: 'center', fontSize: 10, whiteSpace: 'nowrap',
-                      color: SOURCE_COLORS[task.source] || 'var(--text-3)',
-                      background: (SOURCE_COLORS[task.source] || 'var(--text-3)') + '18',
-                      border: `1px solid ${(SOURCE_COLORS[task.source] || 'var(--text-3)')}33`,
-                      borderRadius: 3, padding: '0 5px',
-                      fontFamily: 'var(--font-mono)', fontWeight: 600,
-                    }}>{task.source}</span>
                     {isDep && !isDone && (
                       <button onClick={() => markDependencyReceived(task)} style={{
-                        alignSelf: 'center', background: 'none', border: '1px solid #f59e0b60',
-                        borderRadius: 5, padding: '3px 9px', color: '#f59e0b',
-                        fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap',
+                        alignSelf: 'center', background: 'none', border: 'none',
+                        padding: 0, color: '#f59e0b',
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap',
+                        textDecoration: 'underline', textUnderlineOffset: 2,
                       }}>Mark received</button>
                     )}
                   </div>
@@ -522,6 +475,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
   const [loading, setLoading]         = useState(true)
   const [scanning, setScanning]       = useState(false)
   const [acting, setActing]           = useState<string | null>(null)
+  const [lastAction, setLastAction]   = useState<{ suggestion: AiSuggestion; action: 'accept' | 'dismiss' } | null>(null)
 
   const loadSuggestions = useCallback(async () => {
     setLoading(true)
@@ -536,6 +490,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
   useEffect(() => { loadSuggestions() }, [loadSuggestions])
 
   const act = async (id: string, action: 'accept' | 'dismiss') => {
+    const target = suggestions.find(s => s.id === id)
     setActing(id)
     await fetch('/api/ai/suggestions', {
       method: 'PATCH',
@@ -545,6 +500,19 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
     setSuggestions(prev => prev.filter(s => s.id !== id))
     onCountChange(suggestions.filter(s => s.id !== id && s.status === 'pending').length)
     setActing(null)
+    if (target) setLastAction({ suggestion: target, action })
+  }
+
+  const undo = async () => {
+    if (!lastAction) return
+    await fetch('/api/ai/suggestions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: lastAction.suggestion.id, action: 'undo' }),
+    })
+    setSuggestions(prev => [{ ...lastAction.suggestion, status: 'pending' }, ...prev])
+    onCountChange(suggestions.length + 1)
+    setLastAction(null)
   }
 
   const scanPlans = async () => {
@@ -646,6 +614,25 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
           }}
         >{scanning ? '✦ Scanning plans…' : '✦ Scan plans for completions'}</button>
       </div>
+
+      {lastAction && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#1BB3BB14', border: '1px solid #1BB3BB30', borderRadius: 6,
+          padding: '8px 14px', marginBottom: 12, gap: 12,
+        }}>
+          <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+            {lastAction.action === 'accept' ? 'Accepted' : 'Dismissed'}:{' '}
+            <span style={{ color: 'var(--text-h)' }}>{lastAction.suggestion.title}</span>
+          </span>
+          <button onClick={undo} style={{
+            background: 'none', border: '1px solid #1BB3BB60', borderRadius: 5,
+            padding: '3px 10px', color: '#1BB3BB',
+            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+            whiteSpace: 'nowrap',
+          }}>Undo</button>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ color: 'var(--text-3)', fontSize: 13, padding: '32px 0', textAlign: 'center' }}>Loading suggestions…</div>
