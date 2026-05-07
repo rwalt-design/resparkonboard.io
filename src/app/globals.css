@@ -69,6 +69,24 @@ div:hover > .item-delete-btn,
 div:hover .item-delete-btn { opacity: 0.4 !important; }
 .item-delete-btn:hover { opacity: 1 !important; color: #ef4444 !important; }
 
+/* ── Mobile / PWA bottom nav ──────────────────────────────────────────────── */
+.bottom-nav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+  /* safe-area for iPhone home indicator */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (max-width: 640px) {
+  .hide-mobile  { display: none !important; }
+  .bottom-nav   { display: flex !important; }
+  /* push content above the bottom bar */
+  .main-content { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important; }
+}
+
 /* AI suggestion pulse dot */
 @keyframes ai-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
