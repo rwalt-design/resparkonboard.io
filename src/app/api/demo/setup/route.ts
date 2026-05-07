@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   // Idempotent
   const { data: existing } = await admin
     .from('org_members').select('id').eq('user_id', user.id).single()
-  if (existing) return NextResponse.json({ ok: true, already: true })
+  if (existing) return NextResponse.json({ ok: true, already: true, user_id: user.id })
 
   // ── Create org + member ──
   const orgId = randomUUID()
@@ -329,5 +329,5 @@ export async function POST(req: NextRequest) {
     },
   ])
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, user_id: user.id })
 }
