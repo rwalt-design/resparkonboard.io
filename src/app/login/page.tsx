@@ -63,11 +63,8 @@ function LoginContent() {
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 32 }}>
-          <div style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg viewBox="0 0 105 105" width="32" height="32" fill="none">
-              <path d="M97.67 82.5C96.47 91.24 88.98 98 79.93 98H24.91C15.03 98 6.99 89.95 6.99 80.05V24.95C6.99 15.05 15.03 7 24.91 7H79.93C88.98 7 96.47 13.76 97.67 22.5H104.73C103.5 9.87 92.87 0 79.94 0H24.91C11.15 0 0 11.17 0 24.95V80.05C0 93.83 11.15 105 24.91 105H79.93C92.86 105 103.49 95.13 104.72 82.5H97.66H97.67Z" fill="#00C9D4"/>
-            </svg>
-          </div>
+          {/* Login is always dark — always use logoLight */}
+          <img src="/logo-respark-light.svg" alt="ReSpark" width={32} height={32} style={{ display: 'block' }} />
           <div style={{ lineHeight: 1.1 }}>
             <span style={{ fontSize: 17, fontWeight: 400, color: '#475569', letterSpacing: '-0.4px', fontFamily: "'Inter', system-ui, sans-serif" }}>onboard</span>
           </div>
