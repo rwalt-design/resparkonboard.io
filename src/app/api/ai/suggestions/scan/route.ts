@@ -49,22 +49,22 @@ export async function POST(req: NextRequest) {
     for (const interaction of account.recent_interactions) {
       const source =
         interaction.type === 'email'    ? 'gmail'
-        : interaction.type === 'call'  ? 'openphone'
+        : interaction.type === 'call'  ? 'quo'
         : interaction.type === 'slack' ? 'slack'
         : interaction.type === 'calendar' ? 'calendar'
         : 'gmail'
 
-      const sourceParsingPrompt = `You are processing an incoming item from one of four sources — Gmail, Google Calendar, Slack, or OpenPhone/Quo (call transcripts and text messages) — associated with an onboarding account. Your job is to extract structured signals. Do not generate suggestions or recommendations — just extract the facts.
+      const sourceParsingPrompt = `You are processing an incoming item from one of four sources — Gmail, Google Calendar, Slack, or Quo (call transcripts and text messages) — associated with an onboarding account. Your job is to extract structured signals. Do not generate suggestions or recommendations — just extract the facts.
 
 You will receive:
-- source: "gmail" | "calendar" | "slack" | "openphone"
+- source: "gmail" | "calendar" | "slack" | "quo"
 - content: the raw content (email body, calendar event details, Slack message, or call transcript/text message)
 - account: the account name, known contacts (with email addresses), and the account's email domain(s)
 - date: when this item occurred
 
 ## Source-specific notes
 - Gmail: Emails may include Gong call review summaries. If the email is from Gong (e.g., notifications@gong.io or similar), treat it as a call transcript — extract call-specific signals (commitments, decisions, next steps) rather than standard email signals. The backend tags the source as "gmail" regardless; you identify Gong content by the sender and formatting.
-- OpenPhone/Quo: These are phone call transcripts and SMS/text messages. Extract signals the same way as other sources. For call transcripts, focus on commitments, requests, and decisions. For text messages, treat them like short emails.
+- Quo: These are phone call transcripts and SMS/text messages. Extract signals the same way as other sources. For call transcripts, focus on commitments, requests, and decisions. For text messages, treat them like short emails.
 
 ## Contact matching
 The system has already matched this item to an account before sending it to you. Your job is NOT to decide whether this item belongs to the account — that's already done. However, you should identify WHICH contact is involved:
@@ -150,7 +150,7 @@ Return JSON only: { "signals": [...], "sentiment": "..." }`
 You will receive:
 - account: the account name and contacts
 - plan_tasks: the account's current plan tasks, each with a name, type, and status. Task types are: task, dependency, exchange, session, training. (Log tasks are internal and should be ignored — do not generate suggestions for them.)
-- parsed_signals: an array of structured signals extracted from recent Gmail emails, calendar events, Slack messages, and OpenPhone/Quo transcripts.
+- parsed_signals: an array of structured signals extracted from recent Gmail emails, calendar events, Slack messages, and Quo transcripts.
 
 Generate two types of suggestions:
 
@@ -174,7 +174,7 @@ For each suggested completion, return:
 - milestone_name: the milestone name
 - stage_name: the stage name
 - evidence: the specific signal that supports this (copy the signal's detail field)
-- source: where the evidence came from (gmail, calendar, slack, openphone)
+- source: where the evidence came from (gmail, calendar, slack, quo)
 - label: a short human-readable suggestion, e.g., "Mark 'Pre-Transaction Training with Acme' complete" or "Mark 'Data Template' as received from Sarah Chen"
 
 ## TYPE 2: Suggested Action Item
@@ -191,7 +191,7 @@ Do NOT create an action item if an existing plan task already covers the request
 For each suggested action item, return:
 - suggestion_type: "action_item"
 - action: a specific task starting with a verb (e.g., "Send booking link to Sarah Chen", "Follow up on missing data template with John Park")
-- source: where the signal came from (gmail, calendar, slack, openphone)
+- source: where the signal came from (gmail, calendar, slack, quo)
 - trigger: the specific signal that prompted this suggestion (copy the signal's detail field)
 - urgency: "high" | "normal"
   - "high" = customer is blocked, expressed frustration, or has a deadline mentioned

@@ -18,7 +18,7 @@ function sourceEmoji(source?: string): string | null {
   if (!source) return null
   const s = source.toLowerCase()
   if (s === 'email' || s === 'gmail')                   return '📧'
-  if (s === 'call'  || s === 'openphone')               return '📞'
+  if (s === 'call'  || s === 'openphone' || s === 'quo') return '📞'
   if (s === 'slack')                                    return '💬'
   if (s === 'session' || s === 'calendar' || s === 'meeting') return '📅'
   if (s === 'manual')                                   return '✏️'

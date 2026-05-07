@@ -62,7 +62,7 @@ export function DemoWelcomeModal() {
           </Section>
 
           <Section icon="⚡" title="Connectors">
-            In a live org, ReSPARK syncs with <strong style={{ color: '#e2e8f0' }}>Gmail, Google Calendar, Slack,</strong> and <strong style={{ color: '#e2e8f0' }}>OpenPhone</strong> to automatically pull in email threads, call summaries, and messages tied to your accounts. Connector authentication is disabled in demo mode, but you can explore the UI in the Connectors section from the sidebar.
+            In a live org, ReSPARK syncs with <strong style={{ color: '#e2e8f0' }}>Gmail, Google Calendar, Slack,</strong> and <strong style={{ color: '#e2e8f0' }}>Quo</strong> to automatically pull in email threads, call summaries, and messages tied to your accounts. Connector authentication is disabled in demo mode, but you can explore the UI in the Connectors section from the sidebar.
           </Section>
 
         </div>
