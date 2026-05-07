@@ -25,9 +25,9 @@ interface ScanAccount {
 
 // POST /api/ai/suggestions/scan
 // Body: { accounts: ScanAccount[] }
-// For each account with pending plan items AND recent interactions:
-//   1. Suggest which plan items are ready to mark complete
-//   2. Suggest next actions the CSM should take (stages to Action Items)
+// Two-step pipeline per account:
+//   1. Prompt 1 — parse each interaction into structured signals
+//   2. Prompt 2 — generate task_completion and action_item suggestions from signals
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -41,140 +41,232 @@ export async function POST(req: NextRequest) {
   for (const account of accounts) {
     if (!account.recent_interactions?.length) continue
 
-    const interactionsBlock = account.recent_interactions.map(i =>
-      `  - [${i.type}] ${i.summary}`
-    ).join('\n')
+    // ── Step 1: Source Parsing — extract signals from each interaction ─────────
+    const allSignals: {
+      type: string; detail: string; who: string; source: string; sentiment: string
+    }[] = []
 
-    // ── 1. Plan completion suggestions ────────────────────────────────────────
-    if (account.pending_items?.length) {
-      const itemsBlock = account.pending_items.map(i =>
-        `  [${i.id}] ${i.type.toUpperCase()}${i.assignee === 'customer' ? ' (customer)' : ''}: "${i.name}" (${i.milestone_name} › ${i.stage_name})`
-      ).join('\n')
+    for (const interaction of account.recent_interactions) {
+      const source =
+        interaction.type === 'email'    ? 'gmail'
+        : interaction.type === 'call'  ? 'openphone'
+        : interaction.type === 'slack' ? 'slack'
+        : interaction.type === 'calendar' ? 'calendar'
+        : 'gmail'
 
-      const completionPrompt = `You are analyzing an onboarding account to determine which plan items may be ready to mark as complete, based on recent activity.
+      const sourceParsingPrompt = `You are processing an incoming item from one of four sources — Gmail, Google Calendar, Slack, or OpenPhone/Quo (call transcripts and text messages) — associated with an onboarding account. Your job is to extract structured signals. Do not generate suggestions or recommendations — just extract the facts.
 
-Account: ${account.name}
+You will receive:
+- source: "gmail" | "calendar" | "slack" | "openphone"
+- content: the raw content (email body, calendar event details, Slack message, or call transcript/text message)
+- account: the account name, known contacts (with email addresses), and the account's email domain(s)
+- date: when this item occurred
 
-Recent activity (last 14 days):
-${interactionsBlock}
+## Source-specific notes
+- Gmail: Emails may include Gong call review summaries. If the email is from Gong (e.g., notifications@gong.io or similar), treat it as a call transcript — extract call-specific signals (commitments, decisions, next steps) rather than standard email signals. The backend tags the source as "gmail" regardless; you identify Gong content by the sender and formatting.
+- OpenPhone/Quo: These are phone call transcripts and SMS/text messages. Extract signals the same way as other sources. For call transcripts, focus on commitments, requests, and decisions. For text messages, treat them like short emails.
 
-Open plan items:
-${itemsBlock}
+## Contact matching
+The system has already matched this item to an account before sending it to you. Your job is NOT to decide whether this item belongs to the account — that's already done. However, you should identify WHICH contact is involved:
+- Match the sender/author to a known contact by email address (exact match).
+- If the sender's email domain matches the account domain but they are not a saved contact, flag them in the signal as a new contact: include their name and email in the detail field and add a signal of type "new_contact_detected" so the CSM can add them.
+- For Gong call reviews (arriving via Gmail), match speakers to known contacts by name.
+- For form submission notifications (Tally, Typeform, etc.), match the submitter name/email to a known contact.
 
-Only suggest completions where there is clear, specific evidence in the activity. Confidence must be high.
-Do NOT suggest items if the evidence is ambiguous, the item requires output with no confirmation, or the activity is a generic check-in.
+Extract the following:
 
-Return JSON only:
-{
-  "completions": [
-    {
-      "plan_item_id": "...",
-      "plan_item_name": "...",
-      "plan_item_type": "task or session",
-      "stage_id": "...",
-      "milestone_name": "...",
-      "stage_name": "...",
-      "reason": "one sentence"
-    }
-  ]
-}
+signals: An array of structured observations. For each signal, return:
+  - type: one of the following:
+    - "request_from_customer": The customer is asking the CSM to do something.
+    - "request_from_csm": The CSM asked the customer to do something (useful for tracking dependencies).
+    - "deliverable_received": The customer sent back materials, a completed template, or other deliverable. Look for these indicators:
+      * Phrases like "see attached," "please find attached," "attached is," "here are the materials"
+      * A non-signature file attachment (PDF, Excel, CSV, Word doc — ignore image-only attachments in email signatures)
+      * A form completion notification from a tool like Tally, Typeform, JotForm, or similar (e.g., "John Park completed Pre-Work Form")
+      * The customer confirming they uploaded or submitted something
+    - "deliverable_sent": The CSM sent materials to the customer.
+    - "meeting_occurred": A meeting or call took place with this account.
+    - "training_occurred": A training session took place with this account.
+    - "decision_made": A decision was confirmed (e.g., go-live date set, approach agreed on).
+    - "blocker_raised": Someone surfaced a problem, concern, or obstacle.
+    - "milestone_confirmed": The customer or CSM confirmed that a step, phase, or task is done.
+    - "scheduling_request": Someone is asking to schedule a meeting or call.
+    - "information": A fact or update worth noting but requiring no action.
+    - "new_contact_detected": A person from the account's domain appeared who is not in the saved contacts list. Include their name and email in the detail field.
+  - detail: one sentence describing what specifically happened. Include names, dates, and specifics from the content.
+  - who: who initiated or sent this (contact name or "CSM")
+  - has_attachment: true | false (for emails only — true if a real file is attached like a PDF, Excel, CSV, or Word doc. Ignore signature images, logos, and inline tracking pixels.)
+  - attachment_name: the filename if has_attachment is true, otherwise omit
 
-If nothing is clearly complete, return { "completions": [] }.`
+sentiment: "positive" | "neutral" | "negative" | "escalation_risk"
+
+If the content has no relevance to the account (spam, unrelated CC, noise), return: { "signals": [], "sentiment": "neutral", "skip": true }
+
+---
+source: "${source}"
+content: ${interaction.summary}
+account: ${account.name}
+date: ${new Date().toISOString().split('T')[0]}
+
+Return JSON only: { "signals": [...], "sentiment": "..." }`
 
       try {
         const msg = await anthropic.messages.create({
           model: 'claude-opus-4-5',
           max_tokens: 500,
-          messages: [{ role: 'user', content: completionPrompt }],
+          messages: [{ role: 'user', content: sourceParsingPrompt }],
         })
         const raw = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '{}'
         const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '')
-        const { completions = [] } = JSON.parse(clean) as {
-          completions: {
-            plan_item_id: string; plan_item_name: string; plan_item_type: 'task' | 'session'
-            stage_id: string; milestone_name: string; stage_name: string; reason: string
-          }[]
+        const parsed = JSON.parse(clean) as {
+          signals?: { type: string; detail: string; who: string }[]
+          sentiment?: string
+          skip?: boolean
         }
-        for (const c of completions) {
-          const { data: existing } = await supabase
-            .from('ai_suggestions').select('id')
-            .eq('account_id', account.id).eq('status', 'pending')
-            .eq('title', `Mark complete: ${c.plan_item_name}`).single()
-          if (existing) continue
-          await supabase.from('ai_suggestions').insert({
-            account_id: account.id,
-            type:   'mark_complete',
-            title:  `Mark complete: ${c.plan_item_name}`,
-            body:   c.reason,
-            status: 'pending',
-            meta: {
-              suggestion_category: 'completion',
-              plan_item_id:   c.plan_item_id,
-              plan_item_type: c.plan_item_type,
-              plan_item_name: c.plan_item_name,
-              stage_id:       c.stage_id,
-              milestone_name: c.milestone_name,
-              stage_name:     c.stage_name,
-            },
-          })
-          inserted++
+        if (!parsed.skip && parsed.signals?.length) {
+          for (const sig of parsed.signals) {
+            allSignals.push({ ...sig, source, sentiment: parsed.sentiment || 'neutral' })
+          }
         }
       } catch { /* skip on error */ }
     }
 
-    // ── 2. Next-action suggestions → staged for review in Action Items ────────
-    const internalItems  = account.pending_items?.filter(i => i.assignee !== 'customer' && i.type !== 'dependency') ?? []
-    const customerBlocks = account.pending_items?.filter(i => i.assignee === 'customer' || i.type === 'dependency') ?? []
+    if (!allSignals.length) continue
 
-    const nextActionsPrompt = `You are a senior customer success manager. Based on this account's current state and recent activity, suggest the top 3 specific next actions the CSM should take this week. Be concrete and actionable — not generic.
+    // ── Step 2: Suggestion Generation — match signals to plan tasks ───────────
+    const planTasks = (account.pending_items || []).map(i => ({
+      id:             i.id,
+      name:           i.name,
+      type:           i.type,
+      assignee:       i.assignee,
+      status:         'pending',
+      stage_id:       i.stage_id,
+      milestone_name: i.milestone_name,
+      stage_name:     i.stage_name,
+    }))
 
-Account: ${account.name}${account.sku ? ` (${account.sku})` : ''}
+    const suggestionGenerationPrompt = `You are generating suggestions for a CSM based on recently parsed activity for an onboarding account. The CSM will review each suggestion and either accept or dismiss it.
 
-Recent activity (last 14 days):
-${interactionsBlock}
+You will receive:
+- account: the account name and contacts
+- plan_tasks: the account's current plan tasks, each with a name, type, and status. Task types are: task, dependency, exchange, session, training. (Log tasks are internal and should be ignored — do not generate suggestions for them.)
+- parsed_signals: an array of structured signals extracted from recent Gmail emails, calendar events, Slack messages, and OpenPhone/Quo transcripts.
 
-Open internal tasks: ${internalItems.map(i => `"${i.name}"`).join(', ') || 'none'}
-Waiting on customer: ${customerBlocks.map(i => `"${i.name}"`).join(', ') || 'none'}
+Generate two types of suggestions:
 
-Return exactly 3 actions as JSON — no more, no fewer:
-[{"action": "...", "reason": "one sentence why this matters now", "priority": "high|medium|low"}]
-Only return the JSON array.`
+## TYPE 1: Suggested Task Completion
+When a parsed signal provides evidence that an existing plan task is done, suggest marking it complete.
+
+Matching rules by task type:
+- "session" or "training": Match if a "meeting_occurred" or "training_occurred" signal references the same topic or attendees. The calendar event must have already occurred (past date), not just be scheduled.
+- "exchange": Exchanges are two-sided. Match "deliverable_sent" if the CSM sent the item out (suggest marking as sent). Match "deliverable_received" if the customer returned it (suggest marking as received/complete). An exchange can generate up to two suggestions at different times.
+- "dependency": Match if a "milestone_confirmed" or "deliverable_received" signal shows the customer completed what was required. This includes form submissions (e.g., a Tally notification that a pre-work form was completed), returned documents, or explicit confirmation from the customer.
+- "task": Match if a "deliverable_sent", "milestone_confirmed", or related signal shows the CSM completed the action described in the task name.
+
+Do NOT generate suggestions for "log" tasks — these are internal CSM activities and cannot be inferred from external sources.
+
+For each suggested completion, return:
+- suggestion_type: "task_completion"
+- task_id: the plan task's id field
+- task_name: the plan task name
+- task_type: the task's type (task, dependency, exchange, session, training)
+- stage_id: the stage id
+- milestone_name: the milestone name
+- stage_name: the stage name
+- evidence: the specific signal that supports this (copy the signal's detail field)
+- source: where the evidence came from (gmail, calendar, slack, openphone)
+- label: a short human-readable suggestion, e.g., "Mark 'Pre-Transaction Training with Acme' complete" or "Mark 'Data Template' as received from Sarah Chen"
+
+## TYPE 2: Suggested Action Item
+When a parsed signal indicates something new the CSM needs to do — and no existing plan task already covers it — suggest a new action item.
+
+Action items come from signals like:
+- "request_from_customer": The customer asked for something. → Action: fulfill the request.
+- "scheduling_request": Someone asked to schedule a meeting. → Action: send booking link or schedule it.
+- "blocker_raised": A problem was surfaced. → Action: address or escalate.
+- "request_from_csm" with no follow-up: The CSM asked for something that hasn't been received yet. → Action: follow up.
+
+Do NOT create an action item if an existing plan task already covers the request. The plan is the CSM's source of truth — the AI should not duplicate it.
+
+For each suggested action item, return:
+- suggestion_type: "action_item"
+- action: a specific task starting with a verb (e.g., "Send booking link to Sarah Chen", "Follow up on missing data template with John Park")
+- source: where the signal came from (gmail, calendar, slack, openphone)
+- trigger: the specific signal that prompted this suggestion (copy the signal's detail field)
+- urgency: "high" | "normal"
+  - "high" = customer is blocked, expressed frustration, or has a deadline mentioned
+
+Return an array of suggestion objects. If there are no suggestions, return an empty array — do not invent suggestions to fill space.
+
+---
+account: ${account.name}${account.sku ? ` (${account.sku})` : ''}
+plan_tasks: ${JSON.stringify(planTasks)}
+parsed_signals: ${JSON.stringify(allSignals)}
+
+Return JSON only: an array of suggestion objects.`
 
     try {
       const msg = await anthropic.messages.create({
         model: 'claude-opus-4-5',
-        max_tokens: 400,
-        messages: [{ role: 'user', content: nextActionsPrompt }],
+        max_tokens: 600,
+        messages: [{ role: 'user', content: suggestionGenerationPrompt }],
       })
       const raw = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '[]'
       const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '')
-      const actions = JSON.parse(clean) as { action: string; reason: string; priority: string }[]
+      const suggestions = JSON.parse(clean) as Array<Record<string, unknown>>
 
-      for (const a of actions) {
-        if (!a.action) continue
-        // Deduplicate
-        const { data: existing } = await supabase
-          .from('ai_suggestions').select('id')
-          .eq('account_id', account.id).eq('status', 'pending')
-          .eq('title', a.action).single()
-        if (existing) continue
+      for (const s of suggestions) {
+        if (s.suggestion_type === 'task_completion') {
+          const title = (s.label as string) || `Mark complete: ${s.task_name}`
+          const { data: existing } = await supabase
+            .from('ai_suggestions').select('id')
+            .eq('account_id', account.id).eq('status', 'pending')
+            .eq('title', title).single()
+          if (existing) continue
+          await supabase.from('ai_suggestions').insert({
+            account_id: account.id,
+            type:   'mark_complete',
+            title,
+            body:   s.evidence as string,
+            status: 'pending',
+            meta: {
+              suggestion_category: 'completion',
+              plan_item_id:   s.task_id,
+              plan_item_type: s.task_type,
+              plan_item_name: s.task_name,
+              stage_id:       s.stage_id,
+              milestone_name: s.milestone_name,
+              stage_name:     s.stage_name,
+              source:         s.source,
+            },
+          })
+          inserted++
 
-        await supabase.from('ai_suggestions').insert({
-          account_id: account.id,
-          type:   'next_action',
-          title:  a.action,
-          body:   a.reason,
-          status: 'pending',
-          meta: {
-            suggestion_category: 'next_action',
-            item_type:  'task',
-            item_owner: 'respark',
-            item_status: 'open',
-            priority:   a.priority,
-            source:     'scan',
-          },
-        })
-        inserted++
+        } else if (s.suggestion_type === 'action_item') {
+          const title = s.action as string
+          if (!title) continue
+          const { data: existing } = await supabase
+            .from('ai_suggestions').select('id')
+            .eq('account_id', account.id).eq('status', 'pending')
+            .eq('title', title).single()
+          if (existing) continue
+          await supabase.from('ai_suggestions').insert({
+            account_id: account.id,
+            type:   'next_action',
+            title,
+            body:   s.trigger as string,
+            status: 'pending',
+            meta: {
+              suggestion_category: 'next_action',
+              item_type:   'task',
+              item_owner:  'respark',
+              item_status: 'open',
+              priority:    s.urgency === 'high' ? 'high' : 'medium',
+              source:      s.source,
+            },
+          })
+          inserted++
+        }
       }
     } catch { /* skip on error */ }
   }

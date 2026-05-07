@@ -2790,12 +2790,10 @@ const sectionLabel: React.CSSProperties = {
 // ─── AI Tab ──────────────────────────────────────────────────────────────────
 
 function AITab({ account }: { account: Account }) {
-  const [emailContext, setEmailContext]   = useState('')
-  const [emailResult, setEmailResult]     = useState<{ subject: string; body: string } | null>(null)
-  const [emailLoading, setEmailLoading]   = useState(false)
+
   const [summary, setSummary]             = useState<string | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
-  const [copied, setCopied]               = useState(false)
+
   const supabase = createClient()
 
   const getSummary = async () => {
@@ -2814,22 +2812,6 @@ function AITab({ account }: { account: Account }) {
     }
   }
 
-  const draftEmail = async () => {
-    setEmailLoading(true)
-    setEmailResult(null)
-    try {
-      const res = await fetch('/api/ai/draft-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: account.id, context: emailContext }),
-      })
-      const data = await res.json()
-      setEmailResult(data)
-    } finally {
-      setEmailLoading(false)
-    }
-  }
-
   // Auto-generate summary when AI tab opens; clear the pending dot
   useEffect(() => {
     getSummary()
@@ -2840,13 +2822,6 @@ function AITab({ account }: { account: Account }) {
       .eq('status', 'pending')
       .then(() => {})
   }, [account.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const copyEmail = () => {
-    if (!emailResult) return
-    navigator.clipboard.writeText(`Subject: ${emailResult.subject}\n\n${emailResult.body}`)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -2878,47 +2853,6 @@ function AITab({ account }: { account: Account }) {
           <p style={{ fontSize: 11, color: 'var(--text-2)' }}>
             No recent interactions to summarize yet.
           </p>
-        )}
-      </div>
-
-      {/* Draft Email */}
-      <div style={aiCard}>
-        <div style={aiCardHeader}>
-          <span style={aiCardTitle}>Draft Follow-up Email</span>
-          {emailResult && (
-            <button onClick={copyEmail} style={{ ...aiBtn, background: copied ? '#10b98120' : undefined, color: copied ? '#10b981' : undefined }}>
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-          )}
-        </div>
-        <p style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 12 }}>
-          Optional: add context for what to address in the email.
-        </p>
-        <div style={{ display: 'flex', gap: 8, marginBottom: emailResult ? 16 : 0 }}>
-          <input
-            value={emailContext}
-            onChange={e => setEmailContext(e.target.value)}
-            placeholder="e.g. follow up on missing data file, check in after training session..."
-            style={{
-              flex: 1, background: 'var(--bg-surface2)', border: '1px solid var(--border-b)',
-              borderRadius: 6, padding: '7px 10px', color: 'var(--text-h)',
-              fontSize: 12, fontFamily: 'var(--font-ui)', outline: 'none',
-            }}
-            onKeyDown={e => e.key === 'Enter' && draftEmail()}
-          />
-          <button onClick={draftEmail} disabled={emailLoading} style={aiBtn}>
-            {emailLoading ? 'Drafting…' : emailResult ? 'Redraft' : 'Draft'}
-          </button>
-        </div>
-        {emailResult && (
-          <div style={{ background: 'var(--bg-surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#1BB3BB', marginBottom: 8 }}>
-              Subject: {emailResult.subject}
-            </div>
-            <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-              {emailResult.body}
-            </div>
-          </div>
         )}
       </div>
 

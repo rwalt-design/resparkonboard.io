@@ -41,17 +41,38 @@ export async function POST(request: NextRequest) {
     ? Math.floor((Date.now() - new Date(lastInteraction.created_at).getTime()) / 86400000)
     : null
 
-  const prompt = `You are a senior customer success manager. Based on this account's current state, suggest the top 3 specific next actions the CSM should take this week. Be concrete and actionable — not generic.
+  const prompt = `You are generating suggestions for a CSM based on recently parsed activity for an onboarding account. The CSM will review each suggestion and either accept or dismiss it.
 
-Account: ${account.name} (${account.sku})
-Last contact: ${daysSince !== null ? `${daysSince} days ago` : 'never'}
-Blocked customer tasks: ${blockedCustomerTasks.join(', ') || 'none'}
-Pending internal tasks: ${pendingInternalTasks.join(', ') || 'none'}
-Open document requests: ${openRequests.join(', ') || 'none'}
+You will receive:
+- account: the account name and contacts
+- plan_tasks: the account's current plan tasks, each with a name, type, and status. Task types are: task, dependency, exchange, session, training. (Log tasks are internal and should be ignored — do not generate suggestions for them.)
+- parsed_signals: structured signals representing the account's current state.
 
-Return exactly 3 actions. Format each as a JSON object in an array:
-[{"action": "...", "reason": "...", "priority": "high|medium|low"}]
-Only return the JSON array, nothing else.`
+Generate suggested action items — specific things the CSM should do this week based on the account's current state.
+
+Action items come from:
+- Blocked customer tasks (dependencies the customer needs to complete)
+- Pending internal tasks going stale
+- Open document requests not yet returned
+- Long gaps since last contact
+
+Do NOT create an action item if an existing plan task already covers it. The plan is the CSM's source of truth.
+
+For each suggested action item, return:
+- suggestion_type: "action_item"
+- action: a specific task starting with a verb (e.g., "Follow up with Sarah Chen on missing data template", "Send booking link for Post-Transaction training")
+- trigger: the specific reason this matters now
+- urgency: "high" | "normal"
+  - "high" = customer is blocked, expressed frustration, or has a deadline mentioned
+
+Return exactly 3 action items as a JSON array. Only return the JSON array.
+
+---
+account: ${account.name} (${account.sku})
+last_contact: ${daysSince !== null ? `${daysSince} days ago` : 'never'}
+blocked_customer_tasks: ${blockedCustomerTasks.join(', ') || 'none'}
+pending_internal_tasks: ${pendingInternalTasks.join(', ') || 'none'}
+open_document_requests: ${openRequests.join(', ') || 'none'}`
 
   const message = await anthropic.messages.create({
     model: 'claude-opus-4-5',
@@ -61,7 +82,13 @@ Only return the JSON array, nothing else.`
 
   const text = message.content[0].type === 'text' ? message.content[0].text : '[]'
   try {
-    const actions = JSON.parse(text)
+    const raw = text.trim().replace(/^```json?\s*/i, '').replace(/\s*```$/i, '')
+    const suggestions = JSON.parse(raw) as { action: string; trigger: string; urgency: string }[]
+    const actions = suggestions.map(s => ({
+      action:   s.action,
+      reason:   s.trigger,
+      priority: s.urgency === 'high' ? 'high' : 'medium',
+    }))
     return NextResponse.json({ actions })
   } catch {
     return NextResponse.json({ actions: [] })
