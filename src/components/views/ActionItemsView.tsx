@@ -150,61 +150,12 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
   const allTasks = useMemo<FlatTask[]>(() => {
     const tasks: FlatTask[] = []
     accounts.forEach(account => {
-      // Names of tasks in stages that haven't been reached yet — used to suppress
-      // open_tasks that duplicate future-stage plan items.
-      const futureStageNames = new Set<string>()
-      ;(account.milestones || []).forEach(m => {
-        m.stages.forEach(s => {
-          if (s.status === 'locked' || s.status === 'unlocked') {
-            s.items.forEach(i => { if (i.task_name) futureStageNames.add(i.task_name.toLowerCase()) })
-          }
-        })
-      })
-
       ;(account.open_tasks || []).forEach(task => {
-        if (!futureStageNames.has(task.name.toLowerCase())) {
-          tasks.push({ kind: 'task', ...task, account, fromPlan: false })
-        }
-      })
-      ;(account.milestones || []).forEach(m => {
-        m.stages.forEach(s => {
-          // Only show items from the current (active) stage and stages before it (complete).
-          // Skip later stages (unlocked = available but not yet current, locked = not yet available).
-          if (s.status !== 'active' && s.status !== 'complete') return
-          s.items.forEach(item => {
-            if (item.type === 'task' && !item.task_done && item.required) {
-              const alreadyIn = tasks.some(t => t.name === item.task_name && t.account.id === account.id)
-              if (!alreadyIn) {
-                tasks.push({
-                  id: item.id, account_id: account.id,
-                  name: item.task_name || '', assignee: item.task_assignee || 'personal',
-                  source: item.task_source || 'plan', done: item.task_done || false,
-                  created_at: item.created_at || new Date().toISOString(),
-                  item_type:   item.task_assignee === 'customer' ? 'dependency' : 'task',
-                  item_owner:  item.task_assignee === 'customer' ? 'customer'   : 'respark',
-                  item_status: item.task_done ? 'done' : item.task_assignee === 'customer' ? 'waiting' : 'open',
-                  kind: 'task', account, fromPlan: true, milestone: m.name, stage: s.name,
-                })
-              }
-            }
-            // Dependency plan items
-            if (item.type === 'dependency' && !item.task_done && item.required) {
-              const alreadyIn = tasks.some(t => t.name === item.task_name && t.account.id === account.id)
-              if (!alreadyIn) {
-                tasks.push({
-                  id: item.id, account_id: account.id,
-                  name: item.task_name || '', assignee: 'customer',
-                  source: item.task_source || 'plan', done: item.task_done || false,
-                  created_at: item.created_at || new Date().toISOString(),
-                  item_type: 'dependency', item_owner: 'customer', item_status: 'waiting',
-                  kind: 'task', account, fromPlan: true, milestone: m.name, stage: s.name,
-                })
-              }
-            }
-          })
-        })
+        tasks.push({ kind: 'task', ...task, account, fromPlan: false })
       })
     })
+    // Newest first
+    tasks.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     return tasks
   }, [accounts])
 
@@ -670,7 +621,9 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
 
   const accountFor = (id: string) => accounts.find(a => a.id === id)
 
-  const pending = suggestions.filter(s => s.status === 'pending')
+  const pending = suggestions
+    .filter(s => s.status === 'pending')
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   return (
     <div>
