@@ -92,7 +92,21 @@ div:hover .item-delete-btn { opacity: 0.4 !important; }
   /* push content above the bottom bar */
   .main-content  { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important; }
   /* tighter dashboard padding on small screens */
-  .dash-wrap     { padding: 16px 12px !important; }
+  .dash-wrap        { padding: 14px 12px !important; }
+  /* filter bar stacks on mobile */
+  .dash-filter-bar  { flex-wrap: wrap; }
+  .dash-filter-search { width: 100% !important; }
+  /* smaller tab labels */
+  .dash-tab         { padding: 4px 10px 8px !important; font-size: 12px !important; }
+  /* Time To Launch: stat cards wrap 2×2 */
+  .ttl-stats        { flex-wrap: wrap !important; }
+  .ttl-stat-card    { flex: none !important; width: calc(50% - 6px) !important; }
+  /* charts stack vertically */
+  .ttl-charts       { grid-template-columns: 1fr !important; }
+  /* per-account table is too wide for mobile */
+  .ttl-table        { display: none !important; }
+  /* tighter TTL wrapper */
+  .ttl-wrap         { padding: 16px 12px !important; }
 }
 
 /* AI suggestion pulse dot */

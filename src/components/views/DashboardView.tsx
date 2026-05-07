@@ -769,9 +769,13 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-h)' }}>Accounts</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setShowWeeklySummary(true)} style={secondaryBtnStyle}>Weekly Summary</button>
-          <button onClick={() => setShowCreate(true)} style={primaryBtnStyle}>+ New Account</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setShowWeeklySummary(true)} style={secondaryBtnStyle}>
+            <span className="hide-mobile">Weekly </span>Summary
+          </button>
+          <button onClick={() => setShowCreate(true)} style={primaryBtnStyle}>
+            + <span className="hide-mobile">New Account</span><span className="mobile-only" style={{ display: 'none' }}>New</span>
+          </button>
         </div>
       </div>
 
@@ -814,11 +818,12 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
       ) : (
         <>
         {/* Filter bar */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+        <div className="dash-filter-bar" style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
           <input
             value={filterSearch}
             onChange={e => updateFilter({ search: e.target.value })}
             placeholder="Search accounts…"
+            className="dash-filter-search"
             style={{
               background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 6,
               padding: '5px 10px', fontSize: 12, color: 'var(--text)', fontFamily: 'var(--font-ui)',
