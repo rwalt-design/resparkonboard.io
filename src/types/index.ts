@@ -274,6 +274,15 @@ export interface PlanTemplate {
   created_at: string
 }
 
+export interface Resource {
+  id: string
+  org_id: string
+  title: string
+  url: string
+  description?: string | null
+  created_at: string
+}
+
 export interface Connector {
   id: string
   org_id: string
