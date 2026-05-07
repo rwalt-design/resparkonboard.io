@@ -14,11 +14,10 @@ export const metadata: Metadata = {
   description: 'Customer onboarding platform for Respark',
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
       { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
       { url: '/favicon-16.png', sizes: '16x16', type: 'image/png' },
     ],
-    apple: [{ url: '/apple-touch-icon.svg', type: 'image/svg+xml' }, { url: '/apple-touch-icon.png', sizes: '180x180' }],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   themeColor: [{ media: '(prefers-color-scheme: dark)', color: '#12233E' }, { media: '(prefers-color-scheme: light)', color: '#ffffff' }],
 }
