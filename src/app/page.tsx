@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
+import { seedSampleAccountsIfNeeded } from '@/lib/seedSampleAccounts'
 import type { Account, OrgMember, TrainingTemplate, Connector, PlanTemplate, SessionTemplate } from '@/types'
 
 export default async function HomePage() {
@@ -67,6 +69,15 @@ export default async function HomePage() {
   const currentMember = (orgMembers || []).find(
     (m: Record<string, unknown>) => m.user_id === user.id
   ) as OrgMember | undefined
+
+  if (currentMember) {
+    try {
+      const admin = createAdminClient()
+      await seedSampleAccountsIfNeeded(admin, currentMember.org_id, user.id)
+    } catch (e) {
+      console.error('Seed error (non-blocking):', e)
+    }
+  }
 
   return (
     <AppShell
