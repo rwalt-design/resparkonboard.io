@@ -557,9 +557,13 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, sessionTemp
   const req = allItems.filter(i => i.required)
   const done = req.filter(i => i.task_done || i.session_status === 'complete')
   const pct = req.length ? Math.round((done.length / req.length) * 100) : 0
+  const isTrainingMilestone = milestone.name.toLowerCase() === 'training'
   const isComplete = localStages.every(s => s.status === 'complete')
   const [addingStage, setAddingStage] = useState(false)
   const [stageName, setStageName] = useState('')
+  const [addingTraining, setAddingTraining] = useState(false)
+  const [trainingName, setTrainingName] = useState('')
+  const [trainingTemplateId, setTrainingTemplateId] = useState('')
 
   const handleDeleteStage = async (stageId: string) => {
     const { error } = await supabase.from('stages').delete().eq('id', stageId)
@@ -567,6 +571,38 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, sessionTemp
     const next = localStages.filter(s => s.id !== stageId)
     setLocalStages(next)
     onUpdate({ ...account, milestones: (account.milestones || []).map(m => m.id !== milestone.id ? m : { ...m, stages: next }) })
+  }
+
+  const handleAddTraining = async () => {
+    if (!trainingName.trim()) return
+    const { data: stage, error: stageErr } = await supabase.from('stages').insert({
+      milestone_id: milestone.id,
+      name: trainingName.trim(),
+      status: 'unlocked',
+      order_index: localStages.length,
+    }).select('id, milestone_id, name, status, order_index').single()
+    if (stageErr || !stage) { console.error('Add training stage failed:', stageErr?.message); return }
+
+    const itemPayload: Record<string, unknown> = {
+      stage_id: stage.id,
+      type: 'session',
+      required: true,
+      order_index: 0,
+      session_name: trainingName.trim(),
+      session_status: 'pending',
+    }
+    if (trainingTemplateId) itemPayload.training_template_id = trainingTemplateId
+
+    const { data: item, error: itemErr } = await supabase.from('items').insert(itemPayload).select().single()
+    if (itemErr) { console.error('Add training item failed:', itemErr?.message); return }
+
+    const newStage: Stage = { ...stage, items: item ? [item as Item] : [] }
+    const next = [...localStages, newStage]
+    setLocalStages(next)
+    onUpdate({ ...account, milestones: (account.milestones || []).map(m => m.id !== milestone.id ? m : { ...m, stages: next }) })
+    setTrainingName('')
+    setTrainingTemplateId('')
+    setAddingTraining(false)
   }
 
   const handleAddStage = async () => {
@@ -640,8 +676,56 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, sessionTemp
               ))}
             </SortableContext>
           </DndContext>
-          {/* Add stage row */}
-          {addingStage ? (
+          {/* Add row — Training milestone gets a dedicated training picker; others get a plain stage form */}
+          {isTrainingMilestone ? (
+            addingTraining ? (
+              <div style={{ padding: '8px 16px 10px 28px', background: 'var(--bg-stage)', borderTop: '1px solid var(--bg-surface3)' }}>
+                {trainingTemplates.length > 0 && (
+                  <select
+                    name="training-template"
+                    value={trainingTemplateId}
+                    onChange={e => {
+                      const id = e.target.value
+                      setTrainingTemplateId(id)
+                      const tmpl = trainingTemplates.find(t => t.id === id)
+                      if (tmpl) setTrainingName(tmpl.name)
+                    }}
+                    style={{ ...inputStyle, fontSize: 12, marginBottom: 6, width: '100%' }}
+                  >
+                    <option value="">— custom training (no template) —</option>
+                    {trainingTemplates.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}{t.duration_minutes ? ` (${t.duration_minutes}m)` : ''}</option>
+                    ))}
+                  </select>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    autoFocus
+                    name="training-name"
+                    value={trainingName}
+                    onChange={e => setTrainingName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleAddTraining(); if (e.key === 'Escape') { setAddingTraining(false); setTrainingName(''); setTrainingTemplateId('') } }}
+                    placeholder="Training session name..."
+                    style={{ ...inputStyle, flex: 1, fontSize: 12 }}
+                  />
+                  <button onClick={handleAddTraining} style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px' }}>Add</button>
+                  <button onClick={() => { setAddingTraining(false); setTrainingName(''); setTrainingTemplateId('') }} style={{ ...ghostBtn, fontSize: 11, padding: '4px 10px' }}>✕</button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={e => { e.stopPropagation(); setAddingTraining(true) }}
+                style={{
+                  display: 'block', width: '100%', background: 'none', border: 'none',
+                  borderTop: '1px solid var(--bg-surface3)',
+                  padding: '7px 16px 7px 28px', textAlign: 'left',
+                  color: 'var(--text-3)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
+              >+ Add Training</button>
+            )
+          ) : addingStage ? (
             <div style={{ display: 'flex', gap: 8, padding: '8px 16px 10px 28px', background: 'var(--bg-stage)', borderTop: '1px solid var(--bg-surface3)' }}>
               <input
                 autoFocus
