@@ -160,6 +160,37 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
               ARR <strong style={{ color: 'var(--text-h)' }}>${localAccount.arr.toLocaleString()}</strong>
             </span>
           )}
+          {/* Owner — managers see a reassignment dropdown; others see a plain label */}
+          {currentMember?.role === 'manager' ? (
+            <span style={{ fontSize: 12, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              IS
+              <select
+                value={localAccount.owner_id || ''}
+                onChange={async e => {
+                  const newOwnerId = e.target.value
+                  if (!newOwnerId) return
+                  const supabase = createClient()
+                  await supabase.from('accounts').update({ owner_id: newOwnerId }).eq('id', localAccount.id)
+                  setLocalAccount(prev => ({ ...prev, owner_id: newOwnerId }))
+                }}
+                style={{
+                  background: 'var(--bg-surface2)', border: '1px solid var(--border)', borderRadius: 5,
+                  padding: '2px 6px', fontSize: 12, color: 'var(--text-h)', fontFamily: 'var(--font-ui)',
+                  fontWeight: 600, cursor: 'pointer', outline: 'none',
+                }}
+              >
+                {orgMembers.map(m => (
+                  <option key={m.user_id} value={m.user_id}>{m.name}</option>
+                ))}
+              </select>
+            </span>
+          ) : (
+            <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+              IS <strong style={{ color: 'var(--text-h)' }}>
+                {orgMembers.find(m => m.user_id === localAccount.owner_id)?.name ?? 'Unassigned'}
+              </strong>
+            </span>
+          )}
           <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
             Progress <strong style={{ color: 'var(--text-h)' }}>{completionPct}%</strong>
           </span>

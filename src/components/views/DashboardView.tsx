@@ -671,12 +671,14 @@ function isHandedOff(account: Account): boolean {
   return milestones.every(m => m.stages.length > 0 && m.stages.every(s => s.status === 'complete'))
 }
 
-export function DashboardView({ accounts, currentMember: _currentMember, orgMembers, trainingTemplates, planTemplates, sessionTemplates, accountsWithSuggestions, onSelectAccount, onRefresh }: Props) {
+export function DashboardView({ accounts, currentMember, orgMembers, trainingTemplates, planTemplates, sessionTemplates, accountsWithSuggestions, onSelectAccount, onRefresh }: Props) {
   const [showCreate, setShowCreate] = useState(false)
   const [expandedTask, setExpandedTask] = useState<string | null>(null)
   const [showWeeklySummary, setShowWeeklySummary] = useState(false)
   const [healthUpdating, setHealthUpdating] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'onboarding' | 'handed_off'>('onboarding')
+
+  const isManager = currentMember?.role === 'manager'
 
   const init = useMemo(loadDashState, [])
   const [sortCol, setSortCol] = useState<SortCol | null>(init.sortCol)
@@ -947,6 +949,20 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                       {accountsWithSuggestions.has(account.id) && (
                         <span className="ai-dot" title="AI suggestions available" />
                       )}
+                      {isManager && (() => {
+                        const owner = orgMembers.find(m => m.user_id === account.owner_id)
+                        if (!owner) return null
+                        const initials = owner.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+                        return (
+                          <Tooltip content={owner.name} placement="top">
+                            <span style={{
+                              fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 99,
+                              background: 'var(--accent)', color: '#fff', flexShrink: 0,
+                              fontFamily: 'var(--font-ui)', cursor: 'default',
+                            }}>{initials}</span>
+                          </Tooltip>
+                        )
+                      })()}
                     </div>
                     {account.sales_context && (
                       <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
