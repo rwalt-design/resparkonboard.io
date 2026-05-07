@@ -69,7 +69,7 @@ function mean(arr: number[]) {
 
 function StatCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
   return (
-    <div style={{
+    <div className="ttl-stat-card" style={{
       background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10,
       padding: '20px 22px', flex: 1,
     }}>
@@ -326,14 +326,14 @@ export function TimeToLaunchView({ accounts, onSelectAccount }: Props) {
   const skus = Array.from(new Set(accounts.map(a => a.sku)))
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 1280 }}>
+    <div className="ttl-wrap" style={{ padding: '24px 28px', maxWidth: 1280 }}>
       <div style={{ marginBottom: 6 }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-h)', marginBottom: 3 }}>Time To Launch</h1>
         <p style={{ fontSize: 12, color: 'var(--text-3)' }}>Onboarding velocity across your book of business</p>
       </div>
 
       {/* ── Stat cards ─────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, marginTop: 20 }}>
+      <div className="ttl-stats" style={{ display: 'flex', gap: 12, marginBottom: 20, marginTop: 20 }}>
         <StatCard
           label="Avg. Total Days"
           value={data.avgDays ?? '—'}
@@ -361,7 +361,7 @@ export function TimeToLaunchView({ accounts, onSelectAccount }: Props) {
       </div>
 
       {/* ── Charts row ─────────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+      <div className="ttl-charts" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         {/* Trend */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px' }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
@@ -422,7 +422,7 @@ export function TimeToLaunchView({ accounts, onSelectAccount }: Props) {
       )}
 
       {/* ── Per account table ───────────────────────────────────────────────── */}
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+      <div className="ttl-table" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
           <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Per Account Detail</span>
         </div>
