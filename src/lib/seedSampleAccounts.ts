@@ -18,6 +18,7 @@ export async function seedSampleAccountsIfNeeded(
     .from('accounts')
     .select('*', { count: 'exact', head: true })
     .eq('org_id', orgId)
+    .eq('owner_id', userId)
     .eq('name', 'ABC Iron & Metal')
 
   if (!abcCount) await seedAbcAccount(admin, orgId, userId, now)
@@ -26,6 +27,7 @@ export async function seedSampleAccountsIfNeeded(
     .from('accounts')
     .select('*', { count: 'exact', head: true })
     .eq('org_id', orgId)
+    .eq('owner_id', userId)
     .eq('name', 'Lakeshore Auto Parts')
 
   if (!lsCount) await seedLakeshoreAccount(admin, orgId, userId, now)

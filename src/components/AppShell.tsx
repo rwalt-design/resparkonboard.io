@@ -310,36 +310,6 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
           ))}
         </nav>
 
-        {/* Theme toggle — segmented pill (desktop only) */}
-        <div className="hide-mobile" style={{
-          display: 'flex', background: 'var(--border)', borderRadius: 8,
-          padding: 2, gap: 0, marginRight: 8, flexShrink: 0,
-        }}>
-          {(['dark', 'light'] as const).map(mode => {
-            const active = theme.pref === mode
-            return (
-              <button
-                key={mode}
-                onClick={() => theme.setTheme(mode)}
-                title={mode === 'dark' ? 'Switch to dark mode' : 'Switch to light mode'}
-                style={{
-                  background: active ? 'var(--accent)' : 'none',
-                  border: 'none', borderRadius: 6,
-                  padding: '4px 11px',
-                  color: active ? '#fff' : 'var(--text-2)',
-                  fontSize: 11, fontWeight: 600,
-                  cursor: active ? 'default' : 'pointer',
-                  fontFamily: 'var(--font-ui)',
-                  transition: 'all 0.15s',
-                  display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
-                }}
-              >
-                {mode === 'dark' ? '☽' : '☀'} {mode === 'dark' ? 'Dark' : 'Light'}
-              </button>
-            )
-          })}
-        </div>
-
         {/* Sync */}
         {hasConnectors && (
           <div className="hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 12 }}>
