@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getTooltipsEnabled, setTooltipsEnabled } from '@/components/Tooltip'
 import type { Account, OrgMember, TrainingTemplate, Connector, PlanTemplate, SessionTemplate } from '@/types'
 import { DashboardView } from './views/DashboardView'
 import { AccountView } from './views/AccountView'
@@ -83,6 +84,9 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
   const [lastSynced, setLastSynced] = useState<string | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const [tooltips, setTooltips] = useState(true)
+  useEffect(() => { setTooltips(getTooltipsEnabled()) }, [])
+  const toggleTooltips = () => { const next = !tooltips; setTooltips(next); setTooltipsEnabled(next) }
   const router = useRouter()
   const theme = useTheme()
 
@@ -363,6 +367,25 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
               >
                 <span style={{ fontSize: 12 }}>⚙</span> Settings
               </button>
+              {/* Tooltips toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-ui)' }}>Tooltips</span>
+                <button
+                  onClick={toggleTooltips}
+                  style={{
+                    width: 34, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', flexShrink: 0,
+                    background: tooltips ? '#3b82f6' : 'var(--bg-surface3)',
+                    position: 'relative', transition: 'background 0.2s',
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 2, left: tooltips ? 16 : 2,
+                    width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                    transition: 'left 0.2s', display: 'block',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  }} />
+                </button>
+              </div>
               <div style={{ height: 1, background: 'var(--border)', margin: '3px 0' }} />
               <button
                 onClick={handleSignOut}
