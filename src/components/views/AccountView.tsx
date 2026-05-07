@@ -2195,7 +2195,7 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
       setLinkedResourceIds(prev => { const next = new Set(prev); next.delete(resourceId); return next })
     } else {
       await supabase.from('account_resources').insert({ account_id: account.id, resource_id: resourceId })
-      setLinkedResourceIds(prev => new Set([...prev, resourceId]))
+      setLinkedResourceIds(prev => { const next = new Set(prev); next.add(resourceId); return next })
     }
     onRefreshResources?.()
   }
