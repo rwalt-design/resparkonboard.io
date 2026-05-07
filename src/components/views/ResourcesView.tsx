@@ -281,7 +281,7 @@ export function ResourcesView({ resources, onRefresh }: Props) {
               </p>
             </>
           ) : (
-            <p style={{ fontSize: 13, margin: 0 }}>No results for "{search}"</p>
+            <p style={{ fontSize: 13, margin: 0 }}>No results for &ldquo;{search}&rdquo;</p>
           )}
         </div>
       ) : (
