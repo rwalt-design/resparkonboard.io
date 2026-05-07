@@ -86,11 +86,35 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
   const [lastSynced, setLastSynced] = useState<string | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const [viewMenuOpen, setViewMenuOpen] = useState(false)
+  const viewMenuRef = useRef<HTMLDivElement>(null)
   const [tooltips, setTooltips] = useState(true)
   useEffect(() => { setTooltips(getTooltipsEnabled()) }, [])
   const toggleTooltips = () => { const next = !tooltips; setTooltips(next); setTooltipsEnabled(next) }
   const router = useRouter()
   const theme = useTheme()
+
+  const isManager = currentMember?.role === 'manager'
+
+  // Global view filter — persisted in localStorage, defaults to the logged-in user's own accounts
+  const [viewUserId, setViewUserId] = useState<string>(() => {
+    if (typeof window === 'undefined') return currentMember?.user_id ?? ''
+    return localStorage.getItem('view-filter') ?? currentMember?.user_id ?? ''
+  })
+
+  const updateViewFilter = (userId: string) => {
+    setViewUserId(userId)
+    localStorage.setItem('view-filter', userId)
+    setViewMenuOpen(false)
+  }
+
+  const viewLabel = viewUserId === 'all'
+    ? 'All Accounts'
+    : (orgMembers.find(m => m.user_id === viewUserId)?.name ?? 'My Accounts')
+
+  const filteredAccounts = viewUserId === 'all'
+    ? accounts
+    : accounts.filter(a => a.owner_id === viewUserId)
 
   const hasConnectors = connectorTokens.length > 0
 
@@ -99,11 +123,14 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
     if (stored) setLastSynced(stored)
   }, [])
 
-  // Close user menu on outside click
+  // Close menus on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false)
+      }
+      if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) {
+        setViewMenuOpen(false)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -332,6 +359,79 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
           </div>
         )}
 
+        {/* View filter */}
+        <div ref={viewMenuRef} style={{ position: 'relative', marginRight: 8 }}>
+          <button
+            onClick={() => setViewMenuOpen(v => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: viewMenuOpen ? 'var(--border)' : 'none',
+              border: '1px solid ' + (viewMenuOpen ? 'var(--border-b)' : 'var(--border)'),
+              borderRadius: 7, padding: '3px 10px', cursor: 'pointer',
+              fontFamily: 'var(--font-ui)',
+            }}
+            onMouseEnter={e => { if (!viewMenuOpen) e.currentTarget.style.borderColor = 'var(--border-b)' }}
+            onMouseLeave={e => { if (!viewMenuOpen) e.currentTarget.style.borderColor = 'var(--border)' }}
+          >
+            <span style={{ fontSize: 10, color: 'var(--text-3)', letterSpacing: '0.04em' }}>Viewing</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{viewLabel}</span>
+            <span style={{ fontSize: 9, color: 'var(--text-3)' }}>▾</span>
+          </button>
+
+          {viewMenuOpen && (
+            <div style={{
+              position: 'absolute', right: 0, top: 'calc(100% + 6px)',
+              background: 'var(--bg-surface)', border: '1px solid var(--border)',
+              borderRadius: 8, padding: 4, minWidth: 180, zIndex: 200,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            }}>
+              {isManager && (
+                <button
+                  onClick={() => updateViewFilter('all')}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    width: '100%', background: viewUserId === 'all' ? 'var(--border)' : 'none',
+                    border: 'none', borderRadius: 5, padding: '7px 10px',
+                    color: 'var(--text)', fontSize: 12, cursor: 'pointer',
+                    fontFamily: 'var(--font-ui)', textAlign: 'left',
+                  }}
+                  onMouseEnter={e => { if (viewUserId !== 'all') e.currentTarget.style.background = 'var(--bg-hover)' }}
+                  onMouseLeave={e => { if (viewUserId !== 'all') e.currentTarget.style.background = 'none' }}
+                >
+                  <span>All Accounts</span>
+                  {viewUserId === 'all' && <span style={{ fontSize: 10, color: 'var(--accent)' }}>✓</span>}
+                </button>
+              )}
+              {isManager && orgMembers.length > 0 && (
+                <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+              )}
+              {orgMembers.map(m => (
+                <button
+                  key={m.user_id}
+                  onClick={() => updateViewFilter(m.user_id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    width: '100%', background: viewUserId === m.user_id ? 'var(--border)' : 'none',
+                    border: 'none', borderRadius: 5, padding: '7px 10px',
+                    color: 'var(--text)', fontSize: 12, cursor: 'pointer',
+                    fontFamily: 'var(--font-ui)', textAlign: 'left', gap: 8,
+                  }}
+                  onMouseEnter={e => { if (viewUserId !== m.user_id) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                  onMouseLeave={e => { if (viewUserId !== m.user_id) e.currentTarget.style.background = 'none' }}
+                >
+                  <span>
+                    {m.name}
+                    {m.user_id === currentMember?.user_id && (
+                      <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 5 }}>You</span>
+                    )}
+                  </span>
+                  {viewUserId === m.user_id && <span style={{ fontSize: 10, color: 'var(--accent)' }}>✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* User menu */}
         <div ref={userMenuRef} style={{ position: 'relative' }}>
           <button
@@ -350,8 +450,12 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
               background: 'var(--border)', border: '1px solid var(--border-b)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 10, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-mono)',
+              overflow: 'hidden', flexShrink: 0,
             }}>
-              {currentMember?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '??'}
+              {currentUser.user_metadata?.avatar_url
+                ? <img src={currentUser.user_metadata.avatar_url} alt="" width={24} height={24} style={{ objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                : currentMember?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '??'
+              }
             </div>
             <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{currentMember?.name || currentUser.email}</span>
             <span style={{ fontSize: 9, color: 'var(--text-3)' }}>▾</span>
@@ -432,12 +536,12 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
           />
         ) : view === 'actions' ? (
           <ActionItemsView
-            accounts={accounts}
+            accounts={filteredAccounts}
             onSelectAccount={handleSelectAccount}
           />
         ) : view === 'ttl' ? (
           <TimeToLaunchView
-            accounts={accounts}
+            accounts={filteredAccounts}
             onSelectAccount={handleSelectAccount}
           />
         ) : view === 'templates' ? (
@@ -464,7 +568,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
           />
         ) : (
           <DashboardView
-            accounts={accounts}
+            accounts={filteredAccounts}
             currentMember={currentMember}
             orgMembers={orgMembers}
             trainingTemplates={trainingTemplates}
