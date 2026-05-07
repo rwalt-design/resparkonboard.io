@@ -14,6 +14,17 @@ const SOURCE_COLORS: Record<string, string> = {
   manual:  '#f59e0b',
 }
 
+function sourceEmoji(source?: string): string | null {
+  if (!source) return null
+  const s = source.toLowerCase()
+  if (s === 'email' || s === 'gmail')                   return '📧'
+  if (s === 'call'  || s === 'openphone' || s === 'quo') return '📞'
+  if (s === 'slack')                                    return '💬'
+  if (s === 'session' || s === 'calendar' || s === 'meeting') return '📅'
+  if (s === 'manual')                                   return '✏️'
+  return null
+}
+
 const HEALTH_OPTIONS: { value: HealthStatus; label: string; color: string }[] = [
   { value: 'active',       label: 'Active',       color: '#10b981' },
   { value: 'stalled',      label: 'Stalled',      color: '#f59e0b' },
@@ -387,8 +398,11 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                         }}>{sendDone && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>✓</span>}</div>
                       {/* Name + sub-labels */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: bothDone ? 'var(--text-3)' : 'var(--text)', textDecoration: bothDone ? 'line-through' : 'none', lineHeight: 1.4 }}>
-                          {row.name}
+                        <div style={{ fontSize: 13, color: bothDone ? 'var(--text-3)' : 'var(--text)', textDecoration: bothDone ? 'line-through' : 'none', lineHeight: 1.4, display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                          <span>{row.name}</span>
+                          {sourceEmoji(row.source) && (
+                            <span style={{ fontSize: 11, opacity: 0.55, flexShrink: 0 }} title={row.source}>{sourceEmoji(row.source)}</span>
+                          )}
                         </div>
                         {row.stage && !bothDone && (
                           <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
@@ -453,8 +467,11 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                         }}>{isDone && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>✓</span>}</div>
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: isDone ? 'var(--text-3)' : 'var(--text)', textDecoration: isDone ? 'line-through' : 'none', lineHeight: 1.4 }}>
-                        {task.name}
+                      <div style={{ fontSize: 13, color: isDone ? 'var(--text-3)' : 'var(--text)', textDecoration: isDone ? 'line-through' : 'none', lineHeight: 1.4, display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                        <span>{task.name}</span>
+                        {sourceEmoji(task.source) && (
+                          <span style={{ fontSize: 11, opacity: 0.55, flexShrink: 0 }} title={task.source}>{sourceEmoji(task.source)}</span>
+                        )}
                       </div>
                       {task.notes && !isDone && (
                         <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, lineHeight: 1.4 }}>{task.notes}</div>
@@ -704,8 +721,11 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)', marginBottom: s.body ? 4 : 0, lineHeight: 1.4 }}>
-                      {s.title}
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)', marginBottom: s.body ? 4 : 0, lineHeight: 1.4, display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                      <span>{s.title}</span>
+                      {sourceEmoji(s.meta?.source) && (
+                        <span style={{ fontSize: 11, opacity: 0.55, flexShrink: 0 }} title={s.meta?.source}>{sourceEmoji(s.meta?.source)}</span>
+                      )}
                     </div>
                     {s.body && (
                       <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{s.body}</div>

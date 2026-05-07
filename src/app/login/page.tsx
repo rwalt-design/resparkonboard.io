@@ -31,10 +31,16 @@ function LoginContent() {
 
       // Pass access token directly — cookies may not be set yet when the fetch fires
       const token = data.session?.access_token
-      await fetch('/api/demo/setup', {
+      const setupRes = await fetch('/api/demo/setup', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       })
+      const setupData = await setupRes.json() as { ok: boolean; user_id?: string }
+
+      // Default the view filter to the demo user's own accounts
+      if (setupData.user_id) {
+        localStorage.setItem('view-filter', setupData.user_id)
+      }
 
       router.push('/')
       router.refresh()

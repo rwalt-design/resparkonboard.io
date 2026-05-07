@@ -940,6 +940,36 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
                 >
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      {/* Owner avatar / initials — visible to managers for all accounts, to members for their own */}
+                      {(() => {
+                        const owner = orgMembers.find(m => m.user_id === account.owner_id)
+                        if (!owner) return null
+                        const isMine = owner.user_id === currentMember?.user_id
+                        const label = isMine ? 'Your account' : owner.name
+                        if (owner.avatar_url) {
+                          return (
+                            <Tooltip content={label} placement="top">
+                              <img
+                                src={owner.avatar_url}
+                                alt=""
+                                width={18} height={18}
+                                referrerPolicy="no-referrer"
+                                style={{ borderRadius: '50%', flexShrink: 0, border: '1.5px solid var(--border)', display: 'block' }}
+                              />
+                            </Tooltip>
+                          )
+                        }
+                        const initials = owner.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+                        return (
+                          <Tooltip content={label} placement="top">
+                            <span style={{
+                              fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 99,
+                              background: 'var(--accent)', color: '#fff', flexShrink: 0,
+                              fontFamily: 'var(--font-ui)', cursor: 'default',
+                            }}>{initials}</span>
+                          </Tooltip>
+                        )
+                      })()}
                       <span style={{ fontSize: 13, color: '#5DDDE3', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name}</span>
                       {account.arr > 0 && (
                         <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
@@ -949,20 +979,6 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
                       {accountsWithSuggestions.has(account.id) && (
                         <span className="ai-dot" title="AI suggestions available" />
                       )}
-                      {isManager && (() => {
-                        const owner = orgMembers.find(m => m.user_id === account.owner_id)
-                        if (!owner) return null
-                        const initials = owner.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
-                        return (
-                          <Tooltip content={owner.name} placement="top">
-                            <span style={{
-                              fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 99,
-                              background: 'var(--accent)', color: '#fff', flexShrink: 0,
-                              fontFamily: 'var(--font-ui)', cursor: 'default',
-                            }}>{initials}</span>
-                          </Tooltip>
-                        )
-                      })()}
                     </div>
                     {account.sales_context && (
                       <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
