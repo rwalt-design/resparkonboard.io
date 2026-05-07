@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { DM_Mono, Inter } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/react'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-ui' })
