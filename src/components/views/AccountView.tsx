@@ -73,7 +73,7 @@ interface Props {
 
 type TabId = 'plan' | 'timeline' | 'details' | 'ai'
 
-export function AccountView({ account, orgMembers, currentMember, planTemplates = [], trainingTemplates: _trainingTemplates = [], sessionTemplates: _sessionTemplates = [], onBack, onRefresh }: Props) {
+export function AccountView({ account, orgMembers, currentMember, planTemplates = [], trainingTemplates = [], sessionTemplates = [], onBack, onRefresh }: Props) {
   const [tab, setTab] = useState<TabId>('plan')
   const [localAccount, setLocalAccount] = useState<Account>(account)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -271,6 +271,8 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
         {tab === 'plan' && (
           <PlanTab
             account={localAccount}
+            sessionTemplates={sessionTemplates}
+            trainingTemplates={trainingTemplates}
             onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
           />
         )}
@@ -318,7 +320,12 @@ const ghostBtn: React.CSSProperties = {
 // undefined = let the component decide on its own.
 const ExpandAllCtx = createContext<boolean | undefined>(undefined)
 
-function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Account) => void }) {
+function PlanTab({ account, sessionTemplates, trainingTemplates, onUpdate }: {
+  account: Account
+  sessionTemplates: SessionTemplate[]
+  trainingTemplates: TrainingTemplate[]
+  onUpdate: (a: Account) => void
+}) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     [account.milestones?.[0]?.id || '']: true,
   })
@@ -392,6 +399,8 @@ function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Accoun
           open={!!expanded[milestone.id]}
           onToggle={() => toggleMilestone(milestone.id)}
           account={account}
+          sessionTemplates={sessionTemplates}
+          trainingTemplates={trainingTemplates}
           onUpdate={onUpdate}
           onOpenSession={setSessionModal}
           onDelete={async () => {
@@ -503,9 +512,10 @@ function InlineEdit({ value, onSave, style }: {
   )
 }
 
-function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, onOpenSession, onDelete }: {
+function MilestoneBlock({ milestone, index, open, onToggle, account, sessionTemplates, trainingTemplates, onUpdate, onOpenSession, onDelete }: {
   milestone: Milestone; index: number; open: boolean; onToggle: () => void
-  account: Account; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void; onDelete?: () => void
+  account: Account; sessionTemplates: SessionTemplate[]; trainingTemplates: TrainingTemplate[]
+  onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void; onDelete?: () => void
 }) {
   const [localStages, setLocalStages] = useState<Stage[]>(milestone.stages)
   useEffect(() => { setLocalStages(milestone.stages) }, [milestone.stages])
@@ -620,6 +630,8 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, o
                     index={si}
                     account={account}
                     milestone={{ ...milestone, stages: localStages }}
+                    sessionTemplates={sessionTemplates}
+                    trainingTemplates={trainingTemplates}
                     onUpdate={onUpdate}
                     onOpenSession={onOpenSession}
                     onDelete={() => handleDeleteStage(stage.id)}
@@ -818,16 +830,20 @@ function ExchangeRow({ sendItem, returnItem, stageStatus, onUpdate, accountId, o
 }
 
 
-function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpenSession, onDelete }: {
-  stage: Stage; index: number; account: Account; milestone: Milestone; onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void; onDelete?: () => void
+function StageBlock({ stage, index: _index, account, milestone, sessionTemplates, trainingTemplates, onUpdate, onOpenSession, onDelete }: {
+  stage: Stage; index: number; account: Account; milestone: Milestone
+  sessionTemplates: SessionTemplate[]; trainingTemplates: TrainingTemplate[]
+  onUpdate: (a: Account) => void; onOpenSession: (item: Item) => void; onDelete?: () => void
 }) {
   const [open, setOpen] = useState(stage.status === 'active' || stage.status === 'unlocked')
   const expandAll = useContext(ExpandAllCtx)
   useEffect(() => { if (expandAll !== undefined) setOpen(expandAll) }, [expandAll])
   const [addingItem, setAddingItem] = useState(false)
-  const [itemType, setItemType] = useState<'task' | 'dependency' | 'exchange' | 'session' | 'log' | 'handoff' | 'golive'>('task')
+  const [itemType, setItemType] = useState<'task' | 'dependency' | 'exchange' | 'session' | 'training' | 'log' | 'golive'>('task')
   const [itemName, setItemName] = useState('')
   const [itemRequired, setItemRequired] = useState(true)
+  const [selectedSessionTemplateId, setSelectedSessionTemplateId] = useState('')
+  const [selectedTrainingTemplateId, setSelectedTrainingTemplateId] = useState('')
   const [localItems, setLocalItems] = useState<Item[]>(stage.items)
   const supabase = createClient()
 
@@ -938,10 +954,14 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
   }
 
   const handleAddItem = async () => {
-    if (itemType !== 'golive' && !itemName.trim()) return
+    if (itemType === 'training') {
+      if (!selectedTrainingTemplateId) return
+    } else if (itemType !== 'golive') {
+      if (!itemName.trim() && itemType !== 'session') return
+    }
     const insertPayload: Record<string, unknown> = {
       stage_id: stage.id,
-      type: itemType === 'exchange' ? 'task' : itemType,
+      type: itemType === 'exchange' ? 'task' : itemType === 'training' ? 'session' : itemType,
       required: itemRequired,
       order_index: localItems.length,
     }
@@ -955,17 +975,20 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
       insertPayload.task_source   = 'manual'
       insertPayload.task_done     = false
     } else if (itemType === 'dependency') {
-      // Dependency: customer-owned blocker. Reuses task_name + task_done columns.
-      insertPayload.type          = 'dependency'
       insertPayload.task_name     = itemName.trim()
       insertPayload.task_assignee = 'customer'
       insertPayload.task_source   = 'manual'
       insertPayload.task_done     = false
     } else if (itemType === 'session') {
-      insertPayload.session_name   = itemName.trim()
-      insertPayload.session_status = 'pending'
-    } else if (itemType === 'handoff') {
-      insertPayload.handoff_name = itemName.trim()
+      const tmpl = sessionTemplates.find(t => t.id === selectedSessionTemplateId)
+      insertPayload.session_name          = itemName.trim() || tmpl?.name || 'Session'
+      insertPayload.session_status        = 'pending'
+      if (tmpl?.agenda?.length)           insertPayload.session_agenda = tmpl.agenda
+    } else if (itemType === 'training') {
+      const tmpl = trainingTemplates.find(t => t.id === selectedTrainingTemplateId)
+      insertPayload.session_name          = tmpl?.name || 'Training'
+      insertPayload.session_status        = 'pending'
+      insertPayload.training_template_id  = selectedTrainingTemplateId
     } else if (itemType === 'exchange') {
       // Two tasks: Send (respark) + Return (customer)
       const base = { stage_id: stage.id, type: 'task', required: itemRequired, task_source: 'manual', task_done: false }
@@ -1002,6 +1025,8 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
         ),
       })
       setItemName('')
+      setSelectedSessionTemplateId('')
+      setSelectedTrainingTemplateId('')
       setAddingItem(false)
     }
   }
@@ -1137,18 +1162,18 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
           {/* Add item */}
           {addingItem ? (
             <div style={{ padding: '8px 16px 6px 44px' }}>
-              {/* Type picker — verb-first labels to make the distinction obvious */}
+              {/* Type picker */}
               <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
                 {([
-                  { id: 'task',       label: 'Task (me)',          color: '#3b82f6', hint: 'Something you do internally' },
-                  { id: 'dependency', label: 'Dependency (them)',  color: '#f59e0b', hint: 'Something the customer must do' },
-                  { id: 'exchange',   label: 'Exchange (send/get)', color: '#8b5cf6', hint: 'Document you send, they return' },
-                  { id: 'session',    label: 'Session',            color: '#10b981', hint: 'Meeting or training' },
-                  { id: 'handoff',    label: 'Handoff',            color: '#6b7280', hint: 'Rep transition' },
-                  { id: 'log',        label: 'Log',                color: '#6b7280', hint: 'Activity log entry' },
-                  { id: 'golive',     label: '🚀 Go Live',         color: '#10b981', hint: 'Mark the moment of going live' },
+                  { id: 'task',       label: 'Task (me)',           color: '#3b82f6' },
+                  { id: 'dependency', label: 'Dependency (them)',   color: '#f59e0b' },
+                  { id: 'exchange',   label: 'Exchange (send/get)', color: '#8b5cf6' },
+                  { id: 'session',    label: 'Session',             color: '#10b981' },
+                  { id: 'training',   label: 'Training',            color: '#06b6d4' },
+                  { id: 'log',        label: 'Log',                 color: '#6b7280' },
+                  { id: 'golive',     label: '🚀 Go Live',          color: '#10b981' },
                 ] as const).map(({ id, label, color }) => (
-                  <button key={id} onClick={() => setItemType(id)} title={id} style={{
+                  <button key={id} onClick={() => { setItemType(id); setSelectedSessionTemplateId(''); setSelectedTrainingTemplateId('') }} style={{
                     padding: '3px 9px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer',
                     fontFamily: 'var(--font-ui)',
                     background: itemType === id ? color + '20' : 'none',
@@ -1164,25 +1189,55 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
                   color: itemRequired ? '#10b981' : 'var(--text-3)',
                 }}>{itemRequired ? 'required' : 'optional'}</button>
               </div>
+              {/* Training template picker */}
+              {itemType === 'training' && trainingTemplates.length > 0 && (
+                <select
+                  name="training-template"
+                  value={selectedTrainingTemplateId}
+                  onChange={e => setSelectedTrainingTemplateId(e.target.value)}
+                  style={{ ...inputStyle, fontSize: 12, marginBottom: 6, width: '100%' }}
+                >
+                  <option value="">— pick a training template —</option>
+                  {trainingTemplates.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}{t.duration_minutes ? ` (${t.duration_minutes}m)` : ''}</option>
+                  ))}
+                </select>
+              )}
+              {/* Session template picker */}
+              {itemType === 'session' && sessionTemplates.length > 0 && (
+                <select
+                  name="session-template"
+                  value={selectedSessionTemplateId}
+                  onChange={e => setSelectedSessionTemplateId(e.target.value)}
+                  style={{ ...inputStyle, fontSize: 12, marginBottom: 6, width: '100%' }}
+                >
+                  <option value="">— custom session (no template) —</option>
+                  {sessionTemplates.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}{t.duration_minutes ? ` (${t.duration_minutes}m)` : ''}</option>
+                  ))}
+                </select>
+              )}
               <div style={{ display: 'flex', gap: 6 }}>
-                <input
-                  autoFocus
-                  name="item-name"
-                  value={itemName}
-                  onChange={e => setItemName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAddItem(); if (e.key === 'Escape') { setAddingItem(false); setItemName('') } }}
-                  placeholder={
-                    itemType === 'task'       ? 'What do you need to do?' :
-                    itemType === 'dependency' ? 'What must the customer complete?' :
-                    itemType === 'exchange'   ? 'Document name (e.g. Data Template)' :
-                    itemType === 'session'    ? 'Session name...' :
-                    itemType === 'golive'     ? 'Label (optional, defaults to "Go Live")' :
-                    'Name...'
-                  }
-                  style={{ ...inputStyle, flex: 1, fontSize: 12 }}
-                />
+                {itemType !== 'training' && (
+                  <input
+                    autoFocus
+                    name="item-name"
+                    value={itemName}
+                    onChange={e => setItemName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleAddItem(); if (e.key === 'Escape') { setAddingItem(false); setItemName('') } }}
+                    placeholder={
+                      itemType === 'task'       ? 'What do you need to do?' :
+                      itemType === 'dependency' ? 'What must the customer complete?' :
+                      itemType === 'exchange'   ? 'Document name (e.g. Data Template)' :
+                      itemType === 'session'    ? 'Session name (or pick template above)...' :
+                      itemType === 'golive'     ? 'Label (optional, defaults to "Go Live")' :
+                      'Name...'
+                    }
+                    style={{ ...inputStyle, flex: 1, fontSize: 12 }}
+                  />
+                )}
                 <button onClick={handleAddItem} style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px' }}>Add</button>
-                <button onClick={() => { setAddingItem(false); setItemName('') }} style={{ ...ghostBtn, fontSize: 11, padding: '4px 10px' }}>✕</button>
+                <button onClick={() => { setAddingItem(false); setItemName(''); setSelectedSessionTemplateId(''); setSelectedTrainingTemplateId('') }} style={{ ...ghostBtn, fontSize: 11, padding: '4px 10px' }}>✕</button>
               </div>
             </div>
           ) : (
