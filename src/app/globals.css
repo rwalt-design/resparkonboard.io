@@ -80,11 +80,19 @@ div:hover .item-delete-btn { opacity: 0.4 !important; }
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Mobile-only / desktop-only visibility helpers */
+.mobile-only   { display: none; }
+.desktop-only  { display: block; }
+
 @media (max-width: 640px) {
-  .hide-mobile  { display: none !important; }
-  .bottom-nav   { display: flex !important; }
+  .hide-mobile   { display: none !important; }
+  .bottom-nav    { display: flex !important; }
+  .mobile-only   { display: block !important; }
+  .desktop-only  { display: none !important; }
   /* push content above the bottom bar */
-  .main-content { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important; }
+  .main-content  { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important; }
+  /* tighter dashboard padding on small screens */
+  .dash-wrap     { padding: 16px 12px !important; }
 }
 
 /* AI suggestion pulse dot */

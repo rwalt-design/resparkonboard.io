@@ -765,7 +765,7 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
   }
 
   return (
-    <div style={{ padding: '24px 28px' }}>
+    <div className="dash-wrap" style={{ padding: '24px 28px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-h)' }}>Accounts</h1>
@@ -851,7 +851,81 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
           )}
         </div>
 
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
+        {/* ── Mobile card list ─────────────────────────────────── */}
+        <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {sorted.map(account => {
+            const healthOpt = HEALTH_OPTIONS.find(o => o.value === (account.health_status || 'active')) || HEALTH_OPTIONS[0]
+            const openTasks = (account.open_tasks || []).filter(t => !t.done)
+            const owner = orgMembers.find(m => m.user_id === account.owner_id)
+            return (
+              <div
+                key={account.id}
+                onClick={() => onSelectAccount(account)}
+                style={{
+                  background: 'var(--bg-surface)', border: '1px solid var(--border)',
+                  borderRadius: 10, padding: '14px 16px', cursor: 'pointer',
+                }}
+              >
+                {/* Row 1: avatar + name + health */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  {owner?.avatar_url
+                    ? <img src={owner.avatar_url} alt="" width={20} height={20} referrerPolicy="no-referrer" style={{ borderRadius: '50%', border: '1.5px solid var(--border)', flexShrink: 0 }} />
+                    : owner
+                      ? <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 5px', borderRadius: 99, background: 'var(--accent)', color: '#fff', flexShrink: 0, fontFamily: 'var(--font-ui)' }}>
+                          {owner.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </span>
+                      : null
+                  }
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#5DDDE3', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: healthOpt.color + '18', color: healthOpt.color, flexShrink: 0 }}>{healthOpt.label}</span>
+                </div>
+
+                {/* Row 2: SKU + stage */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: (SKU_COLORS[account.sku] || '#6b7280') + '22', color: SKU_COLORS[account.sku] || '#6b7280', fontFamily: 'var(--font-mono)' }}>
+                    {SKU_LABELS[account.sku] || account.sku}
+                  </span>
+                  {account.currentStage && (
+                    <>
+                      <span style={{ fontSize: 10, color: 'var(--text-3)' }}>·</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{account.currentStage}</span>
+                    </>
+                  )}
+                  {accountsWithSuggestions.has(account.id) && <span className="ai-dot" title="AI suggestions available" />}
+                </div>
+
+                {/* Row 3: completion bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ flex: 1, background: 'var(--bg-surface2)', borderRadius: 99, height: 4, overflow: 'hidden' }}>
+                    <div style={{ width: `${account.completionPct}%`, height: '100%', borderRadius: 99, background: account.completionPct >= 75 ? '#10b981' : '#1BB3BB' }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{account.completionPct}%</span>
+                </div>
+
+                {/* Row 4: outreach / contact / tasks */}
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <span style={{ fontSize: 11, color: account.daysSinceOutreach >= 14 ? '#ef4444' : account.daysSinceOutreach >= 7 ? '#f59e0b' : 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+                    Out: {account.daysSinceOutreach === 999 ? '—' : account.daysSinceOutreach === 0 ? 'today' : `${account.daysSinceOutreach}d`}
+                  </span>
+                  <span style={{ fontSize: 11, color: account.daysSinceContact >= 14 ? '#ef4444' : account.daysSinceContact >= 7 ? '#f59e0b' : 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+                    Contact: {account.daysSinceContact === 999 ? '—' : account.daysSinceContact === 0 ? 'today' : `${account.daysSinceContact}d`}
+                  </span>
+                  {openTasks.length > 0 && (
+                    <span style={{ fontSize: 11, color: 'var(--text-2)', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
+                      {openTasks.length} task{openTasks.length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+          {sorted.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-3)', fontSize: 13 }}>No accounts match filters</div>
+          )}
+        </div>
+
+        {/* ── Desktop table ────────────────────────────────────── */}
+        <div className="desktop-only" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
           {activeTab === 'handed_off' ? (
             /* ── Handed-off columns ── */
             <>

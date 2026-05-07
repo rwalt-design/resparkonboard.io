@@ -270,7 +270,9 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
       {(currentUser as any).is_anonymous ? <DemoWelcomeModal /> : <WelcomeModal />}
       {/* Top nav */}
       <header style={{
-        display: 'flex', alignItems: 'center', height: 48,
+        display: 'flex', alignItems: 'center',
+        height: 'calc(48px + env(safe-area-inset-top, 0px))',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
         background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)',
         padding: '0 16px', gap: 0, flexShrink: 0, zIndex: 100,
       }}>
@@ -368,6 +370,16 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
             onMouseLeave={e => { if (!viewMenuOpen) e.currentTarget.style.borderColor = 'var(--border)' }}
           >
             <span style={{ fontSize: 10, color: 'var(--text-3)', letterSpacing: '0.04em' }}>Viewing</span>
+            {(() => {
+              if (viewUserId === 'all') return null
+              const vm = orgMembers.find(m => m.user_id === viewUserId)
+              if (!vm) return null
+              if (vm.avatar_url) {
+                return <img src={vm.avatar_url} alt="" width={16} height={16} referrerPolicy="no-referrer" style={{ borderRadius: '50%', border: '1.5px solid var(--border)', flexShrink: 0 }} />
+              }
+              const initials = vm.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+              return <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 4px', borderRadius: 99, background: 'var(--accent)', color: '#fff', flexShrink: 0, fontFamily: 'var(--font-ui)' }}>{initials}</span>
+            })()}
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{viewLabel}</span>
             <span style={{ fontSize: 9, color: 'var(--text-3)' }}>▾</span>
           </button>
@@ -413,10 +425,14 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
                   onMouseEnter={e => { if (viewUserId !== m.user_id) e.currentTarget.style.background = 'var(--bg-hover)' }}
                   onMouseLeave={e => { if (viewUserId !== m.user_id) e.currentTarget.style.background = 'none' }}
                 >
-                  <span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    {m.avatar_url
+                      ? <img src={m.avatar_url} alt="" width={18} height={18} referrerPolicy="no-referrer" style={{ borderRadius: '50%', border: '1.5px solid var(--border)', flexShrink: 0 }} />
+                      : <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 4px', borderRadius: 99, background: 'var(--accent)', color: '#fff', flexShrink: 0, fontFamily: 'var(--font-ui)' }}>{m.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}</span>
+                    }
                     {m.name}
                     {m.user_id === currentMember?.user_id && (
-                      <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 5 }}>You</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-3)' }}>You</span>
                     )}
                   </span>
                   {viewUserId === m.user_id && <span style={{ fontSize: 10, color: 'var(--accent)' }}>✓</span>}
