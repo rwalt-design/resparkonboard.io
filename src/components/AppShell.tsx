@@ -270,7 +270,9 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
       {(currentUser as any).is_anonymous ? <DemoWelcomeModal /> : <WelcomeModal />}
       {/* Top nav */}
       <header style={{
-        display: 'flex', alignItems: 'center', height: 48,
+        display: 'flex', alignItems: 'center',
+        height: 'calc(48px + env(safe-area-inset-top, 0px))',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
         background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)',
         padding: '0 16px', gap: 0, flexShrink: 0, zIndex: 100,
       }}>
