@@ -174,19 +174,19 @@ export function SettingsView({ section, trainingTemplates: initial, planTemplate
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <label style={labelStyle}>
                   Name *
-                  <input value={name} onChange={e => setName(e.target.value)}
+                  <input name="session-name" value={name} onChange={e => setName(e.target.value)}
                     style={inputStyle} placeholder="Dispatcher Training" />
                 </label>
                 <label style={labelStyle}>
                   Duration (minutes)
-                  <input value={duration} onChange={e => setDuration(e.target.value)}
+                  <input name="session-duration" value={duration} onChange={e => setDuration(e.target.value)}
                     style={inputStyle} placeholder="60" type="number" />
                 </label>
               </div>
 
               <label style={{ ...labelStyle, display: 'block', marginBottom: 12 }}>
                 Description
-                <textarea value={description} onChange={e => setDescription(e.target.value)}
+                <textarea name="session-description" value={description} onChange={e => setDescription(e.target.value)}
                   style={{ ...inputStyle, resize: 'vertical' }} rows={2}
                   placeholder="What this session covers..." />
               </label>
@@ -232,14 +232,14 @@ export function SettingsView({ section, trainingTemplates: initial, planTemplate
                     <div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                         <label style={labelStyle}>Name *
-                          <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+                          <input name="session-name" value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
                         </label>
                         <label style={labelStyle}>Duration (minutes)
-                          <input value={duration} onChange={e => setDuration(e.target.value)} style={inputStyle} type="number" />
+                          <input name="session-duration" value={duration} onChange={e => setDuration(e.target.value)} style={inputStyle} type="number" />
                         </label>
                       </div>
                       <label style={{ ...labelStyle, display: 'block', marginBottom: 12 }}>Description
-                        <textarea value={description} onChange={e => setDescription(e.target.value)}
+                        <textarea name="session-description" value={description} onChange={e => setDescription(e.target.value)}
                           style={{ ...inputStyle, resize: 'vertical' }} rows={2} />
                       </label>
                       <div style={{ marginBottom: 14 }}>
@@ -507,14 +507,14 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         <label style={labelStyle}>Name *
-          <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder="Kickoff Meeting" />
+          <input name="session-name" value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder="Kickoff Meeting" />
         </label>
         <label style={labelStyle}>Duration (minutes)
-          <input value={duration} onChange={e => setDuration(e.target.value)} style={inputStyle} placeholder="60" type="number" />
+          <input name="session-duration" value={duration} onChange={e => setDuration(e.target.value)} style={inputStyle} placeholder="60" type="number" />
         </label>
       </div>
       <label style={{ ...labelStyle, display: 'block', marginBottom: 12 }}>Description
-        <textarea value={description} onChange={e => setDescription(e.target.value)}
+        <textarea name="session-description" value={description} onChange={e => setDescription(e.target.value)}
           style={{ ...inputStyle, resize: 'vertical' }} rows={2}
           placeholder="Purpose of this session..." />
       </label>
@@ -526,6 +526,7 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <span style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 16 }}>{i + 1}.</span>
             <input
+              name={`agenda-item-${i}`}
               value={item}
               onChange={e => setAgenda(prev => prev.map((a, j) => j === i ? e.target.value : a))}
               style={{ ...inputStyle, marginTop: 0, flex: 1 }}
@@ -538,6 +539,7 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
         ))}
         <div style={{ display: 'flex', gap: 6 }}>
           <input
+            name="agenda-new-item"
             value={agendaInput}
             onChange={e => setAgendaInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAgendaItem() } }}
@@ -560,6 +562,7 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
               {task.assignee}
             </span>
             <input
+              name={`task-name-${i}`}
               value={task.name}
               onChange={e => setTasks(prev => prev.map((t, j) => j === i ? { ...t, name: e.target.value } : t))}
               style={{ ...inputStyle, marginTop: 0, flex: 1 }}
@@ -571,7 +574,7 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
           </div>
         ))}
         <div style={{ display: 'flex', gap: 6 }}>
-          <select value={taskAssignee} onChange={e => setTaskAssignee(e.target.value)}
+          <select name="task-assignee" value={taskAssignee} onChange={e => setTaskAssignee(e.target.value)}
             style={{ background: 'var(--bg-surface2)', border: '1px solid var(--border-b)', borderRadius: 6, padding: '7px 8px',
               color: ASSIGNEE_COLORS[taskAssignee] || 'var(--text-2)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', marginTop: 0 }}>
             <option value="personal">personal</option>
@@ -579,6 +582,7 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
             <option value="internal">internal</option>
           </select>
           <input
+            name="task-new-item"
             value={taskInput}
             onChange={e => setTaskInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTask() } }}
@@ -872,17 +876,17 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-b)', borderRadius: 8, padding: '18px 20px', marginBottom: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <label style={labelStyle}>Name *
-              <input value={newName} onChange={e => setNewName(e.target.value)} style={inputStyle} placeholder="Full Suite Standard" />
+              <input name="plan-name" value={newName} onChange={e => setNewName(e.target.value)} style={inputStyle} placeholder="Full Suite Standard" />
             </label>
             <label style={labelStyle}>SKU (optional — leave blank to show for all)
-              <select value={newSku} onChange={e => setNewSku(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+              <select name="plan-sku" value={newSku} onChange={e => setNewSku(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
                 <option value="">All SKUs</option>
                 {SKU_OPTIONS.map(s => <option key={s} value={s}>{SKU_LABELS[s]}</option>)}
               </select>
             </label>
           </div>
           <label style={{ ...labelStyle, display: 'block', marginBottom: 12 }}>Description
-            <input value={newDesc} onChange={e => setNewDesc(e.target.value)} style={inputStyle} placeholder="Standard plan for Full Suite customers" />
+            <input name="plan-description" value={newDesc} onChange={e => setNewDesc(e.target.value)} style={inputStyle} placeholder="Standard plan for Full Suite customers" />
           </label>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button onClick={handleAdd} disabled={saving || !newName.trim()} style={primaryBtn}>
@@ -1067,6 +1071,7 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg-stage)' }}>
             <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', width: 20 }}>{mi + 1}</span>
             <input
+              name={`milestone-name-${mi}`}
               value={milestone.name}
               onChange={e => updateMilestoneName(mi, e.target.value)}
               style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-h)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)' }}
@@ -1110,6 +1115,7 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
                 <div key={si} style={{ borderTop: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px 6px 28px' }}>
                     <input
+                      name={`stage-name-${mi}-${si}`}
                       value={stage.name}
                       onChange={e => updateStageName(mi, si, e.target.value)}
                       style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-ui)' }}
@@ -1121,7 +1127,7 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
 
                   {stage.items.map((item, ii) => (
                     <div key={ii} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px 4px 44px', flexWrap: 'wrap' }}>
-                      <select value={item.type} onChange={e => updateItem(mi, si, ii, { type: e.target.value as PlanTemplateItem['type'], session_template_id: undefined })}
+                      <select name={`item-type-${mi}-${si}-${ii}`} value={item.type} onChange={e => updateItem(mi, si, ii, { type: e.target.value as PlanTemplateItem['type'], session_template_id: undefined })}
                         style={{ background: 'var(--bg-surface2)', border: `1px solid ${TYPE_COLORS[item.type] || 'var(--border-b)'}44`, borderRadius: 4,
                           color: TYPE_COLORS[item.type] || 'var(--text-2)', fontSize: 9, fontWeight: 700, padding: '1px 4px',
                           cursor: 'pointer', fontFamily: 'var(--font-ui)', textTransform: 'uppercase' }}>
@@ -1134,6 +1140,7 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
                       {/* Session template picker */}
                       {item.type === 'session' && sessionTemplates.length > 0 && (
                         <select
+                          name={`item-session-tmpl-${mi}-${si}-${ii}`}
                           value={item.session_template_id || ''}
                           onChange={e => {
                             const tmpl = sessionTemplates.find(s => s.id === e.target.value)
@@ -1152,10 +1159,10 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
                           ))}
                         </select>
                       )}
-                      <input value={item.name} onChange={e => updateItem(mi, si, ii, { name: e.target.value })}
+                      <input name={`item-name-${mi}-${si}-${ii}`} value={item.name} onChange={e => updateItem(mi, si, ii, { name: e.target.value })}
                         style={{ flex: 1, minWidth: 80, background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 12, fontFamily: 'var(--font-ui)' }} />
                       {item.type === 'task' && (
-                        <select value={item.assignee || 'personal'} onChange={e => updateItem(mi, si, ii, { assignee: e.target.value })}
+                        <select name={`item-assignee-${mi}-${si}-${ii}`} value={item.assignee || 'personal'} onChange={e => updateItem(mi, si, ii, { assignee: e.target.value })}
                           style={{ background: 'var(--bg-surface2)', border: `1px solid ${ASSIGNEE_COLORS[item.assignee || 'personal'] || 'var(--border-b)'}44`,
                             borderRadius: 4, color: ASSIGNEE_COLORS[item.assignee || 'personal'] || 'var(--text-2)',
                             fontSize: 9, fontWeight: 700, padding: '1px 4px', cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>
@@ -1498,6 +1505,7 @@ function UnmatchedSignalsPanel() {
               </div>
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                 <select
+                  name={`link-account-${s.id}`}
                   value={selectedAccount[s.id] || ''}
                   onChange={e => setSelectedAccount(prev => ({ ...prev, [s.id]: e.target.value }))}
                   style={{ flex: 1, background: 'var(--bg-surface2)', border: '1px solid var(--border-b)', borderRadius: 6,

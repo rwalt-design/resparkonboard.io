@@ -201,6 +201,7 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
             const h = HEALTH_OPTIONS.find(o => o.value === (localAccount.health_status || 'active')) || HEALTH_OPTIONS[0]
             return (
               <select
+                name="health_status"
                 value={localAccount.health_status || 'active'}
                 onChange={e => updateHealth(e.target.value)}
                 style={{
@@ -414,6 +415,7 @@ function PlanTab({ account, onUpdate }: { account: Account; onUpdate: (a: Accoun
         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
           <input
             autoFocus
+            name="milestone-name"
             value={milestoneName}
             onChange={e => setMilestoneName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleAddMilestone(); if (e.key === 'Escape') { setAddingMilestone(false); setMilestoneName('') } }}
@@ -463,6 +465,7 @@ function InlineEdit({ value, onSave, style }: {
     return (
       <input
         autoFocus
+        name="inline-edit"
         value={draft}
         onChange={e => setDraft(e.target.value)}
         onBlur={commit}
@@ -630,6 +633,7 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, o
             <div style={{ display: 'flex', gap: 8, padding: '8px 16px 10px 28px', background: 'var(--bg-stage)', borderTop: '1px solid var(--bg-surface3)' }}>
               <input
                 autoFocus
+                name="stage-name"
                 value={stageName}
                 onChange={e => setStageName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleAddStage(); if (e.key === 'Escape') { setAddingStage(false); setStageName('') } }}
@@ -1035,6 +1039,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
         <InlineEdit value={stage.name} onSave={saveStageName} style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }} />
         <Tooltip content={STAGE_STATUS_TIPS[stage.status] ?? stage.status} placement="bottom">
         <select
+          name="stage-status"
           value={stage.status}
           onClick={e => e.stopPropagation()}
           onChange={async e => {
@@ -1162,6 +1167,7 @@ function StageBlock({ stage, index: _index, account, milestone, onUpdate, onOpen
               <div style={{ display: 'flex', gap: 6 }}>
                 <input
                   autoFocus
+                  name="item-name"
                   value={itemName}
                   onChange={e => setItemName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleAddItem(); if (e.key === 'Escape') { setAddingItem(false); setItemName('') } }}
@@ -1261,7 +1267,7 @@ function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
         </div>
       ))}
       <div style={{ display: 'flex', gap: 5, marginTop: 3 }}>
-        <input value={input} onChange={e => setInput(e.target.value)}
+        <input name="checklist-item" value={input} onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') add(); if (e.key === 'Escape') setInput('') }}
           placeholder="Add sub-item..." style={{ ...inputStyle, flex: 1, fontSize: 11, padding: '3px 7px', marginTop: 0 }} />
         {input.trim() && <button onClick={add} style={{ ...primaryBtn, fontSize: 11, padding: '3px 10px' }}>Add</button>}
@@ -1576,15 +1582,15 @@ function LogItem({ item, locked, onUpdate, onDelete, toggleBtn, panel }: {
         {/* Input row */}
         {!locked && (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+            <input type="date" name="log-date" value={date} onChange={e => setDate(e.target.value)}
               style={{ ...inputStyle, width: 130, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
-            <select value={usageType} onChange={e => setUsageType(e.target.value)}
+            <select name="log-usage-type" value={usageType} onChange={e => setUsageType(e.target.value)}
               style={{ ...inputStyle, width: 100, fontSize: 11, padding: '4px 8px', marginTop: 0, cursor: 'pointer' }}>
               <option value="">Type</option>
               <option value="Jobs">Jobs</option>
               <option value="Tickets">Tickets</option>
             </select>
-            <input type="number" value={count} onChange={e => setCount(e.target.value)}
+            <input type="number" name="log-count" value={count} onChange={e => setCount(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') addEntry() }}
               placeholder="Count"
               style={{ ...inputStyle, flex: 1, fontSize: 11, padding: '4px 8px', marginTop: 0 }} />
@@ -1865,6 +1871,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
             {/* Custom label input */}
             {activeChip === 'custom' && (
               <input
+                name="interaction-label"
                 value={customLabel}
                 onChange={e => setCustomLabel(e.target.value)}
                 placeholder="Label (e.g. Dropped off swag)"
@@ -1875,6 +1882,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
             {/* Note field */}
             {showNoteField() && (
               <textarea
+                name="interaction-note"
                 value={note}
                 onChange={e => setNote(e.target.value)}
                 placeholder={activeChip === 'custom' ? 'Note (required)…' : 'Note (optional)…'}
@@ -1896,6 +1904,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
               {showDatePicker && (
                 <input
                   type="datetime-local"
+                  name="interaction-timestamp"
                   value={loggedAt}
                   onChange={e => setLoggedAt(e.target.value)}
                   style={{ ...inputStyle, fontSize: 11, padding: '3px 8px', width: 'auto' }}
@@ -2032,6 +2041,7 @@ function DetailsTab({ account, planTemplates, onUpdate, onRefresh }: {
           )}
         </div>
         <textarea
+          name="sales-context"
           value={contextDraft}
           onChange={e => { setContextDraft(e.target.value); setContextSaved(false) }}
           onBlur={saveContext}
@@ -2050,6 +2060,7 @@ function DetailsTab({ account, planTemplates, onUpdate, onRefresh }: {
           )}
         </div>
         <textarea
+          name="current-software"
           value={softwareDraft}
           onChange={e => { setSoftwareDraft(e.target.value); setSoftwareSaved(false) }}
           onBlur={saveSoftware}
@@ -2122,6 +2133,7 @@ function ApplyPlanTemplateSection({ account, planTemplates, onRefresh }: {
       </p>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <select
+          name="plan-template"
           value={selectedId}
           onChange={e => { setSelectedId(e.target.value); setConfirm(false); setSuccess(false) }}
           style={{ ...inputStyle, flex: 1, fontSize: 12 }}
@@ -2240,30 +2252,30 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
 
         <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }}>
           Name
-          <input value={name} onChange={e => setName(e.target.value)}
+          <input name="account-name" value={name} onChange={e => setName(e.target.value)}
             style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
         </label>
 
         <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }}>
           ARR ($)
-          <input value={arr} onChange={e => setArr(e.target.value)} type="number"
+          <input name="account-arr" value={arr} onChange={e => setArr(e.target.value)} type="number"
             style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
         </label>
 
         <div style={{ display: 'flex', gap: 12 }}>
           <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, flex: 1 }}>
             Kickoff date
-            <input value={kickoff} onChange={e => setKickoff(e.target.value)} type="date"
+            <input name="account-kickoff" value={kickoff} onChange={e => setKickoff(e.target.value)} type="date"
               style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
           </label>
           <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, flex: 1 }}>
             Go Live date
-            <input value={goLive} onChange={e => setGoLive(e.target.value)} type="date"
+            <input name="account-golive" value={goLive} onChange={e => setGoLive(e.target.value)} type="date"
               style={{ ...inputStyle, fontSize: 13, marginTop: 4 }} />
           </label>
           <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }} title="Days spent on-hold or blocked — excluded from Days to Live">
             Paused days
-            <input value={pausedDays} onChange={e => setPausedDays(e.target.value)} type="number" min="0"
+            <input name="account-paused-days" value={pausedDays} onChange={e => setPausedDays(e.target.value)} type="number" min="0"
               placeholder="0" style={{ ...inputStyle, fontSize: 13, marginTop: 4, width: 80 }} />
           </label>
         </div>
@@ -2351,13 +2363,13 @@ function ContactCard({ contact, onSave, onDelete }: {
         background: 'var(--bg-surface)', border: '1px solid #3b82f640', borderRadius: 7,
         padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6,
       }}>
-        <input value={name}  onChange={e => setName(e.target.value)}  placeholder="Name *"
+        <input name="contact-name"  value={name}  onChange={e => setName(e.target.value)}  placeholder="Name *"
           style={{ ...inputStyle, fontSize: 12, padding: '4px 8px' }} />
-        <input value={role}  onChange={e => setRole(e.target.value)}  placeholder="Role"
+        <input name="contact-role"  value={role}  onChange={e => setRole(e.target.value)}  placeholder="Role"
           style={{ ...inputStyle, fontSize: 12, padding: '4px 8px' }} />
-        <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email"
+        <input name="contact-email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email"
           style={{ ...inputStyle, fontSize: 12, padding: '4px 8px' }} />
-        <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone"
+        <input name="contact-phone" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone"
           style={{ ...inputStyle, fontSize: 12, padding: '4px 8px' }} />
         <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
           <button onClick={save} disabled={saving} style={{ ...primaryBtn, fontSize: 11, padding: '3px 10px' }}>
@@ -2426,10 +2438,10 @@ function ContactsSection({ account, onUpdate }: { account: Account; onUpdate: (a
 
       {showAdd && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-          <input value={name}  onChange={e => setName(e.target.value)}  placeholder="Name *" style={{ ...inputStyle, flex: '2 1 120px' }} />
-          <input value={role}  onChange={e => setRole(e.target.value)}  placeholder="Role"   style={{ ...inputStyle, flex: '1 1 90px' }} />
-          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email"  style={{ ...inputStyle, flex: '2 1 140px' }} />
-          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone"  style={{ ...inputStyle, flex: '1 1 110px' }} />
+          <input name="contact-name"  value={name}  onChange={e => setName(e.target.value)}  placeholder="Name *" style={{ ...inputStyle, flex: '2 1 120px' }} />
+          <input name="contact-role"  value={role}  onChange={e => setRole(e.target.value)}  placeholder="Role"   style={{ ...inputStyle, flex: '1 1 90px' }} />
+          <input name="contact-email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email"  style={{ ...inputStyle, flex: '2 1 140px' }} />
+          <input name="contact-phone" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone"  style={{ ...inputStyle, flex: '1 1 110px' }} />
           <button onClick={addContact} style={primaryBtn}>Add</button>
         </div>
       )}
