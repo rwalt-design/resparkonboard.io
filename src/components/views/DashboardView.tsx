@@ -179,16 +179,6 @@ function CreateAccountModal({ onClose, onCreated, orgMembers: _orgMembers, train
     })
     if (rpcErr) planErr = rpcErr.message
 
-    // Seed a kickoff interaction so Last Outreach / Last Contact are populated from day one
-    if (!planErr) {
-      await supabase.from('interactions').insert({
-        account_id: account.id,
-        type: 'email',
-        summary: 'Account created — onboarding kicked off',
-        user_id: user.id,
-      })
-    }
-
     setLoading(false)
     if (planErr) {
       setPlanError(planErr)

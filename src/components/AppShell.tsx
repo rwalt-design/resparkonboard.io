@@ -10,6 +10,7 @@ import { ActionItemsView } from './views/ActionItemsView'
 import { SettingsView } from './views/SettingsView'
 import { TimeToLaunchView } from './views/TimeToLaunchView'
 import { ResourcesView } from './views/ResourcesView'
+import { DemoWelcomeModal } from './DemoWelcomeModal'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
 
@@ -259,6 +260,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-base)' }}>
+      {(currentUser as any).is_anonymous && <DemoWelcomeModal />}
       {/* Top nav */}
       <header style={{
         display: 'flex', alignItems: 'center', height: 48,
