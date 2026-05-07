@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   await admin.from('organizations').insert({ id: orgId, name: 'Demo Org' })
   await admin.from('org_members').insert({
     org_id: orgId, user_id: user.id,
-    name: 'Demo User', role: 'csm', assignee_key: 'personal',
+    name: 'Demo User', role: 'manager',
   })
 
   const now = Date.now()
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
               items: [
                 { type: 'session', name: 'Post-Launch Check-In', required: true },
                 { type: 'task',    name: 'Build Handoff Doc',    assignee: 'personal', required: true },
-                { type: 'task',    name: 'Handoff to CSM',       assignee: 'personal', required: true },
+                { type: 'task',    name: 'Handoff to CSM',        assignee: 'personal', required: true },
               ],
             },
           ],
@@ -290,7 +290,43 @@ export async function POST(req: NextRequest) {
     // ── Post Launch (locked) ─────────────────────────────────────────────────
     { stage_id: sPostLaunch, type: 'session', session_name: 'Post-Launch Check-In', session_status: 'pending', required: true, order_index: 0 },
     { stage_id: sPostLaunch, type: 'task', task_name: 'Build Handoff Doc',          task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 1 },
-    { stage_id: sPostLaunch, type: 'task', task_name: 'Handoff to CSM',             task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 2 },
+    { stage_id: sPostLaunch, type: 'task', task_name: 'Handoff to CSM',              task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 2 },
+  ])
+
+  // ── Action Items (accepted AI suggestions) ────────────────────────────────
+  await admin.from('open_tasks').insert([
+    {
+      account_id: a1,
+      name: 'Schedule Transacting training session with Linda and Marcus',
+      assignee: 'personal', source: 'email', done: false,
+      notes: 'Linda replied confirming both she and Marcus are available Tuesday or Thursday afternoon this week.',
+      item_type: 'task', item_owner: 'respark', item_status: 'open',
+      created_at: daysAgo(2),
+    },
+    {
+      account_id: a1,
+      name: 'Send multi-line ticket walkthrough guide to Marcus before training',
+      assignee: 'personal', source: 'email', done: false,
+      notes: 'Marcus flagged this as their most complex transaction type — he wants reference material ahead of the session.',
+      item_type: 'task', item_owner: 'respark', item_status: 'open',
+      created_at: daysAgo(3),
+    },
+    {
+      account_id: a1,
+      name: 'Confirm July 4th go-live target with Dave — assess if timeline is still realistic',
+      assignee: 'personal', source: 'email', done: false,
+      notes: 'Dave set this as a hard target on the kickoff call. With Transacting training still pending, need to validate the date holds.',
+      item_type: 'task', item_owner: 'respark', item_status: 'open',
+      created_at: daysAgo(3),
+    },
+    {
+      account_id: a1,
+      name: 'Copper provisional hold workflow — get Marcus sign-off on final logic',
+      assignee: 'customer', source: 'email', done: false,
+      notes: 'Custom workflow for copper loads over 500 lbs is built. Marcus approved the logic verbally but hasn\'t confirmed in writing.',
+      item_type: 'dependency', item_owner: 'customer', item_status: 'waiting',
+      created_at: daysAgo(5),
+    },
   ])
 
   return NextResponse.json({ ok: true })
