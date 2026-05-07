@@ -12,25 +12,25 @@ export async function seedSampleAccountsIfNeeded(
   orgId: string,
   userId: string,
 ) {
+  // Check the per-user flag — once seeded, never seed again even if the user deleted the accounts
+  const { data: member } = await admin
+    .from('org_members')
+    .select('seeded_sample_accounts')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .single()
+
+  if (member?.seeded_sample_accounts) return
+
   const now = Date.now()
+  await seedAbcAccount(admin, orgId, userId, now)
+  await seedLakeshoreAccount(admin, orgId, userId, now)
 
-  const { count: abcCount } = await admin
-    .from('accounts')
-    .select('*', { count: 'exact', head: true })
+  await admin
+    .from('org_members')
+    .update({ seeded_sample_accounts: true })
     .eq('org_id', orgId)
-    .eq('owner_id', userId)
-    .eq('name', 'ABC Iron & Metal')
-
-  if (!abcCount) await seedAbcAccount(admin, orgId, userId, now)
-
-  const { count: lsCount } = await admin
-    .from('accounts')
-    .select('*', { count: 'exact', head: true })
-    .eq('org_id', orgId)
-    .eq('owner_id', userId)
-    .eq('name', 'Lakeshore Auto Parts')
-
-  if (!lsCount) await seedLakeshoreAccount(admin, orgId, userId, now)
+    .eq('user_id', userId)
 }
 
 async function seedAbcAccount(
