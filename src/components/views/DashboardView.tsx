@@ -945,7 +945,6 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
                         const owner = orgMembers.find(m => m.user_id === account.owner_id)
                         if (!owner) return null
                         const isMine = owner.user_id === currentMember?.user_id
-                        if (!isManager && !isMine) return null
                         const label = isMine ? 'Your account' : owner.name
                         if (owner.avatar_url) {
                           return (
