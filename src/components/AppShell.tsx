@@ -246,19 +246,16 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
             background: 'none', border: 'none', cursor: 'pointer', padding: '0 8px 0 0', marginRight: 16,
           }}
         >
-          {/* logoLight on dark bg, logoDark on light bg */}
+          {/* logoLight (white) on dark bg; logoDark (navy) on light bg */}
           <img
             src={theme.pref === 'dark' ? '/logo-respark-light.svg' : '/logo-respark-dark.svg'}
             alt="ReSpark"
-            width={24}
-            height={24}
-            style={{ display: 'block', flexShrink: 0 }}
+            height={22}
+            style={{ display: 'block', flexShrink: 0, width: 'auto' }}
           />
-          <div style={{ lineHeight: 1.1, textAlign: 'left' }}>
-            <div style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-2)', fontFamily: 'var(--font-ui)', letterSpacing: '-0.3px', lineHeight: 1 }}>
-              onboard
-            </div>
-          </div>
+          <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-2)', fontFamily: 'var(--font-ui)', letterSpacing: '-0.2px' }}>
+            onboard
+          </span>
         </button>
 
         {/* Nav */}

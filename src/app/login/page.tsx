@@ -63,11 +63,8 @@ function LoginContent() {
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 32 }}>
-          {/* Login is always dark — always use logoLight */}
-          <img src="/logo-respark-light.svg" alt="ReSpark" width={32} height={32} style={{ display: 'block' }} />
-          <div style={{ lineHeight: 1.1 }}>
-            <span style={{ fontSize: 17, fontWeight: 400, color: '#475569', letterSpacing: '-0.4px', fontFamily: "'Inter', system-ui, sans-serif" }}>onboard</span>
-          </div>
+          {/* Login is always dark — always use logoLight (white wordmark) */}
+          <img src="/logo-respark-light.svg" alt="ReSpark" height={28} style={{ display: 'block', width: 'auto' }} />
         </div>
 
         <h1 style={{ fontSize: 20, fontWeight: 700, color: '#e2e8f0', marginBottom: 6 }}>
