@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { DM_Mono, Inter } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/react'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-ui' })
@@ -40,7 +41,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.variable} ${dmMono.variable}`}>
         {children}
-      </body>
+        <Analytics />
+</body>
     </html>
   )
 }
