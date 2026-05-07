@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useContext, createContext } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Account, Milestone, Stage, Item, Interaction, OrgMember, Contact, Request, ChecklistItem, LogEntry, Sku, Addon, SessionActionItem, PlanTemplate, TrainingTemplate, SessionTemplate, QuickLogType, QuickLogOutcome } from '@/types'
+import type { Account, Milestone, Stage, Item, Interaction, OrgMember, Contact, Request, ChecklistItem, LogEntry, Sku, Addon, SessionActionItem, PlanTemplate, TrainingTemplate, SessionTemplate, QuickLogType, QuickLogOutcome, Resource } from '@/types'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -67,13 +67,15 @@ interface Props {
   planTemplates?: PlanTemplate[]
   trainingTemplates?: TrainingTemplate[]
   sessionTemplates?: SessionTemplate[]
+  resources?: Resource[]
+  onRefreshResources?: () => void
   onBack: () => void
   onRefresh: () => void
 }
 
 type TabId = 'plan' | 'timeline' | 'details' | 'ai'
 
-export function AccountView({ account, orgMembers, currentMember, planTemplates = [], trainingTemplates = [], sessionTemplates = [], onBack, onRefresh }: Props) {
+export function AccountView({ account, orgMembers, currentMember, planTemplates = [], trainingTemplates = [], sessionTemplates = [], resources = [], onRefreshResources, onBack, onRefresh }: Props) {
   const [tab, setTab] = useState<TabId>('plan')
   const [localAccount, setLocalAccount] = useState<Account>(account)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -302,6 +304,8 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
           <DetailsTab
             account={localAccount}
             planTemplates={planTemplates}
+            resources={resources}
+            onRefreshResources={onRefreshResources}
             onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
             onRefresh={onRefresh}
           />
@@ -2160,9 +2164,11 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
 
 // ─── Details Tab ──────────────────────────────────────────────────────────────
 
-function DetailsTab({ account, planTemplates, onUpdate, onRefresh }: {
+function DetailsTab({ account, planTemplates, resources, onRefreshResources, onUpdate, onRefresh }: {
   account: Account
   planTemplates: PlanTemplate[]
+  resources: Resource[]
+  onRefreshResources?: () => void
   onUpdate: (a: Account) => void
   onRefresh: () => void
 }) {
@@ -2170,7 +2176,29 @@ function DetailsTab({ account, planTemplates, onUpdate, onRefresh }: {
   const [contextSaved, setContextSaved] = useState(true)
   const [softwareDraft, setSoftwareDraft] = useState(account.current_software || '')
   const [softwareSaved, setSoftwareSaved] = useState(true)
+  const [linkedResourceIds, setLinkedResourceIds] = useState<Set<string>>(new Set())
+  const [resourcesLoaded, setResourcesLoaded] = useState(false)
   const supabase = createClient()
+
+  useEffect(() => {
+    supabase.from('account_resources').select('resource_id').eq('account_id', account.id).then(({ data }) => {
+      if (data) setLinkedResourceIds(new Set(data.map(r => r.resource_id)))
+      setResourcesLoaded(true)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account.id])
+
+  const toggleResource = async (resourceId: string) => {
+    const linked = linkedResourceIds.has(resourceId)
+    if (linked) {
+      await supabase.from('account_resources').delete().eq('account_id', account.id).eq('resource_id', resourceId)
+      setLinkedResourceIds(prev => { const next = new Set(prev); next.delete(resourceId); return next })
+    } else {
+      await supabase.from('account_resources').insert({ account_id: account.id, resource_id: resourceId })
+      setLinkedResourceIds(prev => new Set([...prev, resourceId]))
+    }
+    onRefreshResources?.()
+  }
 
   const saveContext = async () => {
     await supabase.from('accounts').update({ sales_context: contextDraft }).eq('id', account.id)
@@ -2230,6 +2258,50 @@ function DetailsTab({ account, planTemplates, onUpdate, onRefresh }: {
           style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
         />
       </section>
+
+      {/* Linked Resources */}
+      {resourcesLoaded && resources.length > 0 && (
+        <section>
+          <span style={sectionLabel}>Linked Resources</span>
+          <p style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4, marginBottom: 10, lineHeight: 1.5 }}>
+            Pin links from your resource library to this account for quick access.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {resources.map(r => {
+              const isLinked = linkedResourceIds.has(r.id)
+              const hostname = (() => { try { return new URL(r.url).hostname.replace('www.', '') } catch { return r.url } })()
+              return (
+                <div key={r.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  background: isLinked ? 'var(--bg-surface2)' : 'var(--bg-surface)',
+                  border: '1px solid ' + (isLinked ? 'var(--border-b)' : 'var(--border)'),
+                  borderRadius: 7, padding: '8px 12px',
+                }}>
+                  <span style={{ fontSize: 13 }}>🔗</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <a href={r.url} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 13, fontWeight: 500, color: '#60a5fa', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                      onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                    >{r.title}</a>
+                    <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{hostname}</span>
+                  </div>
+                  <button
+                    onClick={() => toggleResource(r.id)}
+                    style={{
+                      background: isLinked ? '#3b82f620' : 'none',
+                      border: '1px solid ' + (isLinked ? '#3b82f640' : 'var(--border)'),
+                      borderRadius: 5, padding: '3px 10px', fontSize: 11,
+                      color: isLinked ? '#60a5fa' : 'var(--text-3)',
+                      cursor: 'pointer', fontFamily: 'var(--font-ui)', flexShrink: 0,
+                    }}
+                  >{isLinked ? '✓ Linked' : 'Link'}</button>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Contacts */}
       <ContactsSection account={account} onUpdate={onUpdate} />

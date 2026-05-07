@@ -3,16 +3,17 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Tooltip, getTooltipsEnabled, setTooltipsEnabled } from '@/components/Tooltip'
-import type { Account, OrgMember, TrainingTemplate, Connector, PlanTemplate, SessionTemplate } from '@/types'
+import type { Account, OrgMember, TrainingTemplate, Connector, PlanTemplate, SessionTemplate, Resource } from '@/types'
 import { DashboardView } from './views/DashboardView'
 import { AccountView } from './views/AccountView'
 import { ActionItemsView } from './views/ActionItemsView'
 import { SettingsView } from './views/SettingsView'
 import { TimeToLaunchView } from './views/TimeToLaunchView'
+import { ResourcesView } from './views/ResourcesView'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
 
-type View = 'dashboard' | 'account' | 'actions' | 'ttl' | 'templates' | 'settings'
+type View = 'dashboard' | 'account' | 'actions' | 'ttl' | 'templates' | 'resources' | 'settings'
 type ThemePref = 'dark' | 'light'
 
 interface ConnectorToken {
@@ -79,6 +80,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
   const [planTemplates, setPlanTemplates] = useState<PlanTemplate[]>(initialPlans)
   const [trainingTemplates, setTrainingTemplates] = useState<TrainingTemplate[]>(initialTraining)
   const [sessionTemplates, setSessionTemplates] = useState<SessionTemplate[]>(initialSessions)
+  const [resources, setResources] = useState<Resource[]>([])
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [lastSynced, setLastSynced] = useState<string | null>(null)
@@ -146,6 +148,14 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
     setView('dashboard')
     navigate('dashboard')
   }, [navigate])
+
+  const refreshResources = useCallback(async () => {
+    const supabase = createClient()
+    const { data } = await supabase.from('resources').select('*').order('created_at', { ascending: false })
+    if (data) setResources(data as Resource[])
+  }, [])
+
+  useEffect(() => { refreshResources() }, [refreshResources])
 
   const refreshTemplates = useCallback(async () => {
     const supabase = createClient()
@@ -215,6 +225,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
     { id: 'actions',   label: 'Action Items', icon: '✓', tip: 'Your open tasks and items waiting on customers across all accounts' },
     { id: 'ttl',       label: 'Time to Launch', icon: '◎', tip: 'Projected go-live dates and onboarding velocity for all accounts' },
     { id: 'templates', label: 'Templates',    icon: '⊞', tip: 'Manage reusable plan, session, and training templates' },
+    { id: 'resources', label: 'Resources',    icon: '🔗', tip: 'Central link library — slide decks, forms, templates, and reference docs shared across accounts' },
   ]
 
   const isNavActive = (id: View) => view === id && selectedAccount === null
@@ -418,6 +429,8 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
             planTemplates={planTemplates}
             trainingTemplates={trainingTemplates}
             sessionTemplates={sessionTemplates}
+            resources={resources}
+            onRefreshResources={refreshResources}
             onBack={handleBack}
             onRefresh={refreshAccounts}
           />
@@ -441,6 +454,8 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
             connectorTokens={connectorTokens}
             onTemplatesChange={refreshTemplates}
           />
+        ) : view === 'resources' ? (
+          <ResourcesView resources={resources} onRefresh={refreshResources} />
         ) : view === 'settings' ? (
           <SettingsView
             section="connectors"
