@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Tooltip } from '@/components/Tooltip'
 import type { Account, AccountSummary, OrgMember, TrainingTemplate, PlanTemplate, SessionTemplate, HealthStatus } from '@/types'
 
 const SKU_LABELS: Record<string, string> = {
@@ -893,22 +894,26 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
           {/* Table header */}
           <div style={{ display: 'grid', gridTemplateColumns: cols, columnGap: 16, padding: '8px 16px', borderBottom: '1px solid var(--border)', minWidth: 900 }}>
             {([
-              { label: 'Account',       align: 'left',   sortKey: 'name'       },
-              { label: 'SKU',           align: 'left',   sortKey: null         },
-              { label: 'Current Stage', align: 'left',   sortKey: 'stage'      },
-              { label: 'Completion',    align: 'left',   sortKey: 'completion' },
-              { label: 'Last Outreach', align: 'center', sortKey: 'outreach'   },
-              { label: 'Last Contact',  align: 'center', sortKey: 'contact'    },
-              { label: 'Timeline',      align: 'center', sortKey: null         },
-              { label: 'Tasks',         align: 'center', sortKey: 'tasks'      },
-              { label: 'Health',        align: 'right',  sortKey: 'health'     },
-            ] as { label: string; align: string; sortKey: SortCol | null }[]).map(({ label, align, sortKey }) => {
+              { label: 'Account',       align: 'left',   sortKey: 'name',       tip: 'Account name and ARR' },
+              { label: 'SKU',           align: 'left',   sortKey: null,         tip: 'Product tier and active add-ons' },
+              { label: 'Current Stage', align: 'left',   sortKey: 'stage',      tip: 'The active onboarding stage — click the pill to manually advance' },
+              { label: 'Completion',    align: 'left',   sortKey: 'completion', tip: '% of required plan items marked complete' },
+              { label: 'Last Outreach', align: 'center', sortKey: 'outreach',   tip: 'Days since you last reached out (call, email, follow-up). Red = 14+ days, orange = 7–13 days.' },
+              { label: 'Last Contact',  align: 'center', sortKey: 'contact',    tip: 'Days since any interaction — includes inbound emails and sessions from the customer side' },
+              { label: 'Timeline',      align: 'center', sortKey: null,         tip: 'KO = days since kickoff · GL = days until (or past) go-live date. Red = overdue.' },
+              { label: 'Tasks',         align: 'center', sortKey: 'tasks',      tip: 'Open tasks — click to expand. Blue dot = your team, orange = waiting on customer.' },
+              { label: 'Health',        align: 'right',  sortKey: 'health',     tip: 'Overall account health. Change here or from inside the account.' },
+            ] as { label: string; align: string; sortKey: SortCol | null; tip: string }[]).map(({ label, align, sortKey, tip }) => {
               const active = sortCol === sortKey
               const indicator = active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
               return sortKey ? (
-                <button key={label} onClick={() => setSort(sortKey)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 10, fontWeight: 700, color: active ? 'var(--accent)' : 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: align as 'left' | 'center' | 'right', whiteSpace: 'nowrap', fontFamily: 'var(--font-ui)' }}>{label}{indicator}</button>
+                <Tooltip key={label} content={tip} placement="bottom">
+                  <button onClick={() => setSort(sortKey)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 10, fontWeight: 700, color: active ? 'var(--accent)' : 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: align as 'left' | 'center' | 'right', whiteSpace: 'nowrap', fontFamily: 'var(--font-ui)' }}>{label}{indicator}</button>
+                </Tooltip>
               ) : (
-                <span key={label} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: align as 'left' | 'center' | 'right', whiteSpace: 'nowrap' }}>{label}</span>
+                <Tooltip key={label} content={tip} placement="bottom">
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: align as 'left' | 'center' | 'right', whiteSpace: 'nowrap', cursor: 'default' }}>{label}</span>
+                </Tooltip>
               )
             })}
           </div>
@@ -952,17 +957,21 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
 
                   {/* SKU + addons */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
-                      background: (SKU_COLORS[account.sku] || '#6b7280') + '22',
-                      color: SKU_COLORS[account.sku] || '#6b7280',
-                      fontFamily: 'var(--font-mono)',
-                    }}>{SKU_LABELS[account.sku] || account.sku}</span>
+                    <Tooltip content={`SKU: ${SKU_LABELS[account.sku] || account.sku} — determines which plan template and features apply`} placement="bottom">
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
+                        background: (SKU_COLORS[account.sku] || '#6b7280') + '22',
+                        color: SKU_COLORS[account.sku] || '#6b7280',
+                        fontFamily: 'var(--font-mono)',
+                      }}>{SKU_LABELS[account.sku] || account.sku}</span>
+                    </Tooltip>
                     {(account.addons || []).map(a => (
-                      <span key={a} style={{
-                        fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 3,
-                        background: 'var(--bg-surface3)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)',
-                      }}>{ADDON_LABELS[a] || a}</span>
+                      <Tooltip key={a} content={`Add-on: ${ADDON_LABELS[a] || a}`} placement="bottom">
+                        <span style={{
+                          fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 3,
+                          background: 'var(--bg-surface3)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)',
+                        }}>{ADDON_LABELS[a] || a}</span>
+                      </Tooltip>
                     ))}
                   </div>
 
@@ -1081,21 +1090,24 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
 
                   {/* Tasks */}
                   <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
-                    <button
-                      onClick={e => { e.stopPropagation(); setExpandedTask(expanded ? null : account.id) }}
-                      style={{
-                        background: openTaskCount > 0 ? 'var(--bg-surface3)' : 'none',
-                        border: `1px solid ${openTaskCount > 0 ? 'var(--border-b)' : 'var(--border)'}`,
-                        borderRadius: 5, padding: '2px 8px',
-                        color: openTaskCount > 0 ? 'var(--text)' : 'var(--text-3)',
-                        fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 600,
-                        minWidth: 28, textAlign: 'center',
-                      }}
-                    >{openTaskCount}</button>
+                    <Tooltip content={openTaskCount === 0 ? 'No open tasks' : `${openTaskCount} open task${openTaskCount > 1 ? 's' : ''} — click to expand. Blue = your team · Orange = customer`} placement="left">
+                      <button
+                        onClick={e => { e.stopPropagation(); setExpandedTask(expanded ? null : account.id) }}
+                        style={{
+                          background: openTaskCount > 0 ? 'var(--bg-surface3)' : 'none',
+                          border: `1px solid ${openTaskCount > 0 ? 'var(--border-b)' : 'var(--border)'}`,
+                          borderRadius: 5, padding: '2px 8px',
+                          color: openTaskCount > 0 ? 'var(--text)' : 'var(--text-3)',
+                          fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 600,
+                          minWidth: 28, textAlign: 'center',
+                        }}
+                      >{openTaskCount}</button>
+                    </Tooltip>
                   </div>
 
                   {/* Health — manual dropdown */}
                   <div onClick={e => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+                    <Tooltip content={`Health: ${healthOpt.label} — use this to flag accounts that are stalled, on hold, blocked, or unresponsive`} placement="left">
                     <select
                       value={account.health_status || 'active'}
                       disabled={healthUpdating === account.id}
@@ -1114,6 +1126,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
+                    </Tooltip>
                   </div>
                 </div>
 
@@ -1125,7 +1138,9 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                     ) : (
                       (account.open_tasks || []).filter(t => !t.done).map(task => (
                         <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: task.assignee === 'customer' ? '#f59e0b' : '#3b82f6', flexShrink: 0 }} />
+                          <Tooltip content={task.assignee === 'customer' ? 'Waiting on customer' : 'Your team\'s task'} placement="right">
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: task.assignee === 'customer' ? '#f59e0b' : '#3b82f6', flexShrink: 0 }} />
+                          </Tooltip>
                           <span style={{ fontSize: 12, color: 'var(--text)' }}>{task.name}</span>
                           <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>{task.assignee}</span>
                         </div>

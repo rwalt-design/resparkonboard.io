@@ -200,6 +200,7 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
           {(() => {
             const h = HEALTH_OPTIONS.find(o => o.value === (localAccount.health_status || 'active')) || HEALTH_OPTIONS[0]
             return (
+              <Tooltip content={`Health: ${h.label} — ${h.tip}`} placement="bottom">
               <select
                 name="health_status"
                 value={localAccount.health_status || 'active'}
@@ -213,13 +214,20 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
               >
                 {HEALTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
+              </Tooltip>
             )
           })()}
 
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-            <button onClick={() => setEditingDetails(true)} style={ghostBtn}>✎ Edit Details</button>
-            <button onClick={() => setTab('timeline')} style={ghostBtn}>+ Log Interaction</button>
-            <button onClick={exportPlan} style={ghostBtn}>⬇ Export Plan</button>
+            <Tooltip content="Edit account details: name, ARR, SKU, dates, contacts, and sales context" placement="bottom">
+              <button onClick={() => setEditingDetails(true)} style={ghostBtn}>✎ Edit Details</button>
+            </Tooltip>
+            <Tooltip content="Log a call, email, meeting, or internal note for this account" placement="bottom">
+              <button onClick={() => setTab('timeline')} style={ghostBtn}>+ Log Interaction</button>
+            </Tooltip>
+            <Tooltip content="Export the onboarding plan as a spreadsheet" placement="bottom">
+              <button onClick={exportPlan} style={ghostBtn}>⬇ Export Plan</button>
+            </Tooltip>
             {confirmDelete ? (
               <>
                 <span style={{ fontSize: 11, color: '#ef4444' }}>Delete this account?</span>
@@ -253,16 +261,22 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', flexShrink: 0 }}>
-        {(['plan', 'timeline', 'details', 'ai'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
+        {([
+          { id: 'plan',     label: 'Plan',      tip: 'The onboarding plan — milestones, stages, and items the customer must complete' },
+          { id: 'timeline', label: 'Timeline',  tip: 'Log and view all interactions: calls, emails, meetings, and internal notes' },
+          { id: 'details',  label: 'Details',   tip: 'Account settings, contacts, and advanced configuration' },
+          { id: 'ai',       label: '✦ AI',      tip: 'AI-generated next steps and insights based on recent activity' },
+        ] as const).map(({ id, label, tip }) => (
+          <Tooltip key={id} content={tip} placement="bottom">
+          <button onClick={() => setTab(id)} style={{
             background: 'none', border: 'none',
-            borderBottom: tab === t ? '2px solid #3b82f6' : '2px solid transparent',
+            borderBottom: tab === id ? '2px solid #3b82f6' : '2px solid transparent',
             padding: '10px 18px', marginBottom: -1,
-            color: tab === t ? 'var(--text-h)' : 'var(--text-2)',
-            fontSize: 13, fontWeight: tab === t ? 600 : 400,
+            color: tab === id ? 'var(--text-h)' : 'var(--text-2)',
+            fontSize: 13, fontWeight: tab === id ? 600 : 400,
             cursor: 'pointer', fontFamily: 'var(--font-ui)',
-            textTransform: 'capitalize',
-          }}>{t === 'ai' ? '✦ AI' : t}</button>
+          }}>{label}</button>
+          </Tooltip>
         ))}
       </div>
 
@@ -1244,22 +1258,25 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
               {/* Type picker */}
               <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
                 {([
-                  { id: 'task',       label: 'Task (me)',           color: '#3b82f6' },
-                  { id: 'dependency', label: 'Dependency (them)',   color: '#f59e0b' },
-                  { id: 'exchange',   label: 'Exchange (send/get)', color: '#8b5cf6' },
-                  { id: 'session',    label: 'Session',             color: '#10b981' },
-                  { id: 'training',   label: 'Training',            color: '#06b6d4' },
-                  { id: 'log',        label: 'Log',                 color: '#6b7280' },
-                  { id: 'golive',     label: '🚀 Go Live',          color: '#10b981' },
-                ] as const).map(({ id, label, color }) => (
-                  <button key={id} onClick={() => { setItemType(id); setSelectedSessionTemplateId(''); setSelectedTrainingTemplateId('') }} style={{
+                  { id: 'task',       label: 'Task (me)',           color: '#3b82f6', tip: 'A task your team needs to complete' },
+                  { id: 'dependency', label: 'Dependency (them)',   color: '#f59e0b', tip: 'Something the customer must complete before you can proceed' },
+                  { id: 'exchange',   label: 'Exchange (send/get)', color: '#8b5cf6', tip: 'A document exchange — you send a template and the customer returns it completed' },
+                  { id: 'session',    label: 'Session',             color: '#10b981', tip: 'A scheduled meeting or call with the customer' },
+                  { id: 'training',   label: 'Training',            color: '#06b6d4', tip: 'A training session — optionally linked to a training template' },
+                  { id: 'log',        label: 'Log',                 color: '#6b7280', tip: 'Track recurring usage or check-in metrics' },
+                  { id: 'golive',     label: '🚀 Go Live',          color: '#10b981', tip: 'Mark the account as live and record the go-live date' },
+                ] as const).map(({ id, label, color, tip }) => (
+                  <Tooltip key={id} content={tip} placement="top">
+                  <button onClick={() => { setItemType(id); setSelectedSessionTemplateId(''); setSelectedTrainingTemplateId('') }} style={{
                     padding: '3px 9px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer',
                     fontFamily: 'var(--font-ui)',
                     background: itemType === id ? color + '20' : 'none',
                     border: `1px solid ${itemType === id ? color : 'var(--border)'}`,
                     color: itemType === id ? color : 'var(--text-3)',
                   }}>{label}</button>
+                  </Tooltip>
                 ))}
+                <Tooltip content={itemRequired ? 'Required items block stage advancement until complete' : 'Optional items are tracked but do not block progression'} placement="top">
                 <button onClick={() => setItemRequired(r => !r)} style={{
                   marginLeft: 'auto', padding: '3px 9px', borderRadius: 4, fontSize: 10,
                   fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
@@ -1267,6 +1284,7 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                   border: `1px solid ${itemRequired ? '#10b98144' : 'var(--border)'}`,
                   color: itemRequired ? '#10b981' : 'var(--text-3)',
                 }}>{itemRequired ? 'required' : 'optional'}</button>
+                </Tooltip>
               </div>
               {/* Training template picker (optional — also allows custom name) */}
               {itemType === 'training' && trainingTemplates.length > 0 && (

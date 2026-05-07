@@ -27,179 +27,161 @@ export async function POST(req: NextRequest) {
 
   const now = Date.now()
   const daysAgo = (d: number) => new Date(now - d * 86400000).toISOString()
+  const daysFromNow = (d: number) => new Date(now + d * 86400000).toISOString().split('T')[0]
+  const dateAgo = (d: number) => new Date(now - d * 86400000).toISOString().split('T')[0]
 
-  // ── Account 1: Landmark Transport ─────────────────────────────────────────
-  // Full Suite + Brokerage, $84k ARR — mid-onboarding, Configuration complete, Training active
+  // ── ABC Iron & Metal ───────────────────────────────────────────────────────
+  // Facility Management SKU, $54k ARR
+  // State: Configuration complete · Training in progress (Transacting stage active)
   const a1 = randomUUID()
   await admin.from('accounts').insert({
-    id: a1, org_id: orgId, name: 'Landmark Transport',
-    sku: 'full_suite', addons: ['brokerage'], arr: 84000, owner_id: user.id,
-    sales_context: 'Large regional fleet, 12 terminals across the Southeast. Came in via referral from an existing customer. Main pain point was manual dispatch and zero visibility into driver performance. IT team is lean — Sarah handles everything and needs detailed guidance through setup. Mike is the exec sponsor and very bought in.',
+    id: a1, org_id: orgId, name: 'ABC Iron & Metal',
+    sku: 'facility_management', addons: [], arr: 54000, owner_id: user.id,
+    health_status: 'active',
+    kickoff_date: dateAgo(36),
+    go_live_date: daysFromNow(22),
+    sales_context: 'Full-service scrap metal recycler operating 3 yards — main yard in Gary, IN plus two feeder yards in Hammond and East Chicago. Processing ferrous and non-ferrous: steel, aluminum, copper, brass. Fleet of 14 roll-off trucks and 6 flatbeds for industrial pickups. Currently running dispatch and ticketing out of a whiteboard and paper tickets — weights are recorded by hand and entered into QuickBooks at end of day, causing constant billing lag and disputes. Dave (Owner/GM) closed after seeing a demo at the ISRi conference. Linda handles all office operations and will be the primary user. Key pain points: no driver accountability, no real-time weight capture, billing errors on multi-load days. Competitor was ScrapWare; we won on mobile app usability and the ticket-to-invoice flow.',
   })
 
   await Promise.all([
     admin.from('contacts').insert([
-      { account_id: a1, name: 'Mike Rodriguez', role: 'Operations Director', email: 'mike.rodriguez@landmarktransport.com', primary_contact: true },
-      { account_id: a1, name: 'Sarah Chen', role: 'IT Manager', email: 's.chen@landmarktransport.com', primary_contact: false },
+      { account_id: a1, name: 'Dave Kowalski', role: 'Owner / General Manager', email: 'dave@abcironmetal.com', primary_contact: true },
+      { account_id: a1, name: 'Linda Reyes', role: 'Office Manager', email: 'linda@abcironmetal.com', primary_contact: false },
+      { account_id: a1, name: 'Marcus Thompson', role: 'Yard Supervisor', email: 'marcus.t@abcironmetal.com', primary_contact: false },
     ]),
     admin.from('interactions').insert([
-      { account_id: a1, type: 'meeting', summary: 'Kickoff call', detail: 'Walked through the milestone plan with Mike and Sarah. Both engaged — Mike wants to hit go-live in 8 weeks. Sarah flagged hardware integration as her main concern. Sent the data template during the call. Set disco for next week.', created_at: daysAgo(21), user_id: user.id },
-      { account_id: a1, type: 'email', summary: 'Data template received', detail: 'Sarah returned the completed driver + terminal data file. A few driver IDs were formatted incorrectly — replied with a fix and she turned it around same day.', created_at: daysAgo(17), user_id: user.id },
-      { account_id: a1, type: 'meeting', summary: 'Discovery meeting', detail: 'Thorough session. Hardware: 47 ELDs across 12 terminals, all Samsara. Compliance: FMCSA HOS + state-level fuel tax. Reporting: weekly driver scorecards + monthly terminal P&L. Accounting: QuickBooks integration needed. One edge case — split loads across terminals need a custom workflow.', created_at: daysAgo(14), user_id: user.id },
-      { account_id: a1, type: 'email', summary: 'All discovery docs returned', detail: 'Received hardware, compliance, reporting, and accounting questionnaires back from Sarah. Accounting doc needed a follow-up — she got it to me by EOD. Environment setup kicked off.', created_at: daysAgo(9), user_id: user.id },
-      { account_id: a1, type: 'call', summary: 'Environment setup complete — training scheduled', detail: 'Confirmed all data uploaded, hardware integrated, compliance flows live, QuickBooks syncing correctly. Custom split-load workflow built and approved by Mike. Admin training session scheduled for next Thursday.', created_at: daysAgo(3), user_id: user.id },
+      {
+        account_id: a1, type: 'meeting',
+        summary: 'Kickoff session',
+        detail: 'Dave, Linda, and Marcus all joined. Dave came in with a printed list of questions — very prepared. Walked through the full onboarding plan milestone by milestone. Sent the Data Template and Pre-Work Form during the call. Linda is going to pull their commodity price sheet and truck list for the data template; Marcus will fill out the pre-work form covering yard layout and workflow specifics. Set discovery for next Wednesday. Dave mentioned he wants drivers using the mobile app before the 4th of July weekend — that\'s our hard target.',
+        created_at: daysAgo(36), event_at: daysAgo(36), user_id: user.id,
+      },
+      {
+        account_id: a1, type: 'email',
+        summary: 'Data Template and Pre-Work Form received',
+        detail: 'Linda returned the data template — 14 trucks, 3 yards, 22 commodity grades, 6 regular vendors. Clean. Marcus returned the pre-work form covering their 3-step intake flow (scale ticket → grading → payment). One note: they run a "provisional payment" hold for copper loads over 500 lbs until assay confirms grade. Flagged for custom workflow.',
+        created_at: daysAgo(29), event_at: daysAgo(29), user_id: user.id,
+      },
+      {
+        account_id: a1, type: 'meeting',
+        summary: 'Discovery session',
+        detail: 'Two hours with Linda and Marcus. Walked through their full transaction flow end to end. Key findings: they run split loads (one truck, multiple commodity types per ticket), which needs the multi-line ticket feature. Compliance: quarterly EPA waste manifests + ISRI grading standards. Hardware: existing scale at Gary yard needs API integration; Hammond and East Chicago are manual entry for now. Accounting: QuickBooks Desktop (not Online) — confirmed the QB Desktop connector is compatible. Sent the exported onboarding plan to Dave after the call.',
+        created_at: daysAgo(28), event_at: daysAgo(28), user_id: user.id,
+      },
+      {
+        account_id: a1, type: 'email',
+        summary: 'Environment setup complete',
+        detail: 'Confirmed with Linda: all 3 yards loaded, 14 trucks configured, 22 commodity grades live with their pricing tiers, 6 vendor profiles set up, QB Desktop connector running and syncing. The Gary scale integration tested clean — weight pulls directly into the ticket. Custom workflow for copper provisional holds is in review; Marcus approved the logic yesterday. User accounts created for Linda, Marcus, and 9 drivers.',
+        created_at: daysAgo(18), event_at: daysAgo(18), user_id: user.id,
+      },
+      {
+        account_id: a1, type: 'meeting',
+        summary: 'Pre-Transaction training complete',
+        detail: 'Covered everything before a transaction starts: setting commodity prices, creating vendor profiles, managing user permissions, running the daily open/close yard checklist. Linda is sharp — she had the price update workflow down after one walkthrough. Marcus asked good questions about how to handle walk-in customers who aren\'t in the system yet (quick-add flow). Moved to Transacting training next.',
+        created_at: daysAgo(12), event_at: daysAgo(12), user_id: user.id,
+      },
+      {
+        account_id: a1, type: 'call',
+        summary: 'Transacting training check-in',
+        detail: "Quick call with Linda before today's training session. All 9 driver accounts confirmed active and drivers have the mobile app installed. Marcus did a dry run with two drivers this morning — they got through a full ticket in under 3 minutes. Linda wants to make sure the multi-line ticket flow is covered in detail today since that's their most common transaction type. Good momentum going into the session.",
+        created_at: daysAgo(3), event_at: daysAgo(3), user_id: user.id,
+      },
     ]),
   ])
 
-  // Pre-generate IDs
-  const [m1cfg, m1tr, m1val, m1gl] = Array.from({ length: 4 }, randomUUID)
-  const [s1ac, s1ki, s1di, s1es, s1at, s1ut, s1uts, s1rr, s1la] = Array.from({ length: 9 }, randomUUID)
+  // ── IDs ───────────────────────────────────────────────────────────────────
+  const [mCfg, mTr, mVal, mGl] = Array.from({ length: 4 }, randomUUID)
+  // Configuration stages
+  const [sAc, sKi, sDi, sEs] = Array.from({ length: 4 }, randomUUID)
+  // Training stages (Pre Transaction, Transacting, Post Transaction)
+  const [sPre, sTx, sPost] = Array.from({ length: 3 }, randomUUID)
+  // Validation stages
+  const [sUt, sRr] = Array.from({ length: 2 }, randomUUID)
+  // Go-Live stages
+  const [sLaunch, sPostLaunch] = Array.from({ length: 2 }, randomUUID)
 
   await admin.from('milestones').insert([
-    { id: m1cfg, account_id: a1, name: 'Configuration', order_index: 0 },
-    { id: m1tr,  account_id: a1, name: 'Training',      order_index: 1 },
-    { id: m1val, account_id: a1, name: 'Validation',    order_index: 2 },
-    { id: m1gl,  account_id: a1, name: 'Go-Live',       order_index: 3 },
+    { id: mCfg, account_id: a1, name: 'Configuration', order_index: 0 },
+    { id: mTr,  account_id: a1, name: 'Training',      order_index: 1 },
+    { id: mVal, account_id: a1, name: 'Validation',    order_index: 2 },
+    { id: mGl,  account_id: a1, name: 'Go-Live',       order_index: 3 },
   ])
 
   await admin.from('stages').insert([
-    { id: s1ac,  milestone_id: m1cfg, name: 'Account Creation',  status: 'complete', order_index: 0 },
-    { id: s1ki,  milestone_id: m1cfg, name: 'Kickoff',           status: 'complete', order_index: 1 },
-    { id: s1di,  milestone_id: m1cfg, name: 'Discovery',         status: 'complete', order_index: 2 },
-    { id: s1es,  milestone_id: m1cfg, name: 'Environment Setup', status: 'complete', order_index: 3 },
-    { id: s1at,  milestone_id: m1tr,  name: 'Admin Training',    status: 'active',   order_index: 0 },
-    { id: s1ut,  milestone_id: m1tr,  name: 'User Training',     status: 'locked',   order_index: 1 },
-    { id: s1uts, milestone_id: m1val, name: 'User Testing',      status: 'locked',   order_index: 0 },
-    { id: s1rr,  milestone_id: m1val, name: 'Readiness Review',  status: 'locked',   order_index: 1 },
-    { id: s1la,  milestone_id: m1gl,  name: 'Launch',            status: 'locked',   order_index: 0 },
+    // Configuration — all complete
+    { id: sAc,       milestone_id: mCfg, name: 'Account Creation',  status: 'complete', order_index: 0 },
+    { id: sKi,       milestone_id: mCfg, name: 'Kickoff',           status: 'complete', order_index: 1 },
+    { id: sDi,       milestone_id: mCfg, name: 'Discovery',         status: 'complete', order_index: 2 },
+    { id: sEs,       milestone_id: mCfg, name: 'Environment Setup', status: 'complete', order_index: 3 },
+    // Training — Pre Transaction done, Transacting active, Post Transaction locked
+    { id: sPre,      milestone_id: mTr,  name: 'Pre Transaction',   status: 'complete', order_index: 0 },
+    { id: sTx,       milestone_id: mTr,  name: 'Transacting',       status: 'active',   order_index: 1 },
+    { id: sPost,     milestone_id: mTr,  name: 'Post Transaction',  status: 'locked',   order_index: 2 },
+    // Validation — locked
+    { id: sUt,       milestone_id: mVal, name: 'User Testing',      status: 'locked',   order_index: 0 },
+    { id: sRr,       milestone_id: mVal, name: 'Readiness Review',  status: 'locked',   order_index: 1 },
+    // Go-Live — locked
+    { id: sLaunch,     milestone_id: mGl, name: 'Launch',      status: 'locked', order_index: 0 },
+    { id: sPostLaunch, milestone_id: mGl, name: 'Post Launch', status: 'locked', order_index: 1 },
   ])
 
   await admin.from('items').insert([
-    // Account Creation — all done
-    { stage_id: s1ac, type: 'task', task_name: 'Add primary contacts',  task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 0 },
-    { stage_id: s1ac, type: 'task', task_name: 'Select products / SKUs',task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 1 },
-    { stage_id: s1ac, type: 'task', task_name: 'Set ARR',               task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 2 },
-    { stage_id: s1ac, type: 'task', task_name: 'Add sales context',     task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 3 },
-    // Kickoff — all done
-    { stage_id: s1ki, type: 'session', session_name: 'Kickoff Meeting', session_status: 'complete', required: true,  order_index: 0 },
-    { stage_id: s1ki, type: 'task', task_name: 'Send Data Template',    task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 1 },
-    { stage_id: s1ki, type: 'task', task_name: 'Return Data Template',  task_assignee: 'customer', task_source: 'plan', task_done: true,  required: true,  order_index: 2 },
-    // Discovery — all done
-    { stage_id: s1di, type: 'session', session_name: 'Discovery Meeting', session_status: 'complete', required: true,  order_index: 0 },
-    { stage_id: s1di, type: 'task', task_name: 'Send Hardware Doc',      task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 1 },
-    { stage_id: s1di, type: 'task', task_name: 'Return Hardware Doc',    task_assignee: 'customer', task_source: 'plan', task_done: true,  required: true,  order_index: 2 },
-    { stage_id: s1di, type: 'task', task_name: 'Send Compliance Doc',   task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 3 },
-    { stage_id: s1di, type: 'task', task_name: 'Return Compliance Doc', task_assignee: 'customer', task_source: 'plan', task_done: true,  required: true,  order_index: 4 },
-    { stage_id: s1di, type: 'task', task_name: 'Send Reporting Doc',    task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 5 },
-    { stage_id: s1di, type: 'task', task_name: 'Return Reporting Doc',  task_assignee: 'customer', task_source: 'plan', task_done: true,  required: true,  order_index: 6 },
-    { stage_id: s1di, type: 'task', task_name: 'Send Accounting Doc',   task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 7 },
-    { stage_id: s1di, type: 'task', task_name: 'Return Accounting Doc', task_assignee: 'customer', task_source: 'plan', task_done: true,  required: true,  order_index: 8 },
-    // Environment Setup — all done
-    { stage_id: s1es, type: 'task', task_name: 'Upload Data',              task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 0 },
-    { stage_id: s1es, type: 'task', task_name: 'Integrate Hardware',       task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 1 },
-    { stage_id: s1es, type: 'task', task_name: 'Set Up Compliance Flows',  task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 2 },
-    { stage_id: s1es, type: 'task', task_name: 'Integrate Accounting',     task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 3 },
-    { stage_id: s1es, type: 'task', task_name: 'Custom Workflow Setup',    task_assignee: 'personal', task_source: 'plan', task_done: true,  required: false, order_index: 4 },
-    // Admin Training — in progress
-    { stage_id: s1at, type: 'session', session_name: 'Admin Training Session', session_status: 'pending', required: true,  order_index: 0 },
-    { stage_id: s1at, type: 'task', task_name: 'Complete admin setup checklist', task_assignee: 'customer', task_source: 'plan', task_done: false, required: true,  order_index: 1 },
-    // User Training — locked
-    { stage_id: s1ut, type: 'session', session_name: 'User Training Session', session_status: 'pending', required: true,  order_index: 0 },
-    { stage_id: s1ut, type: 'task', task_name: 'Confirm user accounts created', task_assignee: 'customer', task_source: 'plan', task_done: false, required: true,  order_index: 1 },
-    // User Testing — locked
-    { stage_id: s1uts, type: 'log', task_name: 'Log Daily Job/Ticket Usage', task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 0 },
-    // Readiness Review — locked
-    { stage_id: s1rr, type: 'session', session_name: 'Q&A',                               session_status: 'pending', required: true,  order_index: 0 },
-    { stage_id: s1rr, type: 'task', task_name: 'Send Pre-Launch Checklist',  task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 1 },
-    { stage_id: s1rr, type: 'task', task_name: 'Return Pre-Launch Checklist',task_assignee: 'customer', task_source: 'plan', task_done: false, required: true,  order_index: 2 },
-    { stage_id: s1rr, type: 'task', task_name: 'Review Pre-Launch Checklist',task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 3 },
-    // Launch — locked
-    { stage_id: s1la, type: 'task',    task_name: 'Usage Review',       task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 0 },
-    { stage_id: s1la, type: 'session', session_name: 'Post-Launch Check-In', session_status: 'pending', required: false, order_index: 1 },
-    { stage_id: s1la, type: 'handoff', handoff_name: 'CSM Handoff',                                      required: false, order_index: 2 },
-  ])
+    // ── Account Creation (complete) ──────────────────────────────────────────
+    { stage_id: sAc, type: 'task', task_name: 'Add primary contacts',   task_assignee: 'personal', task_source: 'plan', task_done: true, required: true, order_index: 0 },
+    { stage_id: sAc, type: 'task', task_name: 'Select products / SKUs', task_assignee: 'personal', task_source: 'plan', task_done: true, required: true, order_index: 1 },
+    { stage_id: sAc, type: 'task', task_name: 'Set ARR',                task_assignee: 'personal', task_source: 'plan', task_done: true, required: true, order_index: 2 },
+    { stage_id: sAc, type: 'task', task_name: 'Add sales context',      task_assignee: 'personal', task_source: 'plan', task_done: true, required: true, order_index: 3 },
 
-  // ── Account 2: Ironclad Materials ──────────────────────────────────────────
-  // Full Suite, $52k ARR — early, Kickoff done, Discovery active
-  const a2 = randomUUID()
-  await admin.from('accounts').insert({
-    id: a2, org_id: orgId, name: 'Ironclad Materials',
-    sku: 'full_suite', addons: [], arr: 52000, owner_id: user.id,
-    sales_context: 'Regional scrap metal recycler, 4 yards across the Midwest. Fleet of 22 pickup trucks + 6 roll-off trucks doing industrial scrap collection. Dispatch is all whiteboard and phone right now — no visibility into routes or load weights. Owner-operated, Tom handles ops and IT himself. Goal: get live in 6 weeks, impress the owner, then upsell brokerage module once they see load tracking value.',
-  })
+    // ── Kickoff (complete) ───────────────────────────────────────────────────
+    { stage_id: sKi, type: 'session', session_name: 'Kickoff',                  session_status: 'complete', required: true, order_index: 0 },
+    // EXCHANGE: Data Template → Send + Return
+    { stage_id: sKi, type: 'task', task_name: 'Send Data Template',             task_assignee: 'personal', task_source: 'plan', task_done: true, required: true, order_index: 1 },
+    { stage_id: sKi, type: 'task', task_name: 'Return Data Template',           task_assignee: 'customer', task_source: 'plan', task_done: true, required: true, order_index: 2 },
+    // EXCHANGE: Pre-Work Form → Send + Return
+    { stage_id: sKi, type: 'task', task_name: 'Send Pre-Work Form',             task_assignee: 'personal', task_source: 'plan', task_done: true, required: true, order_index: 3 },
+    { stage_id: sKi, type: 'task', task_name: 'Return Pre-Work Form',           task_assignee: 'customer', task_source: 'plan', task_done: true, required: true, order_index: 4 },
+    { stage_id: sKi, type: 'task', task_name: 'Update Plan w Pre-Work Results', task_assignee: 'personal', task_source: 'plan', task_done: true, required: true, order_index: 5 },
+    { stage_id: sKi, type: 'task', task_name: 'Set Up Sandbox Environment',     task_assignee: 'personal', task_source: 'plan', task_done: true, required: true, order_index: 6 },
+    { stage_id: sKi, type: 'task', task_name: 'Add Users',                      task_assignee: 'personal', task_source: 'plan', task_done: true, required: true, order_index: 7 },
 
-  await Promise.all([
-    admin.from('contacts').insert([
-      { account_id: a2, name: 'Tom Kowalski', role: 'Operations Manager', email: 'tom@ironcladmaterials.com', primary_contact: true },
-      { account_id: a2, name: 'Dana Ruiz', role: 'Office Manager', email: 'dana@ironcladmaterials.com', primary_contact: false },
-    ]),
-    admin.from('interactions').insert([
-      { account_id: a2, type: 'meeting', summary: 'Kickoff call', detail: 'Tom and Dana both on. Very energetic — Tom already has drivers lined up to test. Walked through the milestone plan and what data we need. Sent the data template during the call. Tom said he can have it back by end of week. Set discovery for next Tuesday.', created_at: daysAgo(6), user_id: user.id },
-      { account_id: a2, type: 'email', summary: 'Data template follow-up', detail: "Checked in on the data template — Tom said they're still pulling driver IDs from their old spreadsheets. Should have it by Thursday. Confirmed discovery meeting is still on for next week.", created_at: daysAgo(2), user_id: user.id },
-    ]),
-  ])
+    // ── Discovery (complete) ─────────────────────────────────────────────────
+    { stage_id: sDi, type: 'session', session_name: 'Discovery',                session_status: 'complete', required: true, order_index: 0 },
+    { stage_id: sDi, type: 'task', task_name: 'Send Exported Onboarding Plan',  task_assignee: 'personal', task_source: 'plan', task_done: true, required: true, order_index: 1 },
 
-  const [m2cfg, m2tr, m2val, m2gl] = Array.from({ length: 4 }, randomUUID)
-  const [s2ac, s2ki, s2di, s2es, s2tr, s2uts, s2rr, s2la] = Array.from({ length: 8 }, randomUUID)
+    // ── Environment Setup (complete) ─────────────────────────────────────────
+    { stage_id: sEs, type: 'task', task_name: 'Upload Data',             task_assignee: 'personal', task_source: 'plan', task_done: true, required: true,  order_index: 0 },
+    { stage_id: sEs, type: 'task', task_name: 'Integrate Hardware',      task_assignee: 'personal', task_source: 'plan', task_done: true, required: true,  order_index: 1 },
+    { stage_id: sEs, type: 'task', task_name: 'Set Up Compliance Flows', task_assignee: 'personal', task_source: 'plan', task_done: true, required: true,  order_index: 2 },
+    { stage_id: sEs, type: 'task', task_name: 'Integrate Accounting',    task_assignee: 'personal', task_source: 'plan', task_done: true, required: true,  order_index: 3 },
+    { stage_id: sEs, type: 'task', task_name: 'Custom Workflow Setup',   task_assignee: 'personal', task_source: 'plan', task_done: true, required: false, order_index: 4 },
 
-  await admin.from('milestones').insert([
-    { id: m2cfg, account_id: a2, name: 'Configuration', order_index: 0 },
-    { id: m2tr,  account_id: a2, name: 'Training',      order_index: 1 },
-    { id: m2val, account_id: a2, name: 'Validation',    order_index: 2 },
-    { id: m2gl,  account_id: a2, name: 'Go-Live',       order_index: 3 },
-  ])
+    // ── Pre Transaction training (complete) ──────────────────────────────────
+    { stage_id: sPre, type: 'session', session_name: 'Pre Transaction', session_status: 'complete', required: true, order_index: 0 },
 
-  await admin.from('stages').insert([
-    { id: s2ac,  milestone_id: m2cfg, name: 'Account Creation',  status: 'complete', order_index: 0 },
-    { id: s2ki,  milestone_id: m2cfg, name: 'Kickoff',           status: 'complete', order_index: 1 },
-    { id: s2di,  milestone_id: m2cfg, name: 'Discovery',         status: 'active',   order_index: 2 },
-    { id: s2es,  milestone_id: m2cfg, name: 'Environment Setup', status: 'locked',   order_index: 3 },
-    { id: s2tr,  milestone_id: m2tr,  name: 'Training',          status: 'locked',   order_index: 0 },
-    { id: s2uts, milestone_id: m2val, name: 'User Testing',      status: 'locked',   order_index: 0 },
-    { id: s2rr,  milestone_id: m2val, name: 'Readiness Review',  status: 'locked',   order_index: 1 },
-    { id: s2la,  milestone_id: m2gl,  name: 'Launch',            status: 'locked',   order_index: 0 },
-  ])
+    // ── Transacting training (active) ────────────────────────────────────────
+    { stage_id: sTx, type: 'session', session_name: 'Transacting', session_status: 'pending', required: true, order_index: 0 },
 
-  await admin.from('items').insert([
-    // Account Creation — all done
-    { stage_id: s2ac, type: 'task', task_name: 'Add primary contacts',  task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 0 },
-    { stage_id: s2ac, type: 'task', task_name: 'Select products / SKUs',task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 1 },
-    { stage_id: s2ac, type: 'task', task_name: 'Set ARR',               task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 2 },
-    { stage_id: s2ac, type: 'task', task_name: 'Add sales context',     task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 3 },
-    // Kickoff — session done, data template sent but NOT returned yet
-    { stage_id: s2ki, type: 'session', session_name: 'Kickoff Meeting', session_status: 'complete', required: true,  order_index: 0 },
-    { stage_id: s2ki, type: 'task', task_name: 'Send Data Template',    task_assignee: 'personal', task_source: 'plan', task_done: true,  required: true,  order_index: 1 },
-    { stage_id: s2ki, type: 'task', task_name: 'Return Data Template',  task_assignee: 'customer', task_source: 'plan', task_done: false, required: true,  order_index: 2 },
-    // Discovery — active, nothing done yet
-    { stage_id: s2di, type: 'session', session_name: 'Discovery Meeting', session_status: 'pending', required: true,  order_index: 0 },
-    { stage_id: s2di, type: 'task', task_name: 'Send Hardware Doc',      task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 1 },
-    { stage_id: s2di, type: 'task', task_name: 'Return Hardware Doc',    task_assignee: 'customer', task_source: 'plan', task_done: false, required: true,  order_index: 2 },
-    { stage_id: s2di, type: 'task', task_name: 'Send Compliance Doc',   task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 3 },
-    { stage_id: s2di, type: 'task', task_name: 'Return Compliance Doc', task_assignee: 'customer', task_source: 'plan', task_done: false, required: true,  order_index: 4 },
-    { stage_id: s2di, type: 'task', task_name: 'Send Reporting Doc',    task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 5 },
-    { stage_id: s2di, type: 'task', task_name: 'Return Reporting Doc',  task_assignee: 'customer', task_source: 'plan', task_done: false, required: true,  order_index: 6 },
-    { stage_id: s2di, type: 'task', task_name: 'Send Accounting Doc',   task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 7 },
-    { stage_id: s2di, type: 'task', task_name: 'Return Accounting Doc', task_assignee: 'customer', task_source: 'plan', task_done: false, required: true,  order_index: 8 },
-    // Environment Setup — locked
-    { stage_id: s2es, type: 'task', task_name: 'Upload Data',             task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 0 },
-    { stage_id: s2es, type: 'task', task_name: 'Integrate Hardware',      task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 1 },
-    { stage_id: s2es, type: 'task', task_name: 'Set Up Compliance Flows', task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 2 },
-    { stage_id: s2es, type: 'task', task_name: 'Integrate Accounting',    task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 3 },
-    { stage_id: s2es, type: 'task', task_name: 'Custom Workflow Setup',   task_assignee: 'personal', task_source: 'plan', task_done: false, required: false, order_index: 4 },
-    // Training — locked (no templates in demo)
-    { stage_id: s2tr, type: 'session', session_name: 'Training Session', session_status: 'pending', required: true,  order_index: 0 },
-    { stage_id: s2tr, type: 'task', task_name: 'Confirm training complete', task_assignee: 'customer', task_source: 'plan', task_done: false, required: true,  order_index: 1 },
-    // User Testing — locked
-    { stage_id: s2uts, type: 'log', task_name: 'Log Daily Job/Ticket Usage', task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 0 },
-    // Readiness Review — locked
-    { stage_id: s2rr, type: 'session', session_name: 'Q&A',                                session_status: 'pending', required: true,  order_index: 0 },
-    { stage_id: s2rr, type: 'task', task_name: 'Send Pre-Launch Checklist',  task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 1 },
-    { stage_id: s2rr, type: 'task', task_name: 'Return Pre-Launch Checklist',task_assignee: 'customer', task_source: 'plan', task_done: false, required: true,  order_index: 2 },
-    { stage_id: s2rr, type: 'task', task_name: 'Review Pre-Launch Checklist',task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 3 },
-    // Launch — locked
-    { stage_id: s2la, type: 'task',    task_name: 'Usage Review',       task_assignee: 'personal', task_source: 'plan', task_done: false, required: true,  order_index: 0 },
-    { stage_id: s2la, type: 'session', session_name: 'Post-Launch Check-In', session_status: 'pending', required: false, order_index: 1 },
-    { stage_id: s2la, type: 'handoff', handoff_name: 'CSM Handoff',                                      required: false, order_index: 2 },
+    // ── Post Transaction training (locked) ───────────────────────────────────
+    { stage_id: sPost, type: 'session', session_name: 'Post Transaction', session_status: 'pending', required: true, order_index: 0 },
+
+    // ── User Testing (locked) ────────────────────────────────────────────────
+    { stage_id: sUt, type: 'log', task_name: 'Daily Ticket Usage', task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 0 },
+
+    // ── Readiness Review (locked) ────────────────────────────────────────────
+    { stage_id: sRr, type: 'session', session_name: 'Q&A Session',                  session_status: 'pending', required: true, order_index: 0 },
+    // EXCHANGE: Pre-Launch Checklist → Send + Return
+    { stage_id: sRr, type: 'task', task_name: 'Send Pre-Launch Checklist',          task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 1 },
+    { stage_id: sRr, type: 'task', task_name: 'Return Pre-Launch Checklist',        task_assignee: 'customer', task_source: 'plan', task_done: false, required: true, order_index: 2 },
+    { stage_id: sRr, type: 'task', task_name: 'Review Pre-Launch Checklist',        task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 3 },
+    { stage_id: sRr, type: 'task', task_name: 'Outstanding Item Clean Up',          task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 4 },
+
+    // ── Launch (locked) ──────────────────────────────────────────────────────
+    { stage_id: sLaunch, type: 'task', task_name: 'Usage Review', task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 0 },
+
+    // ── Post Launch (locked) ─────────────────────────────────────────────────
+    { stage_id: sPostLaunch, type: 'session', session_name: 'Post-Launch Check-In', session_status: 'pending', required: true, order_index: 0 },
+    { stage_id: sPostLaunch, type: 'task', task_name: 'Build Handoff Doc',          task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 1 },
+    { stage_id: sPostLaunch, type: 'task', task_name: 'Handoff to CSM',             task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 2 },
   ])
 
   return NextResponse.json({ ok: true })
