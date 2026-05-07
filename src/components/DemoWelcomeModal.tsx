@@ -53,10 +53,6 @@ export function DemoWelcomeModal() {
         {/* Sections */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          <Section icon="🌗" title="Light &amp; dark mode">
-            Use the <strong style={{ color: '#e2e8f0' }}>☽ Dark / ☀ Light</strong> pill in the top-right header to switch themes. Prefer light mode? Try it — both are tuned for the app.
-          </Section>
-
           <Section icon="💬" title="Tooltips everywhere">
             Hover over column headers, status badges, stage names, and health labels throughout the app to see what they mean. Most data points in the dashboard and account views have contextual tooltips built in.
           </Section>

@@ -32,7 +32,7 @@ export function WelcomeModal() {
         border: '1px solid var(--border)',
         borderRadius: 14,
         padding: '32px 36px',
-        width: 460,
+        width: 420,
         maxWidth: 'calc(100vw - 32px)',
         maxHeight: 'calc(100dvh - 32px)',
         overflowY: 'auto',
@@ -43,26 +43,30 @@ export function WelcomeModal() {
             Welcome to ReSPARK Onboard
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text)', margin: 0, lineHeight: 1.6 }}>
-            A couple things before you dive in.
+            One thing to know before you dive in.
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          <Tip icon="🌗" title="Light & dark mode">
-            Use the <strong style={{ color: 'var(--text-h)' }}>☽ Dark / ☀ Light</strong> toggle in the top-right header to switch themes. It&rsquo;s also in your user menu if you&rsquo;re on mobile.
-          </Tip>
-
-          <Tip icon="💬" title="Tooltips">
-            Hover over column headers, status badges, stage names, and health labels to see what they mean. Toggle them on or off from your user menu.
-          </Tip>
-
+        <div style={{
+          display: 'flex', gap: 14, alignItems: 'flex-start',
+          background: 'var(--bg-surface2)',
+          border: '1px solid var(--border)',
+          borderRadius: 9,
+          padding: '14px 16px',
+        }}>
+          <span style={{ fontSize: 20, lineHeight: 1, marginTop: 1, flexShrink: 0 }}>💬</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-h)', marginBottom: 4 }}>Tooltips</div>
+            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>
+              Hover over column headers, status badges, stage names, and health labels to see what they mean. Toggle them on or off from your user menu.
+            </div>
+          </div>
         </div>
 
         <button
           onClick={dismiss}
           style={{
-            marginTop: 24, width: '100%',
+            marginTop: 20, width: '100%',
             background: 'var(--accent)',
             border: 'none', borderRadius: 9,
             padding: '12px 20px',
@@ -76,24 +80,6 @@ export function WelcomeModal() {
         >
           Got it →
         </button>
-      </div>
-    </div>
-  )
-}
-
-function Tip({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
-  return (
-    <div style={{
-      display: 'flex', gap: 14, alignItems: 'flex-start',
-      background: 'var(--bg-surface2)',
-      border: '1px solid var(--border)',
-      borderRadius: 9,
-      padding: '14px 16px',
-    }}>
-      <span style={{ fontSize: 20, lineHeight: 1, marginTop: 1, flexShrink: 0 }}>{icon}</span>
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-h)', marginBottom: 4 }}>{title}</div>
-        <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>{children}</div>
       </div>
     </div>
   )
