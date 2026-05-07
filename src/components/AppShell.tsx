@@ -572,6 +572,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
           <DashboardView
             accounts={filteredAccounts}
             currentMember={currentMember}
+            currentAvatarUrl={currentUser.user_metadata?.avatar_url as string | undefined}
             orgMembers={orgMembers}
             trainingTemplates={trainingTemplates}
             planTemplates={planTemplates}

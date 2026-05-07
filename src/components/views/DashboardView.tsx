@@ -631,6 +631,7 @@ const secondaryBtnStyle: React.CSSProperties = {
 interface Props {
   accounts: Account[]
   currentMember: OrgMember | undefined
+  currentAvatarUrl?: string
   orgMembers: OrgMember[]
   trainingTemplates: TrainingTemplate[]
   planTemplates: PlanTemplate[]
@@ -671,7 +672,7 @@ function isHandedOff(account: Account): boolean {
   return milestones.every(m => m.stages.length > 0 && m.stages.every(s => s.status === 'complete'))
 }
 
-export function DashboardView({ accounts, currentMember, orgMembers, trainingTemplates, planTemplates, sessionTemplates, accountsWithSuggestions, onSelectAccount, onRefresh }: Props) {
+export function DashboardView({ accounts, currentMember, currentAvatarUrl, orgMembers, trainingTemplates, planTemplates, sessionTemplates, accountsWithSuggestions, onSelectAccount, onRefresh }: Props) {
   const [showCreate, setShowCreate] = useState(false)
   const [expandedTask, setExpandedTask] = useState<string | null>(null)
   const [showWeeklySummary, setShowWeeklySummary] = useState(false)
@@ -940,6 +941,18 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
                 >
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      {/* Owner avatar — shown when current user owns this account */}
+                      {account.owner_id === currentMember?.user_id && currentAvatarUrl && (
+                        <Tooltip content="Your account" placement="top">
+                          <img
+                            src={currentAvatarUrl}
+                            alt=""
+                            width={18} height={18}
+                            referrerPolicy="no-referrer"
+                            style={{ borderRadius: '50%', flexShrink: 0, border: '1.5px solid var(--border)', display: 'block' }}
+                          />
+                        </Tooltip>
+                      )}
                       <span style={{ fontSize: 13, color: '#5DDDE3', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name}</span>
                       {account.arr > 0 && (
                         <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
@@ -949,7 +962,7 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
                       {accountsWithSuggestions.has(account.id) && (
                         <span className="ai-dot" title="AI suggestions available" />
                       )}
-                      {isManager && (() => {
+                      {isManager && account.owner_id !== currentMember?.user_id && (() => {
                         const owner = orgMembers.find(m => m.user_id === account.owner_id)
                         if (!owner) return null
                         const initials = owner.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
