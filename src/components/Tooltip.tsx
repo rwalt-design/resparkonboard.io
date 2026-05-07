@@ -47,9 +47,13 @@ export function Tooltip({ content, children, placement = 'top', delay = 400 }: T
   const show = () => {
     timerRef.current = setTimeout(() => {
       if (!triggerRef.current) return
-      const rect = triggerRef.current.getBoundingClientRect()
-      let top = 0, left = 0
+      // display:contents means the span itself has no box — use the first child element's rect
+      const el = (triggerRef.current.firstElementChild ?? triggerRef.current) as Element
+      const rect = el.getBoundingClientRect()
       const gap = 6
+      const maxW = 240
+      let top = 0, left = 0
+
       if (placement === 'top') {
         top = rect.top - gap
         left = rect.left + rect.width / 2
@@ -63,6 +67,13 @@ export function Tooltip({ content, children, placement = 'top', delay = 400 }: T
         top = rect.top + rect.height / 2
         left = rect.right + gap
       }
+
+      // Clamp horizontally so the tooltip never bleeds off screen
+      if (placement === 'top' || placement === 'bottom') {
+        const half = maxW / 2
+        left = Math.max(half + 8, Math.min(window.innerWidth - half - 8, left))
+      }
+
       setCoords({ top, left })
       setVisible(true)
     }, delay)
@@ -79,10 +90,10 @@ export function Tooltip({ content, children, placement = 'top', delay = 400 }: T
     position: 'absolute',
     width: 0, height: 0,
     border: '4px solid transparent',
-    ...(placement === 'top'    ? { top: '100%',  left: '50%', transform: 'translateX(-50%)', borderTopColor:    'var(--bg-surface3)' } : {}),
-    ...(placement === 'bottom' ? { bottom: '100%',left: '50%', transform: 'translateX(-50%)', borderBottomColor: 'var(--bg-surface3)' } : {}),
-    ...(placement === 'left'   ? { left: '100%',  top: '50%',  transform: 'translateY(-50%)', borderLeftColor:   'var(--bg-surface3)' } : {}),
-    ...(placement === 'right'  ? { right: '100%', top: '50%',  transform: 'translateY(-50%)', borderRightColor:  'var(--bg-surface3)' } : {}),
+    ...(placement === 'top'    ? { top: '100%',   left: '50%', transform: 'translateX(-50%)', borderTopColor:    'var(--bg-surface3)' } : {}),
+    ...(placement === 'bottom' ? { bottom: '100%', left: '50%', transform: 'translateX(-50%)', borderBottomColor: 'var(--bg-surface3)' } : {}),
+    ...(placement === 'left'   ? { left: '100%',   top: '50%',  transform: 'translateY(-50%)', borderLeftColor:   'var(--bg-surface3)' } : {}),
+    ...(placement === 'right'  ? { right: '100%',  top: '50%',  transform: 'translateY(-50%)', borderRightColor:  'var(--bg-surface3)' } : {}),
   }
 
   const boxStyle: React.CSSProperties = {
