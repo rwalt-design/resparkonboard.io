@@ -954,11 +954,7 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
   }
 
   const handleAddItem = async () => {
-    if (itemType === 'training') {
-      if (!selectedTrainingTemplateId) return
-    } else if (itemType !== 'golive') {
-      if (!itemName.trim() && itemType !== 'session') return
-    }
+    if (itemType !== 'golive' && !itemName.trim()) return
     const insertPayload: Record<string, unknown> = {
       stage_id: stage.id,
       type: itemType === 'exchange' ? 'task' : itemType === 'training' ? 'session' : itemType,
@@ -985,10 +981,9 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
       insertPayload.session_status        = 'pending'
       if (tmpl?.agenda?.length)           insertPayload.session_agenda = tmpl.agenda
     } else if (itemType === 'training') {
-      const tmpl = trainingTemplates.find(t => t.id === selectedTrainingTemplateId)
-      insertPayload.session_name          = tmpl?.name || 'Training'
-      insertPayload.session_status        = 'pending'
-      insertPayload.training_template_id  = selectedTrainingTemplateId
+      insertPayload.session_name         = itemName.trim()
+      insertPayload.session_status       = 'pending'
+      if (selectedTrainingTemplateId)    insertPayload.training_template_id = selectedTrainingTemplateId
     } else if (itemType === 'exchange') {
       // Two tasks: Send (respark) + Return (customer)
       const base = { stage_id: stage.id, type: 'task', required: itemRequired, task_source: 'manual', task_done: false }
@@ -1189,15 +1184,20 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                   color: itemRequired ? '#10b981' : 'var(--text-3)',
                 }}>{itemRequired ? 'required' : 'optional'}</button>
               </div>
-              {/* Training template picker */}
+              {/* Training template picker (optional — also allows custom name) */}
               {itemType === 'training' && trainingTemplates.length > 0 && (
                 <select
                   name="training-template"
                   value={selectedTrainingTemplateId}
-                  onChange={e => setSelectedTrainingTemplateId(e.target.value)}
+                  onChange={e => {
+                    const id = e.target.value
+                    setSelectedTrainingTemplateId(id)
+                    const tmpl = trainingTemplates.find(t => t.id === id)
+                    if (tmpl) setItemName(tmpl.name)
+                  }}
                   style={{ ...inputStyle, fontSize: 12, marginBottom: 6, width: '100%' }}
                 >
-                  <option value="">— pick a training template —</option>
+                  <option value="">— custom training (no template) —</option>
                   {trainingTemplates.map(t => (
                     <option key={t.id} value={t.id}>{t.name}{t.duration_minutes ? ` (${t.duration_minutes}m)` : ''}</option>
                   ))}
@@ -1208,7 +1208,12 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                 <select
                   name="session-template"
                   value={selectedSessionTemplateId}
-                  onChange={e => setSelectedSessionTemplateId(e.target.value)}
+                  onChange={e => {
+                    const id = e.target.value
+                    setSelectedSessionTemplateId(id)
+                    const tmpl = sessionTemplates.find(t => t.id === id)
+                    if (tmpl) setItemName(tmpl.name)
+                  }}
                   style={{ ...inputStyle, fontSize: 12, marginBottom: 6, width: '100%' }}
                 >
                   <option value="">— custom session (no template) —</option>
@@ -1218,24 +1223,23 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                 </select>
               )}
               <div style={{ display: 'flex', gap: 6 }}>
-                {itemType !== 'training' && (
-                  <input
-                    autoFocus
-                    name="item-name"
-                    value={itemName}
-                    onChange={e => setItemName(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleAddItem(); if (e.key === 'Escape') { setAddingItem(false); setItemName('') } }}
-                    placeholder={
-                      itemType === 'task'       ? 'What do you need to do?' :
-                      itemType === 'dependency' ? 'What must the customer complete?' :
-                      itemType === 'exchange'   ? 'Document name (e.g. Data Template)' :
-                      itemType === 'session'    ? 'Session name (or pick template above)...' :
-                      itemType === 'golive'     ? 'Label (optional, defaults to "Go Live")' :
-                      'Name...'
-                    }
-                    style={{ ...inputStyle, flex: 1, fontSize: 12 }}
-                  />
-                )}
+                <input
+                  autoFocus
+                  name="item-name"
+                  value={itemName}
+                  onChange={e => setItemName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddItem(); if (e.key === 'Escape') { setAddingItem(false); setItemName('') } }}
+                  placeholder={
+                    itemType === 'task'       ? 'What do you need to do?' :
+                    itemType === 'dependency' ? 'What must the customer complete?' :
+                    itemType === 'exchange'   ? 'Document name (e.g. Data Template)' :
+                    itemType === 'session'    ? 'Session name (or pick template above)...' :
+                    itemType === 'training'   ? 'Training name (or pick template above)...' :
+                    itemType === 'golive'     ? 'Label (optional, defaults to "Go Live")' :
+                    'Name...'
+                  }
+                  style={{ ...inputStyle, flex: 1, fontSize: 12 }}
+                />
                 <button onClick={handleAddItem} style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px' }}>Add</button>
                 <button onClick={() => { setAddingItem(false); setItemName(''); setSelectedSessionTemplateId(''); setSelectedTrainingTemplateId('') }} style={{ ...ghostBtn, fontSize: 11, padding: '4px 10px' }}>✕</button>
               </div>
