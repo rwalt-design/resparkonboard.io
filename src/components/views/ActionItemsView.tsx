@@ -522,6 +522,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
   const [loading, setLoading]         = useState(true)
   const [scanning, setScanning]       = useState(false)
   const [acting, setActing]           = useState<string | null>(null)
+  const [lastAction, setLastAction]   = useState<{ suggestion: AiSuggestion; action: 'accept' | 'dismiss' } | null>(null)
 
   const loadSuggestions = useCallback(async () => {
     setLoading(true)
@@ -536,6 +537,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
   useEffect(() => { loadSuggestions() }, [loadSuggestions])
 
   const act = async (id: string, action: 'accept' | 'dismiss') => {
+    const target = suggestions.find(s => s.id === id)
     setActing(id)
     await fetch('/api/ai/suggestions', {
       method: 'PATCH',
@@ -545,6 +547,19 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
     setSuggestions(prev => prev.filter(s => s.id !== id))
     onCountChange(suggestions.filter(s => s.id !== id && s.status === 'pending').length)
     setActing(null)
+    if (target) setLastAction({ suggestion: target, action })
+  }
+
+  const undo = async () => {
+    if (!lastAction) return
+    await fetch('/api/ai/suggestions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: lastAction.suggestion.id, action: 'undo' }),
+    })
+    setSuggestions(prev => [{ ...lastAction.suggestion, status: 'pending' }, ...prev])
+    onCountChange(suggestions.length + 1)
+    setLastAction(null)
   }
 
   const scanPlans = async () => {
@@ -646,6 +661,25 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
           }}
         >{scanning ? '✦ Scanning plans…' : '✦ Scan plans for completions'}</button>
       </div>
+
+      {lastAction && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#1BB3BB14', border: '1px solid #1BB3BB30', borderRadius: 6,
+          padding: '8px 14px', marginBottom: 12, gap: 12,
+        }}>
+          <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+            {lastAction.action === 'accept' ? 'Accepted' : 'Dismissed'}:{' '}
+            <span style={{ color: 'var(--text-h)' }}>{lastAction.suggestion.title}</span>
+          </span>
+          <button onClick={undo} style={{
+            background: 'none', border: '1px solid #1BB3BB60', borderRadius: 5,
+            padding: '3px 10px', color: '#1BB3BB',
+            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+            whiteSpace: 'nowrap',
+          }}>Undo</button>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ color: 'var(--text-3)', fontSize: 13, padding: '32px 0', textAlign: 'center' }}>Loading suggestions…</div>

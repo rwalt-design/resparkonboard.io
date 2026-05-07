@@ -49,6 +49,11 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  if (action === 'undo') {
+    await supabase.from('ai_suggestions').update({ status: 'pending' }).eq('id', id)
+    return NextResponse.json({ ok: true })
+  }
+
   if (action !== 'accept') return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
 
   // Fetch the suggestion to know what to do

@@ -215,8 +215,6 @@ Return JSON only: an array of suggestion objects.`
       const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '')
       const suggestions = JSON.parse(clean) as Array<Record<string, unknown>>
 
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-
       for (const s of suggestions) {
         if (s.suggestion_type === 'task_completion') {
           const title = (s.label as string) || `Mark complete: ${s.task_name}`
@@ -224,7 +222,6 @@ Return JSON only: an array of suggestion objects.`
             .from('ai_suggestions').select('id')
             .eq('account_id', account.id)
             .eq('title', title)
-            .gte('created_at', thirtyDaysAgo)
             .limit(1).single()
           if (existing) continue
           await supabase.from('ai_suggestions').insert({
@@ -253,7 +250,6 @@ Return JSON only: an array of suggestion objects.`
             .from('ai_suggestions').select('id')
             .eq('account_id', account.id)
             .eq('title', title)
-            .gte('created_at', thirtyDaysAgo)
             .limit(1).single()
           if (existing) continue
           await supabase.from('ai_suggestions').insert({
