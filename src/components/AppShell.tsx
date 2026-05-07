@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getTooltipsEnabled, setTooltipsEnabled } from '@/components/Tooltip'
+import { Tooltip, getTooltipsEnabled, setTooltipsEnabled } from '@/components/Tooltip'
 import type { Account, OrgMember, TrainingTemplate, Connector, PlanTemplate, SessionTemplate } from '@/types'
 import { DashboardView } from './views/DashboardView'
 import { AccountView } from './views/AccountView'
@@ -210,11 +210,11 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
     }
   }, [selectedAccount])
 
-  const navItems: { id: View; label: string; icon: string }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: '▤' },
-    { id: 'actions', label: 'Action Items', icon: '✓' },
-    { id: 'ttl', label: 'Time to Launch', icon: '◎' },
-    { id: 'templates', label: 'Templates', icon: '⊞' },
+  const navItems: { id: View; label: string; icon: string; tip: string }[] = [
+    { id: 'dashboard', label: 'Dashboard',    icon: '▤', tip: 'All accounts at a glance — health, outreach, timeline, and tasks' },
+    { id: 'actions',   label: 'Action Items', icon: '✓', tip: 'Your open tasks and items waiting on customers across all accounts' },
+    { id: 'ttl',       label: 'Time to Launch', icon: '◎', tip: 'Projected go-live dates and onboarding velocity for all accounts' },
+    { id: 'templates', label: 'Templates',    icon: '⊞', tip: 'Manage reusable plan, session, and training templates' },
   ]
 
   const isNavActive = (id: View) => view === id && selectedAccount === null
@@ -254,8 +254,8 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
         {/* Nav */}
         <nav style={{ display: 'flex', gap: 2, flex: 1 }}>
           {navItems.map(item => (
+            <Tooltip key={item.id} content={item.tip} placement="bottom">
             <button
-              key={item.id}
               onClick={() => { setView(item.id); setSelectedAccount(null); navigate(item.id) }}
               style={{
                 background: isNavActive(item.id) ? 'var(--border)' : 'none',
@@ -271,6 +271,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
               <span style={{ fontSize: 11 }}>{item.icon}</span>
               {item.label}
             </button>
+            </Tooltip>
           ))}
         </nav>
 
@@ -303,6 +304,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
                 synced {lastSynced}
               </span>
             )}
+            <Tooltip content="Pull new emails and interactions from your connected inbox" placement="bottom">
             <button
               onClick={handleSync}
               disabled={syncing}
@@ -319,6 +321,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
               <span style={{ fontSize: 10 }}>{syncing ? '↻' : '⟳'}</span>
               {syncing ? 'Syncing…' : 'Sync'}
             </button>
+            </Tooltip>
           </div>
         )}
 
