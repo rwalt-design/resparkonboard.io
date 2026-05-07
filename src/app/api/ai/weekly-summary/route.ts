@@ -4,6 +4,12 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+const SKU_LABEL: Record<string, string> = {
+  dispatch:            'Dispatch',
+  facility_management: 'Facility Management',
+  full_suite:          'Full Suite',
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,51 +22,70 @@ export async function POST(request: NextRequest) {
   const now = Date.now()
   const weekMs = 7 * 24 * 60 * 60 * 1000
 
-  // Build a compact snapshot for each account that had activity this week
-  const activeAccounts = accounts
-    .map((a: any) => {
-      const recent = (a.interactions || []).filter((i: any) =>
-        now - new Date(i.created_at).getTime() <= weekMs
-      )
-      const newTasks = (a.open_tasks || []).filter((t: any) =>
-        now - new Date(t.created_at || 0).getTime() <= weekMs
-      )
-      return { account: a, recent, newTasks }
-    })
-    .filter(({ recent, newTasks }) => recent.length > 0 || newTasks.length > 0)
+  // Only accounts that had interactions or new tasks this week
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const active = accounts.filter((a: any) =>
+    (a.interactions || []).some((i: any) => now - new Date(i.created_at).getTime() <= weekMs) ||
+    (a.open_tasks   || []).some((t: any) => now - new Date(t.created_at || 0).getTime() <= weekMs)
+  )
+  if (!active.length) return NextResponse.json({ summaries: [] })
 
-  if (!activeAccounts.length) return NextResponse.json({ summaries: [] })
+  // ── Build structured fields from account data ─────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const structured = active.map((a: any) => {
+    const goLiveDate = a.go_live_date ? new Date(a.go_live_date + 'T00:00:00') : null
+    const rawDaysToLive = goLiveDate ? Math.round((goLiveDate.getTime() - now) / 86400000) : null
+    const paused = a.paused_days ?? 0
+    const daysToLive = rawDaysToLive != null ? rawDaysToLive + paused : null
 
-  // Build a single prompt covering all active accounts (cheaper than N calls)
-  const accountBlocks = activeAccounts.map(({ account, recent, newTasks }) => {
-    const lines = recent.map((i: any) =>
-      `  - [${i.type}] ${i.summary}${i.detail ? ': ' + i.detail.slice(0, 80) : ''}`
+    return {
+      account_id:         a.id,
+      account_name:       a.name,
+      sku:                SKU_LABEL[a.sku] ?? a.sku,
+      current_stage:      a.currentStage  ?? null,
+      completion_pct:     a.completionPct ?? null,
+      days_since_contact: a.daysSinceContact === 999 ? null : (a.daysSinceContact ?? null),
+      days_since_outreach:a.daysSinceOutreach === 999 ? null : (a.daysSinceOutreach ?? null),
+      days_to_live:       daysToLive,
+    }
+  })
+
+  // ── Build activity blocks for Claude ─────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activityBlocks = active.map((a: any) => {
+    const recent = (a.interactions || []).filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (i: any) => now - new Date(i.created_at).getTime() <= weekMs
     )
-    const taskLines = newTasks.map((t: any) => `  - Task: ${t.name} (${t.assignee})`)
-    return [
-      `Account: ${account.name}`,
-      ...lines,
-      ...taskLines,
-    ].join('\n')
+    const newTasks = (a.open_tasks || []).filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (t: any) => now - new Date(t.created_at || 0).getTime() <= weekMs
+    )
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const lines = recent.map((i: any) =>
+      `  [${i.type}] ${i.summary}${i.detail ? ' — ' + i.detail.slice(0, 120) : ''}`
+    )
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const taskLines = newTasks.map((t: any) => `  [task] ${t.name}`)
+    return [`Account: ${a.name}`, ...lines, ...taskLines].join('\n')
   }).join('\n\n')
 
-  const prompt = `You are a customer success manager writing a quick weekly standup update.
-For each account below, write exactly 1-2 sentences summarizing what happened this week.
-Be specific and plain — no fluff, no "it's important to note that", just the facts.
-If there was a call or meeting, mention it. If there were emails or requests, mention those.
-If tasks were created, mention what kind.
+  const prompt = `You are a customer success manager writing a weekly update.
+For each account, write 1-2 sentences summarizing only what happened this week.
+Be specific — name the meetings, calls, emails, or tasks. No filler phrases.
+If nothing meaningful happened beyond task creation, say so briefly.
 
-${accountBlocks}
+${activityBlocks}
 
-Respond as a JSON array with one object per account, in the same order:
-[{"account_id": "...", "account_name": "...", "summary": "..."}]
+Return a JSON array in the same order:
+[{"account_name": "...", "summary": "..."}]
 
-Use the exact account names provided. Only return the JSON array.`
+Only return the JSON array.`
 
   try {
     const msg = await anthropic.messages.create({
       model: 'claude-opus-4-5',
-      max_tokens: 1000,
+      max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
     })
 
@@ -69,21 +94,15 @@ Use the exact account names provided. Only return the JSON array.`
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parsed: any[] = JSON.parse(clean)
 
-    // Match back by name since we didn't pass IDs in the prompt
-    const summaries = parsed.map((item: any) => {
-      const match = activeAccounts.find(({ account }) =>
-        account.name === item.account_name
-      )
-      return {
-        account_id: match?.account.id || item.account_id || '',
-        account_name: item.account_name,
-        summary: item.summary,
-      }
+    const summaries = structured.map(s => {
+      const aiRow = parsed.find(p => p.account_name === s.account_name)
+      return { ...s, summary: aiRow?.summary ?? '' }
     })
 
     return NextResponse.json({ summaries })
   } catch (e) {
     console.error('Weekly summary AI error:', e)
-    return NextResponse.json({ summaries: [] })
+    // Return structured data without summaries rather than nothing
+    return NextResponse.json({ summaries: structured.map(s => ({ ...s, summary: '' })) })
   }
 }
