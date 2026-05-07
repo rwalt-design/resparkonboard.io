@@ -99,8 +99,16 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
   const [viewUserId, setViewUserId] = useState<string>(currentMember?.user_id ?? '')
   useEffect(() => {
     const stored = localStorage.getItem('view-filter')
-    if (stored) setViewUserId(stored)
-  }, [])
+    const validIds = new Set(['all', ...orgMembers.map(m => m.user_id)])
+    if (stored && validIds.has(stored)) {
+      setViewUserId(stored)
+    } else {
+      // Stale or missing (e.g. leftover from a demo session) — reset to current user
+      const fallback = currentMember?.user_id ?? ''
+      setViewUserId(fallback)
+      if (fallback) localStorage.setItem('view-filter', fallback)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateViewFilter = (userId: string) => {
     setViewUserId(userId)
@@ -110,7 +118,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
 
   const viewLabel = viewUserId === 'all'
     ? 'All Accounts'
-    : (orgMembers.find(m => m.user_id === viewUserId)?.name ?? 'My Accounts')
+    : (orgMembers.find(m => m.user_id === viewUserId)?.name ?? currentMember?.name ?? 'My Accounts')
 
   const filteredAccounts = viewUserId === 'all'
     ? accounts
