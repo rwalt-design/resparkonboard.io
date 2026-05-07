@@ -96,10 +96,11 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
   const isManager = currentMember?.role === 'manager'
 
   // Global view filter — persisted in localStorage, defaults to the logged-in user's own accounts
-  const [viewUserId, setViewUserId] = useState<string>(() => {
-    if (typeof window === 'undefined') return currentMember?.user_id ?? ''
-    return localStorage.getItem('view-filter') ?? currentMember?.user_id ?? ''
-  })
+  const [viewUserId, setViewUserId] = useState<string>(currentMember?.user_id ?? '')
+  useEffect(() => {
+    const stored = localStorage.getItem('view-filter')
+    if (stored) setViewUserId(stored)
+  }, [])
 
   const updateViewFilter = (userId: string) => {
     setViewUserId(userId)
