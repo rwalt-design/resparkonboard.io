@@ -178,7 +178,7 @@ function ResourceCard({ resource, onRefresh }: { resource: Resource; onRefresh: 
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            fontSize: 14, fontWeight: 600, color: '#60a5fa',
+            fontSize: 14, fontWeight: 600, color: '#5DDDE3',
             textDecoration: 'none', display: 'block',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}

@@ -18,8 +18,8 @@ const SKU_LABELS: Record<string, string> = {
 }
 const SKU_COLORS: Record<string, string> = {
   dispatch: '#f59e0b',
-  facility_management: '#8b5cf6',
-  full_suite: '#3b82f6',
+  facility_management: '#7757F5',
+  full_suite: '#1BB3BB',
 }
 const HEALTH_OPTIONS = [
   { value: 'active',       label: 'Active',       color: '#10b981', tip: 'Onboarding is progressing normally' },
@@ -37,7 +37,7 @@ const STAGE_STATUS_TIPS: Record<string, string> = {
 }
 const STAGE_STATUS_COLORS: Record<string, string> = {
   locked: 'var(--text-3)',
-  active: '#3b82f6',
+  active: '#1BB3BB',
   unlocked: '#f59e0b',
   complete: '#10b981',
 }
@@ -255,7 +255,7 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
         <div style={{ background: 'var(--bg-surface2)', borderRadius: 99, height: 4, overflow: 'hidden' }}>
           <div style={{
             width: `${completionPct}%`, height: '100%', borderRadius: 99,
-            background: completionPct >= 75 ? '#10b981' : '#3b82f6',
+            background: completionPct >= 75 ? '#10b981' : '#1BB3BB',
             transition: 'width 0.3s',
           }} />
         </div>
@@ -272,7 +272,7 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
           <Tooltip key={id} content={tip} placement="bottom">
           <button onClick={() => setTab(id)} style={{
             background: 'none', border: 'none',
-            borderBottom: tab === id ? '2px solid #3b82f6' : '2px solid transparent',
+            borderBottom: tab === id ? '2px solid #1BB3BB' : '2px solid transparent',
             padding: '10px 18px', marginBottom: -1,
             color: tab === id ? 'var(--text-h)' : 'var(--text-2)',
             fontSize: 13, fontWeight: tab === id ? 600 : 400,
@@ -503,7 +503,7 @@ function InlineEdit({ value, onSave, style }: {
         }}
         onClick={e => e.stopPropagation()}
         style={{
-          background: 'var(--bg-surface2)', border: '1px solid #3b82f6', borderRadius: 4,
+          background: 'var(--bg-surface2)', border: '1px solid #1BB3BB', borderRadius: 4,
           padding: '1px 6px', color: 'var(--text-h)', outline: 'none', minWidth: 0, flex: 1,
           fontSize: style?.fontSize, fontWeight: style?.fontWeight, fontFamily: 'var(--font-ui)',
         }}
@@ -666,7 +666,7 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, sessionTemp
         </span>
         {isComplete && <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>Complete</span>}
         <div style={{ width: 80, background: 'var(--bg-surface2)', borderRadius: 99, height: 4, overflow: 'hidden' }}>
-          <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#10b981' : '#3b82f6', borderRadius: 99 }} />
+          <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#10b981' : '#1BB3BB', borderRadius: 99 }} />
         </div>
         <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', width: 32, textAlign: 'right' }}>{pct}%</span>
         {onDelete && (
@@ -906,7 +906,7 @@ function ExchangeRow({ sendItem, returnItem, stageStatus, onUpdate, accountId, o
     <div style={{ opacity: locked ? 0.45 : 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 16px 6px 44px' }}>
         <span style={{ fontSize: 13, color: bothDone ? 'var(--text-3)' : 'var(--text)', flex: 1, textDecoration: bothDone ? 'line-through' : 'none' }}>{label}</span>
-        {pill(sendItem.task_done, 'Sent', '#3b82f6', () => toggle(sendItem))}
+        {pill(sendItem.task_done, 'Sent', '#1BB3BB', () => toggle(sendItem))}
         {pill(returnItem.task_done, 'Received', '#f59e0b', () => toggle(returnItem))}
         {awaitingReturn && !locked && (
           <button
@@ -1262,9 +1262,9 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
               {/* Type picker */}
               <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
                 {([
-                  { id: 'task',       label: 'Task (me)',           color: '#3b82f6', tip: 'A task your team needs to complete' },
+                  { id: 'task',       label: 'Task (me)',           color: '#1BB3BB', tip: 'A task your team needs to complete' },
                   { id: 'dependency', label: 'Dependency (them)',   color: '#f59e0b', tip: 'Something the customer must complete before you can proceed' },
-                  { id: 'exchange',   label: 'Exchange (send/get)', color: '#8b5cf6', tip: 'A document exchange — you send a template and the customer returns it completed' },
+                  { id: 'exchange',   label: 'Exchange (send/get)', color: '#7757F5', tip: 'A document exchange — you send a template and the customer returns it completed' },
                   { id: 'session',    label: 'Session',             color: '#10b981', tip: 'A scheduled meeting or call with the customer' },
                   { id: 'training',   label: 'Training',            color: '#06b6d4', tip: 'A training session — optionally linked to a training template' },
                   { id: 'log',        label: 'Log',                 color: '#6b7280', tip: 'Track recurring usage or check-in metrics' },
@@ -1369,7 +1369,7 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
 }
 
 const ASSIGNEE_COLORS: Record<string, string> = {
-  personal: '#3b82f6', customer: '#f59e0b', internal: '#6b7280',
+  personal: '#1BB3BB', customer: '#f59e0b', internal: '#6b7280',
 }
 
 // Shared sub-checklist hook — used by ItemRow and ExchangeRow
@@ -1408,7 +1408,7 @@ function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
         fontSize: 10, fontFamily: 'var(--font-mono)',
         display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0,
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f640'; e.currentTarget.style.color = 'var(--text)' }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = '#1BB3BB40'; e.currentTarget.style.color = 'var(--text)' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = items.length ? 'var(--border-b)' : 'transparent'; e.currentTarget.style.color = items.length ? 'var(--text-2)' : 'var(--border-b)' }}
     >
       ☰{items.length > 0 ? ` ${doneCount}/${items.length}` : ''}
@@ -1587,7 +1587,7 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete, onGoLiv
             onClick={toggleSession}
             style={{
               width: 15, height: 15, borderRadius: 3, flexShrink: 0,
-              border: isComplete ? 'none' : '1.5px solid #8b5cf6',
+              border: isComplete ? 'none' : '1.5px solid #7757F5',
               background: isComplete ? '#10b981' : 'transparent',
               cursor: locked ? 'default' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1596,7 +1596,7 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete, onGoLiv
             {isComplete && <span style={{ fontSize: 8, color: '#fff', fontWeight: 700 }}>✓</span>}
           </div>
           <InlineEdit value={item.session_name || ''} onSave={saveItemName} style={{ fontSize: 13, color: isComplete ? 'var(--text-3)' : 'var(--text)', textDecoration: isComplete ? 'line-through' : 'none' }} />
-          <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: '#8b5cf618', color: '#8b5cf6', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>session</span>
+          <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: '#7757F518', color: '#7757F5', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>session</span>
           {onOpenSession && (
             <button
               onClick={e => { e.stopPropagation(); onOpenSession(item) }}
@@ -1611,8 +1611,8 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete, onGoLiv
             <button
               onClick={toggleSession}
               style={{
-                background: 'none', border: '1px solid #8b5cf640', borderRadius: 4,
-                padding: '1px 7px', fontSize: 10, color: '#8b5cf6', cursor: 'pointer',
+                background: 'none', border: '1px solid #7757F540', borderRadius: 4,
+                padding: '1px 7px', fontSize: 10, color: '#7757F5', cursor: 'pointer',
                 fontFamily: 'var(--font-ui)', fontWeight: 600, flexShrink: 0,
               }}
             >Mark Complete</button>
@@ -1975,10 +1975,10 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
               onClick={() => handleChipClick(chip)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 5,
-                background: isActive ? '#3b82f615' : 'var(--bg-surface)',
-                border: `1px solid ${isActive ? '#3b82f6' : 'var(--border)'}`,
+                background: isActive ? '#1BB3BB15' : 'var(--bg-surface)',
+                border: `1px solid ${isActive ? '#1BB3BB' : 'var(--border)'}`,
                 borderRadius: 20, padding: '5px 12px',
-                color: isActive ? '#3b82f6' : 'var(--text-2)',
+                color: isActive ? '#1BB3BB' : 'var(--text-2)',
                 fontSize: 12, fontWeight: isActive ? 600 : 400,
                 cursor: 'pointer', fontFamily: 'var(--font-ui)',
                 whiteSpace: 'nowrap', flexShrink: 0,
@@ -2020,8 +2020,8 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
                       key={o}
                       onClick={() => setCalledOutcome(o)}
                       style={{
-                        background: isSelected ? '#3b82f6' : 'var(--bg-surface2)',
-                        border: `1px solid ${isSelected ? '#3b82f6' : 'var(--border)'}`,
+                        background: isSelected ? '#1BB3BB' : 'var(--bg-surface2)',
+                        border: `1px solid ${isSelected ? '#1BB3BB' : 'var(--border)'}`,
                         borderRadius: 6, padding: '5px 12px',
                         color: isSelected ? '#fff' : 'var(--text-2)',
                         fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)',
@@ -2280,7 +2280,7 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
                   <span style={{ fontSize: 13 }}>🔗</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <a href={r.url} target="_blank" rel="noopener noreferrer"
-                      style={{ fontSize: 13, fontWeight: 500, color: '#60a5fa', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      style={{ fontSize: 13, fontWeight: 500, color: '#5DDDE3', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                       onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                     >{r.title}</a>
@@ -2289,10 +2289,10 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
                   <button
                     onClick={() => toggleResource(r.id)}
                     style={{
-                      background: isLinked ? '#3b82f620' : 'none',
-                      border: '1px solid ' + (isLinked ? '#3b82f640' : 'var(--border)'),
+                      background: isLinked ? '#1BB3BB20' : 'none',
+                      border: '1px solid ' + (isLinked ? '#1BB3BB40' : 'var(--border)'),
                       borderRadius: 5, padding: '3px 10px', fontSize: 11,
-                      color: isLinked ? '#60a5fa' : 'var(--text-3)',
+                      color: isLinked ? '#5DDDE3' : 'var(--text-3)',
                       cursor: 'pointer', fontFamily: 'var(--font-ui)', flexShrink: 0,
                     }}
                   >{isLinked ? '✓ Linked' : 'Link'}</button>
@@ -2421,7 +2421,7 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
 
   const SKU_OPTIONS = [['dispatch', 'Dispatch'], ['facility_management', 'Facility Mgmt'], ['full_suite', 'Full Suite']] as const
   const ADDON_OPTIONS = ['brokerage', 'export', 'api'] as const
-  const SKU_COLORS_MAP: Record<string, string> = { dispatch: '#f59e0b', facility_management: '#8b5cf6', full_suite: '#3b82f6' }
+  const SKU_COLORS_MAP: Record<string, string> = { dispatch: '#f59e0b', facility_management: '#7757F5', full_suite: '#1BB3BB' }
 
   const toggleAddon = (addon: string) =>
     setAddons(prev => prev.includes(addon) ? prev.filter(a => a !== addon) : [...prev, addon])
@@ -2534,9 +2534,9 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
             {ADDON_OPTIONS.map(val => (
               <button key={val} onClick={() => toggleAddon(val)} style={{
                 flex: 1, padding: '5px 0', borderRadius: 6,
-                background: addons.includes(val) ? '#3b82f622' : 'var(--bg-surface2)',
-                border: `1px solid ${addons.includes(val) ? '#3b82f6' : 'var(--border-b)'}`,
-                color: addons.includes(val) ? '#3b82f6' : 'var(--text-2)',
+                background: addons.includes(val) ? '#1BB3BB22' : 'var(--bg-surface2)',
+                border: `1px solid ${addons.includes(val) ? '#1BB3BB' : 'var(--border-b)'}`,
+                color: addons.includes(val) ? '#1BB3BB' : 'var(--text-2)',
                 fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', textTransform: 'capitalize',
               }}>{val}</button>
             ))}
@@ -2593,7 +2593,7 @@ function ContactCard({ contact, onSave, onDelete }: {
   if (editing) {
     return (
       <div style={{
-        background: 'var(--bg-surface)', border: '1px solid #3b82f640', borderRadius: 7,
+        background: 'var(--bg-surface)', border: '1px solid #1BB3BB40', borderRadius: 7,
         padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6,
       }}>
         <input name="contact-name"  value={name}  onChange={e => setName(e.target.value)}  placeholder="Name *"
@@ -2623,12 +2623,12 @@ function ContactCard({ contact, onSave, onDelete }: {
         background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 7,
         padding: '10px 12px', cursor: 'pointer', position: 'relative',
       }}
-      onMouseEnter={e => (e.currentTarget.style.borderColor = '#3b82f640')}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = '#1BB3BB40')}
       onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
     >
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>{contact.name}</div>
       {contact.role  && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{contact.role}</div>}
-      {contact.email && <div style={{ fontSize: 11, color: '#3b82f6', marginTop: 3, fontFamily: 'var(--font-mono)' }}>{contact.email}</div>}
+      {contact.email && <div style={{ fontSize: 11, color: '#1BB3BB', marginTop: 3, fontFamily: 'var(--font-mono)' }}>{contact.email}</div>}
       {contact.phone && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>{contact.phone}</div>}
       <span style={{ position: 'absolute', top: 8, right: 10, fontSize: 10, color: 'var(--text-3)' }}>edit</span>
     </div>
@@ -2707,7 +2707,7 @@ function RequestsSection({ account, onUpdate }: { account: Account; onUpdate: (a
   }
 
   const STATUS_COLORS: Record<string, string> = {
-    pending: 'var(--text-3)', sent: '#3b82f6', received: '#f59e0b', complete: '#10b981',
+    pending: 'var(--text-3)', sent: '#1BB3BB', received: '#f59e0b', complete: '#10b981',
   }
 
   return (
@@ -2742,7 +2742,7 @@ function RequestsSection({ account, onUpdate }: { account: Account; onUpdate: (a
 }
 
 const primaryBtn: React.CSSProperties = {
-  background: '#3b82f6', border: 'none', borderRadius: 6,
+  background: '#1BB3BB', border: 'none', borderRadius: 6,
   padding: '7px 16px', color: '#fff', fontSize: 12,
   fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
 }
@@ -2836,7 +2836,7 @@ function AITab({ account }: { account: Account }) {
           <div style={{ marginTop: 4 }}>
             {summary.split('\n').filter(l => l.trim()).map((line, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
-                <span style={{ color: '#3b82f6', flexShrink: 0, marginTop: 1 }}>•</span>
+                <span style={{ color: '#1BB3BB', flexShrink: 0, marginTop: 1 }}>•</span>
                 <span style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5 }}>
                   {line.replace(/^•\s*/, '')}
                 </span>
@@ -2881,7 +2881,7 @@ function AITab({ account }: { account: Account }) {
         </div>
         {emailResult && (
           <div style={{ background: 'var(--bg-surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#1BB3BB', marginBottom: 8 }}>
               Subject: {emailResult.subject}
             </div>
             <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
@@ -3006,7 +3006,7 @@ function SessionModal({ item, onClose, onUpdate }: {
         }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: '#8b5cf618', color: '#8b5cf6', fontFamily: 'var(--font-mono)' }}>SESSION</span>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: '#7757F518', color: '#7757F5', fontFamily: 'var(--font-mono)' }}>SESSION</span>
               {isComplete && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: '#10b98118', color: '#10b981', fontFamily: 'var(--font-mono)' }}>COMPLETE</span>}
             </div>
             <input
@@ -3029,9 +3029,9 @@ function SessionModal({ item, onClose, onUpdate }: {
               style={{
                 padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600,
                 cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                background: isComplete ? '#10b98120' : '#8b5cf620',
-                border: `1px solid ${isComplete ? '#10b98140' : '#8b5cf640'}`,
-                color: isComplete ? '#10b981' : '#8b5cf6',
+                background: isComplete ? '#10b98120' : '#7757F520',
+                border: `1px solid ${isComplete ? '#10b98140' : '#7757F540'}`,
+                color: isComplete ? '#10b981' : '#7757F5',
               }}
             >
               {isComplete ? '↩ Reopen' : '✓ Mark Complete'}
@@ -3056,7 +3056,7 @@ function SessionModal({ item, onClose, onUpdate }: {
               )}
               {agenda.map((item, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}>
-                  <span style={{ fontSize: 11, color: '#8b5cf6', fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
+                  <span style={{ fontSize: 11, color: '#7757F5', fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
                   <span style={{ fontSize: 13, color: 'var(--text)', flex: 1 }}>{item}</span>
                   <button onClick={() => removeAgendaItem(i)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>×</button>
                 </div>
@@ -3145,8 +3145,8 @@ const modalInputStyle: React.CSSProperties = {
   fontSize: 13, fontFamily: 'var(--font-ui)', outline: 'none',
 }
 const modalAddBtn: React.CSSProperties = {
-  background: '#3b82f620', border: '1px solid #3b82f640', borderRadius: 6,
-  padding: '5px 14px', color: '#93c5fd', fontSize: 12,
+  background: '#1BB3BB20', border: '1px solid #1BB3BB40', borderRadius: 6,
+  padding: '5px 14px', color: '#5DDDE3', fontSize: 12,
   fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
 }
 
@@ -3160,7 +3160,7 @@ const aiCardTitle: React.CSSProperties = {
   fontSize: 14, fontWeight: 700, color: 'var(--text-h)',
 }
 const aiBtn: React.CSSProperties = {
-  background: '#3b82f620', border: '1px solid #3b82f640', borderRadius: 6,
-  padding: '5px 14px', color: '#93c5fd', fontSize: 12,
+  background: '#1BB3BB20', border: '1px solid #1BB3BB40', borderRadius: 6,
+  padding: '5px 14px', color: '#5DDDE3', fontSize: 12,
   fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
 }

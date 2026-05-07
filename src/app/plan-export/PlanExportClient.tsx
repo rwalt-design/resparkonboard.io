@@ -12,19 +12,19 @@ const ADDON_LABELS: Record<string, string> = {
 }
 const STATUS_COLORS: Record<string, string> = {
   pending: '#94a3b8',
-  sent: '#3b82f6',
+  sent: '#1BB3BB',
   received: '#f59e0b',
   complete: '#10b981',
 }
 const STATUS_BG: Record<string, string> = {
   pending: '#f1f5f9',
-  sent: '#dbeafe',
+  sent: '#E0F7F8',
   received: '#fef3c7',
   complete: '#d1fae5',
 }
 const STATUS_TEXT_COLOR: Record<string, string> = {
   pending: '#94a3b8',
-  sent: '#1d4ed8',
+  sent: '#007580',
   received: '#92400e',
   complete: '#065f46',
 }
@@ -124,7 +124,7 @@ export function PlanExportClient({ account }: { account: Account }) {
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
-          --accent: #3b82f6; --text: #1e293b; --muted: #64748b;
+          --accent: #1BB3BB; --text: #1e293b; --muted: #64748b;
           --dim: #94a3b8; --border: #e2e8f0; --bg: #f8fafc; --surface: #ffffff;
           --mono: 'DM Mono', monospace; --ui: 'Inter', system-ui, sans-serif;
         }
@@ -138,17 +138,17 @@ export function PlanExportClient({ account }: { account: Account }) {
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 40px 60px', fontFamily: '"Inter", system-ui, sans-serif' }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32, paddingBottom: 20, borderBottom: '2px solid #3b82f6' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32, paddingBottom: 20, borderBottom: '2px solid #1BB3BB' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <div style={{
                 width: 28, height: 28, borderRadius: 6,
-                background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                background: 'linear-gradient(135deg, #1BB3BB, #007580)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 11, fontWeight: 800, color: '#fff', fontFamily: '"DM Mono", monospace',
               }}>ob</div>
               <span style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', letterSpacing: '-0.02em' }}>
-                onboard<span style={{ color: '#3b82f6' }}>.io</span>
+                onboard<span style={{ color: '#1BB3BB' }}>.io</span>
               </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>{account.name}</div>
@@ -167,7 +167,7 @@ export function PlanExportClient({ account }: { account: Account }) {
           </div>
           <div style={{ textAlign: 'right', fontSize: 11, color: '#94a3b8', fontFamily: '"DM Mono", monospace' }}>
             Generated {today}<br />
-            <span style={{ color: '#3b82f6', fontWeight: 600 }}>{totalPct}% complete</span>
+            <span style={{ color: '#1BB3BB', fontWeight: 600 }}>{totalPct}% complete</span>
           </div>
         </div>
 
@@ -175,22 +175,22 @@ export function PlanExportClient({ account }: { account: Account }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
           <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '14px 16px' }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Checklist</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#3b82f6', fontFamily: '"DM Mono", monospace' }}>{totalPct}%</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#1BB3BB', fontFamily: '"DM Mono", monospace' }}>{totalPct}%</div>
             <div style={{ background: '#e2e8f0', borderRadius: 99, height: 6, overflow: 'hidden', margin: '6px 0 4px' }}>
-              <div style={{ width: `${totalPct}%`, height: '100%', borderRadius: 99, background: totalPct >= 75 ? '#10b981' : totalPct >= 40 ? '#3b82f6' : '#f59e0b' }} />
+              <div style={{ width: `${totalPct}%`, height: '100%', borderRadius: 99, background: totalPct >= 75 ? '#10b981' : totalPct >= 40 ? '#1BB3BB' : '#f59e0b' }} />
             </div>
             <div style={{ fontSize: 11, color: '#64748b' }}>{doneRequired} of {totalRequired} items complete</div>
           </div>
           <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '14px 16px' }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Milestones</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#3b82f6', fontFamily: '"DM Mono", monospace' }}>{(account.milestones || []).length}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#1BB3BB', fontFamily: '"DM Mono", monospace' }}>{(account.milestones || []).length}</div>
             <div style={{ fontSize: 11, color: '#64748b' }}>
               {(account.milestones || []).filter(m => m.stages.every(s => s.status === 'complete')).length} complete
             </div>
           </div>
           <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '14px 16px' }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Contacts</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#3b82f6', fontFamily: '"DM Mono", monospace' }}>{(account.contacts || []).length}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#1BB3BB', fontFamily: '"DM Mono", monospace' }}>{(account.contacts || []).length}</div>
             <div style={{ fontSize: 11, color: '#64748b' }}>{(account.contacts || []).map(c => c.name).join(', ') || '—'}</div>
           </div>
         </div>
@@ -204,7 +204,7 @@ export function PlanExportClient({ account }: { account: Account }) {
                 <div key={c.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '10px 12px' }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{c.name}</div>
                   {c.role && <div style={{ fontSize: 11, color: '#64748b' }}>{c.role}</div>}
-                  {c.email && <div style={{ fontSize: 11, color: '#3b82f6', fontFamily: '"DM Mono", monospace', marginTop: 3 }}>{c.email}</div>}
+                  {c.email && <div style={{ fontSize: 11, color: '#1BB3BB', fontFamily: '"DM Mono", monospace', marginTop: 3 }}>{c.email}</div>}
                 </div>
               ))}
             </div>
@@ -239,8 +239,8 @@ export function PlanExportClient({ account }: { account: Account }) {
                 if (customerItems.length === 0) return null
                 const stageDone = customerItems.filter(i => i.required && (i.task_done || i.session_status === 'complete')).length
                 const stageTotal = customerItems.filter(i => i.required).length
-                const stageStatusColor = stage.status === 'complete' ? '#065f46' : stage.status === 'active' ? '#1d4ed8' : '#94a3b8'
-                const stageStatusBg = stage.status === 'complete' ? '#d1fae5' : stage.status === 'active' ? '#dbeafe' : '#f1f5f9'
+                const stageStatusColor = stage.status === 'complete' ? '#065f46' : stage.status === 'active' ? '#007580' : '#94a3b8'
+                const stageStatusBg = stage.status === 'complete' ? '#d1fae5' : stage.status === 'active' ? '#E0F7F8' : '#f1f5f9'
 
                 return (
                   <div key={stage.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -279,7 +279,7 @@ export function PlanExportClient({ account }: { account: Account }) {
                                 {item.session_status === 'complete' && <span style={{ fontSize: 8, color: 'white', fontWeight: 700 }}>✓</span>}
                               </div>
                               <span style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>{item.session_name}</span>
-                              <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: '#dbeafe', color: '#1d4ed8', fontFamily: '"DM Mono", monospace' }}>session</span>
+                              <span style={{ fontSize: 10, fontWeight: 600, padding: '0 5px', borderRadius: 3, background: '#E0F7F8', color: '#007580', fontFamily: '"DM Mono", monospace' }}>session</span>
                             </div>
                           </div>
                         )
@@ -297,7 +297,7 @@ export function PlanExportClient({ account }: { account: Account }) {
             const mDone = milestoneCustomerItems.filter(i => i.required && (i.task_done || i.session_status === 'complete')).length
             const mTotal = milestoneCustomerItems.filter(i => i.required).length
             const mPct = mTotal ? Math.round((mDone / mTotal) * 100) : 0
-            const mColor = mPct === 100 ? '#10b981' : mPct > 0 ? '#3b82f6' : '#94a3b8'
+            const mColor = mPct === 100 ? '#10b981' : mPct > 0 ? '#1BB3BB' : '#94a3b8'
 
             return (
               <div key={milestone.id} style={{ marginBottom: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
@@ -331,9 +331,9 @@ export function PlanExportClient({ account }: { account: Account }) {
         onClick={() => window.print()}
         style={{
           position: 'fixed', bottom: 24, right: 24,
-          background: '#3b82f6', color: 'white', border: 'none',
+          background: '#1BB3BB', color: 'white', border: 'none',
           borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600,
-          cursor: 'pointer', fontFamily: '"Inter", system-ui', boxShadow: '0 4px 16px rgba(59,130,246,0.4)',
+          cursor: 'pointer', fontFamily: '"Inter", system-ui', boxShadow: '0 4px 16px rgba(27,179,187,0.4)',
           display: 'flex', alignItems: 'center', gap: 6,
         }}
       >

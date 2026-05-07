@@ -12,8 +12,8 @@ const SKU_LABELS: Record<string, string> = {
 }
 const SKU_COLORS: Record<string, string> = {
   dispatch: '#f59e0b',
-  facility_management: '#8b5cf6',
-  full_suite: '#3b82f6',
+  facility_management: '#7757F5',
+  full_suite: '#1BB3BB',
 }
 const ADDON_LABELS: Record<string, string> = {
   brokerage: 'Brokerage',
@@ -239,9 +239,9 @@ function CreateAccountModal({ onClose, onCreated, orgMembers: _orgMembers, train
               {[['brokerage', 'Brokerage'], ['export', 'Export'], ['api', 'API']].map(([val, label]) => (
                 <button key={val} onClick={() => toggleAddon(val)} style={{
                   flex: 1, padding: '7px 0', borderRadius: 6,
-                  background: addons.includes(val) ? '#3b82f622' : 'var(--bg-surface2)',
-                  border: `1px solid ${addons.includes(val) ? '#3b82f6' : 'var(--border-b)'}`,
-                  color: addons.includes(val) ? '#3b82f6' : 'var(--text-2)',
+                  background: addons.includes(val) ? '#1BB3BB22' : 'var(--bg-surface2)',
+                  border: `1px solid ${addons.includes(val) ? '#1BB3BB' : 'var(--border-b)'}`,
+                  color: addons.includes(val) ? '#1BB3BB' : 'var(--text-2)',
                   fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
                 }}>{label}</button>
               ))}
@@ -255,17 +255,17 @@ function CreateAccountModal({ onClose, onCreated, orgMembers: _orgMembers, train
                 <button onClick={() => setSelectedPlanId(null)} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '9px 12px', borderRadius: 7, cursor: 'pointer',
-                  background: selectedPlanId === null ? '#3b82f610' : 'var(--bg-surface2)',
-                  border: `1px solid ${selectedPlanId === null ? '#3b82f6' : 'var(--border-b)'}`,
+                  background: selectedPlanId === null ? '#1BB3BB10' : 'var(--bg-surface2)',
+                  border: `1px solid ${selectedPlanId === null ? '#1BB3BB' : 'var(--border-b)'}`,
                   fontFamily: 'var(--font-ui)', textAlign: 'left',
                 }}>
                   <div style={{
                     width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
-                    border: `2px solid ${selectedPlanId === null ? '#3b82f6' : 'var(--text-3)'}`,
-                    background: selectedPlanId === null ? '#3b82f6' : 'transparent',
+                    border: `2px solid ${selectedPlanId === null ? '#1BB3BB' : 'var(--text-3)'}`,
+                    background: selectedPlanId === null ? '#1BB3BB' : 'transparent',
                   }} />
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: selectedPlanId === null ? '#93c5fd' : 'var(--text)' }}>Default</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: selectedPlanId === null ? '#5DDDE3' : 'var(--text)' }}>Default</div>
                     <div style={{ fontSize: 10, color: 'var(--text-3)' }}>Configuration → Training → Validation → Go-Live</div>
                   </div>
                 </button>
@@ -274,17 +274,17 @@ function CreateAccountModal({ onClose, onCreated, orgMembers: _orgMembers, train
                   <button key={plan.id} onClick={() => setSelectedPlanId(plan.id)} style={{
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '9px 12px', borderRadius: 7, cursor: 'pointer',
-                    background: selectedPlanId === plan.id ? '#3b82f610' : 'var(--bg-surface2)',
-                    border: `1px solid ${selectedPlanId === plan.id ? '#3b82f6' : 'var(--border-b)'}`,
+                    background: selectedPlanId === plan.id ? '#1BB3BB10' : 'var(--bg-surface2)',
+                    border: `1px solid ${selectedPlanId === plan.id ? '#1BB3BB' : 'var(--border-b)'}`,
                     fontFamily: 'var(--font-ui)', textAlign: 'left',
                   }}>
                     <div style={{
                       width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
-                      border: `2px solid ${selectedPlanId === plan.id ? '#3b82f6' : 'var(--text-3)'}`,
-                      background: selectedPlanId === plan.id ? '#3b82f6' : 'transparent',
+                      border: `2px solid ${selectedPlanId === plan.id ? '#1BB3BB' : 'var(--text-3)'}`,
+                      background: selectedPlanId === plan.id ? '#1BB3BB' : 'transparent',
                     }} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: selectedPlanId === plan.id ? '#93c5fd' : 'var(--text)' }}>{plan.name}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: selectedPlanId === plan.id ? '#5DDDE3' : 'var(--text)' }}>{plan.name}</div>
                       {plan.description && <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{plan.description}</div>}
                     </div>
                     <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
@@ -584,7 +584,7 @@ function WeeklySummaryModal({ accounts, onClose }: { accounts: Account[]; onClos
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Active this week ({active.length})</div>
               {active.map(account => (
                 <div key={account.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#93c5fd', marginBottom: 4 }}>{account.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#5DDDE3', marginBottom: 4 }}>{account.name}</div>
                   <div style={{ fontSize: 12, color: aiLoading ? 'var(--text-3)' : 'var(--text-2)', lineHeight: 1.6, fontStyle: aiLoading ? 'italic' : 'normal' }}>
                     {aiLoading ? 'Generating…' : getSummary(account)}
                   </div>
@@ -938,7 +938,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                 >
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <span style={{ fontSize: 13, color: '#60a5fa', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name}</span>
+                      <span style={{ fontSize: 13, color: '#5DDDE3', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name}</span>
                       {account.arr > 0 && (
                         <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
                           ${account.arr >= 1000 ? `${(account.arr / 1000).toFixed(account.arr % 1000 === 0 ? 0 : 1)}k` : account.arr.toLocaleString()}
@@ -1026,7 +1026,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                   {/* Completion — bar + % */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 12, flexShrink: 0, whiteSpace: 'nowrap' }}>
                     <div style={{ flex: 1, background: 'var(--bg-surface2)', borderRadius: 99, height: 3, overflow: 'hidden' }}>
-                      <div style={{ width: `${account.completionPct}%`, height: '100%', borderRadius: 99, background: account.completionPct >= 75 ? '#10b981' : '#3b82f6' }} />
+                      <div style={{ width: `${account.completionPct}%`, height: '100%', borderRadius: 99, background: account.completionPct >= 75 ? '#10b981' : '#1BB3BB' }} />
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--font-mono)', flexShrink: 0, width: 30, textAlign: 'right' }}>{account.completionPct}%</span>
                   </div>
@@ -1139,7 +1139,7 @@ export function DashboardView({ accounts, currentMember: _currentMember, orgMemb
                       (account.open_tasks || []).filter(t => !t.done).map(task => (
                         <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
                           <Tooltip content={task.assignee === 'customer' ? 'Waiting on customer' : 'Your team\'s task'} placement="right">
-                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: task.assignee === 'customer' ? '#f59e0b' : '#3b82f6', flexShrink: 0 }} />
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: task.assignee === 'customer' ? '#f59e0b' : '#1BB3BB', flexShrink: 0 }} />
                           </Tooltip>
                           <span style={{ fontSize: 12, color: 'var(--text)' }}>{task.name}</span>
                           <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>{task.assignee}</span>

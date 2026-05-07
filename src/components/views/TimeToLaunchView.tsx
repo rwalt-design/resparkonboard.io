@@ -6,8 +6,8 @@ import type { Account } from '@/types'
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SKU_COLORS: Record<string, string> = {
-  dispatch:            '#3b82f6',
-  facility_management: '#8b5cf6',
+  dispatch:            '#1BB3BB',
+  facility_management: '#7757F5',
   full_suite:          '#06b6d4',
 }
 const SKU_LABELS: Record<string, string> = {
@@ -226,7 +226,7 @@ function ScatterChart({ points }: { points: { label: string; arr: number; days: 
 // Bottleneck bar
 function BottleneckBar({ name, avgDays, maxDays, isBottleneck }: { name: string; avgDays: number; maxDays: number; isBottleneck: boolean }) {
   const pct = maxDays > 0 ? (avgDays / maxDays) * 100 : 0
-  const color = isBottleneck ? '#10b981' : '#3b82f6'
+  const color = isBottleneck ? '#10b981' : '#1BB3BB'
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
       <span style={{ fontSize: 12, color: 'var(--text)', minWidth: 130, flexShrink: 0 }}>{name}</span>
@@ -344,7 +344,7 @@ export function TimeToLaunchView({ accounts, onSelectAccount }: Props) {
           label="Active Accounts"
           value={data.active.length}
           sub="in progress"
-          color="#8b5cf6"
+          color="#7757F5"
         />
         <StatCard
           label="Launched"

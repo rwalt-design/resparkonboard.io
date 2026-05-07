@@ -19,8 +19,8 @@
   --text-2:      #475569;
   --text-3:      #374151;
   --text-4:      #2d3548;
-  --accent:      #3b82f6;
-  --link:        #93c5fd;
+  --accent:      #1BB3BB;
+  --link:        #5DDDE3;
   --font-ui:     'Inter', system-ui, sans-serif;
   --font-mono:   'DM Mono', monospace;
   color-scheme: dark;
@@ -28,21 +28,21 @@
 
 /* ── Light theme ───────────────────────────────────────────────────────────── */
 [data-theme="light"] {
-  --bg-base:     #f1f5f9;
+  --bg-base:     #F6F7F9;
   --bg-surface:  #ffffff;
   --bg-surface2: #f8fafc;
   --bg-surface3: #f1f5f9;
   --bg-hover:    #f8fafc;
   --bg-stage:    #f4f6f9;
-  --border:      #e2e8f0;
-  --border-b:    #cbd5e1;
-  --text-h:      #0f172a;
-  --text:        #334155;
-  --text-2:      #64748b;
+  --border:      #E8EBEE;
+  --border-b:    #DADEE2;
+  --text-h:      #12233E;
+  --text:        #4D647F;
+  --text-2:      #607D9F;
   --text-3:      #94a3b8;
   --text-4:      #cbd5e1;
-  --accent:      #3b82f6;
-  --link:        #2563eb;
+  --accent:      #00A2AB;
+  --link:        #00838A;
   color-scheme: light;
 }
 
@@ -76,7 +76,7 @@ div:hover .item-delete-btn { opacity: 0.4 !important; }
 }
 .ai-dot {
   width: 6px; height: 6px; border-radius: 50%;
-  background: #a78bfa;
+  background: #9E87F8;
   animation: ai-pulse 1.8s ease-in-out infinite;
   flex-shrink: 0;
 }

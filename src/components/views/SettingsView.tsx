@@ -199,9 +199,9 @@ export function SettingsView({ section, trainingTemplates: initial, planTemplate
                     <button key={t} onClick={() => toggleTrigger(t)} style={{
                       padding: '4px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600,
                       cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                      background: triggers.includes(t) ? '#3b82f622' : 'var(--bg-surface2)',
-                      border: `1px solid ${triggers.includes(t) ? '#3b82f6' : 'var(--border-b)'}`,
-                      color: triggers.includes(t) ? '#93c5fd' : 'var(--text-2)',
+                      background: triggers.includes(t) ? '#1BB3BB22' : 'var(--bg-surface2)',
+                      border: `1px solid ${triggers.includes(t) ? '#1BB3BB' : 'var(--border-b)'}`,
+                      color: triggers.includes(t) ? '#5DDDE3' : 'var(--text-2)',
                     }}>{t}</button>
                   ))}
                 </div>
@@ -248,9 +248,9 @@ export function SettingsView({ section, trainingTemplates: initial, planTemplate
                             <button key={opt} onClick={() => toggleTrigger(opt)} style={{
                               padding: '4px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600,
                               cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                              background: triggers.includes(opt) ? '#3b82f622' : 'var(--bg-surface2)',
-                              border: `1px solid ${triggers.includes(opt) ? '#3b82f6' : 'var(--border-b)'}`,
-                              color: triggers.includes(opt) ? '#93c5fd' : 'var(--text-2)',
+                              background: triggers.includes(opt) ? '#1BB3BB22' : 'var(--bg-surface2)',
+                              border: `1px solid ${triggers.includes(opt) ? '#1BB3BB' : 'var(--border-b)'}`,
+                              color: triggers.includes(opt) ? '#5DDDE3' : 'var(--text-2)',
                             }}>{opt}</button>
                           ))}
                         </div>
@@ -273,7 +273,7 @@ export function SettingsView({ section, trainingTemplates: initial, planTemplate
                           onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-h)')}
                           onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Edit</button>
                         <button onClick={() => handleClone(t)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 9px', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
-                          onMouseEnter={e => (e.currentTarget.style.color = '#93c5fd')}
+                          onMouseEnter={e => (e.currentTarget.style.color = '#5DDDE3')}
                           onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Clone</button>
                         <button onClick={() => handleDelete(t.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
                           onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
@@ -287,7 +287,7 @@ export function SettingsView({ section, trainingTemplates: initial, planTemplate
                           {t.triggers.map(trigger => (
                             <span key={trigger} style={{
                               fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3,
-                              background: '#3b82f614', border: '1px solid #3b82f630', color: '#93c5fd',
+                              background: '#1BB3BB14', border: '1px solid #1BB3BB30', color: '#5DDDE3',
                               fontFamily: 'var(--font-mono)',
                             }}>{trigger}</span>
                           ))}
@@ -458,7 +458,7 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
     await onTemplatesChange?.()
   }
 
-  const ASSIGNEE_COLORS: Record<string, string> = { personal: '#3b82f6', customer: '#f59e0b', internal: '#6b7280' }
+  const ASSIGNEE_COLORS: Record<string, string> = { personal: '#1BB3BB', customer: '#f59e0b', internal: '#6b7280' }
 
   const renderTemplateForm = (onSubmit: () => void, submitLabel: string) => (
     <div>
@@ -601,7 +601,7 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
                       onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-h)')}
                       onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Edit</button>
                     <button onClick={() => handleClone(t)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 9px', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#93c5fd')}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#5DDDE3')}
                       onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Clone</button>
                     <button onClick={() => handleDelete(t.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
                       onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
@@ -866,7 +866,7 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
                 <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)', flex: 1 }}>{t.name}</span>
                 {t.sku && (
                   <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3,
-                    background: '#3b82f614', border: '1px solid #3b82f630', color: '#93c5fd',
+                    background: '#1BB3BB14', border: '1px solid #1BB3BB30', color: '#5DDDE3',
                     fontFamily: 'var(--font-mono)' }}>{SKU_LABELS[t.sku] || t.sku}</span>
                 )}
                 <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
@@ -878,7 +878,7 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
                 </button>
                 <button onClick={() => handleClone(t)}
                   style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '3px 10px', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#93c5fd')}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#5DDDE3')}
                   onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Clone</button>
                 <button
                   onClick={() => handlePushToAccounts(t.id, 'all')}
@@ -1017,8 +1017,8 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
     }))
   }
 
-  const ASSIGNEE_COLORS: Record<string, string> = { personal: '#3b82f6', customer: '#f59e0b', internal: '#6b7280' }
-  const TYPE_COLORS: Record<string, string> = { task: '#3b82f6', session: '#8b5cf6', handoff: '#475569', log: '#10b981', exchange: '#f59e0b' }
+  const ASSIGNEE_COLORS: Record<string, string> = { personal: '#1BB3BB', customer: '#f59e0b', internal: '#6b7280' }
+  const TYPE_COLORS: Record<string, string> = { task: '#1BB3BB', session: '#7757F5', handoff: '#475569', log: '#10b981', exchange: '#f59e0b' }
 
   return (
     <div style={{ borderTop: '1px solid var(--border)', padding: '16px 16px 12px' }}>
@@ -1106,8 +1106,8 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
                               name: tmpl ? tmpl.name : item.name,
                             })
                           }}
-                          style={{ background: '#8b5cf618', border: '1px solid #8b5cf644', borderRadius: 4,
-                            color: '#8b5cf6', fontSize: 9, fontWeight: 700, padding: '1px 4px',
+                          style={{ background: '#7757F518', border: '1px solid #7757F544', borderRadius: 4,
+                            color: '#7757F5', fontSize: 9, fontWeight: 700, padding: '1px 4px',
                             cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
                         >
                           <option value="">custom session</option>
@@ -1311,8 +1311,8 @@ function ConnectorsPanel({ connectors: _connectors, connectorTokens }: { connect
                   <button
                     onClick={() => handleConnect(def.provider)}
                     style={{
-                      background: '#3b82f620', border: '1px solid #3b82f640', borderRadius: 6,
-                      padding: '5px 14px', color: '#93c5fd', fontSize: 12,
+                      background: '#1BB3BB20', border: '1px solid #1BB3BB40', borderRadius: 6,
+                      padding: '5px 14px', color: '#5DDDE3', fontSize: 12,
                       fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', flexShrink: 0,
                     }}
                   >
@@ -1332,7 +1332,7 @@ function ConnectorsPanel({ connectors: _connectors, connectorTokens }: { connect
       }}>
         <span style={{ fontSize: 16, flexShrink: 0 }}>✦</span>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#93c5fd', marginBottom: 4 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#5DDDE3', marginBottom: 4 }}>
             AI Assistant is active
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>
@@ -1406,7 +1406,7 @@ function UnmatchedSignalsPanel() {
     gmail: 'Gmail', google_calendar: 'Calendar', slack: 'Slack',
   }
   const PROVIDER_COLORS: Record<string, string> = {
-    gmail: '#ef4444', google_calendar: '#3b82f6', slack: '#f59e0b',
+    gmail: '#ef4444', google_calendar: '#1BB3BB', slack: '#f59e0b',
   }
 
   return (
