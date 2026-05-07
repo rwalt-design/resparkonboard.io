@@ -200,7 +200,7 @@ async function seedDefaultTemplates(admin: any, orgId: string) {
               items: [
                 { type: 'session', name: 'Post-Launch Check-In', required: true },
                 { type: 'task',    name: 'Build Handoff Doc',    assignee: 'personal', required: true },
-                { type: 'task',    name: 'Handoff to IS',        assignee: 'personal', required: true },
+                { type: 'task',    name: 'Handoff to CSM',       assignee: 'personal', required: true },
               ],
             },
           ],

@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
               items: [
                 { type: 'session', name: 'Post-Launch Check-In', required: true },
                 { type: 'task',    name: 'Build Handoff Doc',    assignee: 'personal', required: true },
-                { type: 'task',    name: 'Handoff to IS',        assignee: 'personal', required: true },
+                { type: 'task',    name: 'Handoff to CSM',        assignee: 'personal', required: true },
               ],
             },
           ],
@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
     // ── Post Launch (locked) ─────────────────────────────────────────────────
     { stage_id: sPostLaunch, type: 'session', session_name: 'Post-Launch Check-In', session_status: 'pending', required: true, order_index: 0 },
     { stage_id: sPostLaunch, type: 'task', task_name: 'Build Handoff Doc',          task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 1 },
-    { stage_id: sPostLaunch, type: 'task', task_name: 'Handoff to IS',              task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 2 },
+    { stage_id: sPostLaunch, type: 'task', task_name: 'Handoff to CSM',              task_assignee: 'personal', task_source: 'plan', task_done: false, required: true, order_index: 2 },
   ])
 
   return NextResponse.json({ ok: true })
