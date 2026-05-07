@@ -1,20 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-
-const STORAGE_KEY = 'demo-welcome-seen'
+import { useState } from 'react'
 
 export function DemoWelcomeModal() {
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      setVisible(true)
-    }
-  }, [])
+  const [visible, setVisible] = useState(true)
 
   const dismiss = () => {
-    localStorage.setItem(STORAGE_KEY, '1')
     setVisible(false)
   }
 
