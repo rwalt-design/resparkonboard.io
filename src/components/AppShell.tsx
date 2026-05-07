@@ -252,9 +252,8 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
             </svg>
           </div>
           <div style={{ lineHeight: 1.1, textAlign: 'left' }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-h)', fontFamily: 'var(--font-ui)', letterSpacing: '-0.3px', lineHeight: 1 }}>
-              <span>respark</span>
-              <span style={{ fontWeight: 400, color: 'var(--text-2)' }}>onboard</span>
+            <div style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-2)', fontFamily: 'var(--font-ui)', letterSpacing: '-0.3px', lineHeight: 1 }}>
+              onboard
             </div>
           </div>
         </button>

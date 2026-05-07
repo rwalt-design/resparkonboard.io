@@ -69,7 +69,6 @@ function LoginContent() {
             </svg>
           </div>
           <div style={{ lineHeight: 1.1 }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: '#e2e8f0', letterSpacing: '-0.4px', fontFamily: "'Inter', system-ui, sans-serif" }}>respark</span>
             <span style={{ fontSize: 17, fontWeight: 400, color: '#475569', letterSpacing: '-0.4px', fontFamily: "'Inter', system-ui, sans-serif" }}>onboard</span>
           </div>
         </div>
