@@ -443,16 +443,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                     onMouseEnter={e => !isDone && (e.currentTarget.style.background = 'var(--bg-hover)')}
                     onMouseLeave={e => { e.currentTarget.style.background = isDone ? 'var(--bg-surface2)' : 'transparent' }}
                   >
-                    {isDep ? (
-                      <div onClick={() => !isDone && markDependencyReceived(task)}
-                        title={isDone ? 'Received' : 'Mark received'}
-                        style={{ marginTop: 2, width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
-                          border: isDone ? 'none' : '1.5px solid #f59e0b',
-                          background: isDone ? '#10b981' : 'transparent',
-                          cursor: isDone ? 'default' : 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>{isDone && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>✓</span>}</div>
-                    ) : (
+                    {isDep ? null : (
                       <div onClick={() => markTaskDone(task, !isDone)}
                         title={isDone ? 'Done' : 'Mark done'}
                         style={{ marginTop: 2, width: 16, height: 16, borderRadius: 4, flexShrink: 0,
