@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { seedSampleAccountsIfNeeded } from '@/lib/seedSampleAccounts'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -84,6 +85,8 @@ export async function GET(request: NextRequest) {
       if (count === 0) {
         await seedDefaultTemplates(admin, member.org_id)
       }
+
+      await seedSampleAccountsIfNeeded(admin, member.org_id, data.user.id)
     }
   } catch (seedErr) {
     console.error('Seed error (non-blocking):', seedErr)
