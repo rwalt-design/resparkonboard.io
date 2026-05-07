@@ -81,7 +81,7 @@ div:hover .item-delete-btn { opacity: 0.4 !important; }
 }
 
 /* Mobile-only / desktop-only visibility helpers */
-.mobile-only   { display: none; }
+.mobile-only   { display: none !important; }
 .desktop-only  { display: block; }
 
 @media (max-width: 640px) {
