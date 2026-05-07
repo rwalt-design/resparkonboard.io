@@ -325,13 +325,13 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
           <Tooltip content="Internal tasks not visible to the customer" placement="bottom">{pill('Internal', filterMode === 'internal',  '#6b7280',       () => setFilterMode('internal'))}</Tooltip>
         </div>
         <Tooltip content="Filter by account" placement="bottom">
-          <select value={filterAccount} onChange={e => setFilterAccount(e.target.value)} style={selectStyle}>
+          <select name="filter-account" value={filterAccount} onChange={e => setFilterAccount(e.target.value)} style={selectStyle}>
             <option value="all">All Accounts</option>
             {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </Tooltip>
         <Tooltip content="Filter by where this item came from" placement="bottom">
-          <select value={filterSource} onChange={e => setFilterSource(e.target.value)} style={selectStyle}>
+          <select name="filter-source" value={filterSource} onChange={e => setFilterSource(e.target.value)} style={selectStyle}>
             <option value="all">All Sources</option>
             <option value="plan">From Plan</option>
             <option value="email">From Email</option>
