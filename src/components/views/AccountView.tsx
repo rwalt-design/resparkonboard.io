@@ -558,18 +558,21 @@ function MilestoneBlock({ milestone, index, open, onToggle, account, onUpdate, o
 
   const handleAddStage = async () => {
     if (!stageName.trim()) return
-    const { data: stage } = await supabase.from('stages').insert({
+    const { data: stage, error } = await supabase.from('stages').insert({
       milestone_id: milestone.id,
       name: stageName.trim(),
       status: 'locked',
       order_index: localStages.length,
     }).select('id, milestone_id, name, status, order_index').single()
+    if (error) { console.error('Add stage failed:', error.message); return }
     if (stage) {
       const newStage: Stage = { ...stage, items: [] }
+      const next = [...localStages, newStage]
+      setLocalStages(next)
       onUpdate({
         ...account,
         milestones: (account.milestones || []).map(m =>
-          m.id !== milestone.id ? m : { ...m, stages: [...m.stages, newStage] }
+          m.id !== milestone.id ? m : { ...m, stages: next }
         ),
       })
       setStageName('')
