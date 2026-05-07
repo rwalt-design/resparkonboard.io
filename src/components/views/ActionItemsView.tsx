@@ -167,6 +167,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
   const [filterHealth, setFilterHealth]   = useState<Set<HealthStatus>>(new Set())
   const [showDone, setShowDone]           = useState(false)
   const [groupBy, setGroupBy]             = useState<'account'|'type'|'none'>('account')
+  const [lastAction, setLastAction]       = useState<{ task: FlatTask; action: 'done' | 'received' } | null>(null)
 
   const toggleHealth = (h: HealthStatus) =>
     setFilterHealth(prev => {
@@ -176,12 +177,12 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
     })
 
   const markTaskDone = async (task: FlatTask, done: boolean) => {
+    if (done) setLastAction({ task, action: 'done' })
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, done, item_status: done ? 'done' : 'open' } : t))
     if (task.fromPlan) {
       await supabase.from('items').update({ task_done: done }).eq('id', task.id)
     } else {
       await supabase.from('open_tasks').update({ done, item_status: done ? 'done' : 'open' }).eq('id', task.id)
-      // Tie-back: also close matching plan item if name matches
       if (done) {
         const account = task.account
         for (const m of (account.milestones || [])) {
@@ -198,12 +199,12 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
   }
 
   const markDependencyReceived = async (task: FlatTask) => {
+    setLastAction({ task, action: 'received' })
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, done: true, item_status: 'done' } : t))
     if (task.fromPlan) {
       await supabase.from('items').update({ task_done: true }).eq('id', task.id)
     } else {
       await supabase.from('open_tasks').update({ done: true, item_status: 'done' }).eq('id', task.id)
-      // Tie-back: close matching plan dependency
       const account = task.account
       for (const m of (account.milestones || [])) {
         for (const s of m.stages) {
@@ -215,6 +216,14 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
         }
       }
     }
+  }
+
+  const undoAction = async () => {
+    if (!lastAction) return
+    const { task } = lastAction
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, done: false, item_status: task.item_type === 'dependency' ? 'waiting' : 'open' } : t))
+    await supabase.from('open_tasks').update({ done: false, item_status: task.item_type === 'dependency' ? 'waiting' : 'open' }).eq('id', task.id)
+    setLastAction(null)
   }
 
   const filtered = tasks.filter(t => {
@@ -266,6 +275,25 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
         <span style={{ color: '#f59e0b', fontWeight: 600 }}>{waitingCount}</span> waiting on customer ·{' '}
         <span style={{ color: 'var(--text-3)' }}>{doneCount} done</span>
       </p>
+
+      {lastAction && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#1BB3BB14', border: '1px solid #1BB3BB30', borderRadius: 6,
+          padding: '8px 14px', marginBottom: 12, gap: 12,
+        }}>
+          <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+            {lastAction.action === 'done' ? 'Marked done' : 'Marked received'}:{' '}
+            <span style={{ color: 'var(--text-h)' }}>{lastAction.task.name}</span>
+          </span>
+          <button onClick={undoAction} style={{
+            background: 'none', border: '1px solid #1BB3BB60', borderRadius: 5,
+            padding: '3px 10px', color: '#1BB3BB',
+            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+            whiteSpace: 'nowrap',
+          }}>Undo</button>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -415,16 +443,7 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
                     onMouseEnter={e => !isDone && (e.currentTarget.style.background = 'var(--bg-hover)')}
                     onMouseLeave={e => { e.currentTarget.style.background = isDone ? 'var(--bg-surface2)' : 'transparent' }}
                   >
-                    {isDep ? (
-                      <div onClick={() => !isDone && markDependencyReceived(task)}
-                        title={isDone ? 'Received' : 'Mark received'}
-                        style={{ marginTop: 2, width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
-                          border: isDone ? 'none' : '1.5px solid #f59e0b',
-                          background: isDone ? '#10b981' : 'transparent',
-                          cursor: isDone ? 'default' : 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>{isDone && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>✓</span>}</div>
-                    ) : (
+                    {isDep ? null : (
                       <div onClick={() => markTaskDone(task, !isDone)}
                         title={isDone ? 'Done' : 'Mark done'}
                         style={{ marginTop: 2, width: 16, height: 16, borderRadius: 4, flexShrink: 0,
