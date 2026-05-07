@@ -28,6 +28,7 @@ export interface OrgMember {
   name: string
   role: string
   assignee_key: string
+  avatar_url?: string | null
   created_at: string
 }
 

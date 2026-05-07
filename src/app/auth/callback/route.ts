@@ -58,6 +58,16 @@ export async function GET(request: NextRequest) {
     console.error('ensure_org_member error:', rpcError.message)
   }
 
+  // Keep avatar_url fresh on every login so headshots stay current.
+  const avatarUrl = (data.user.user_metadata?.avatar_url as string) || null
+  if (avatarUrl) {
+    const admin = createAdminClient()
+    await admin
+      .from('org_members')
+      .update({ avatar_url: avatarUrl })
+      .eq('user_id', data.user.id)
+  }
+
   // Seed default templates if this org has never had any.
   // Uses the service-role client so RLS doesn't block the check or inserts.
   try {
