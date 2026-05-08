@@ -879,7 +879,7 @@ function DeleteBtn({ onClick, size = 14, stopProp = true }: { onClick: () => voi
       {...h}
       style={{
         background: 'none', border: 'none', padding: '0 3px',
-        color: h.hovered ? '#ef4444' : 'var(--text-3)', fontSize: size, lineHeight: 1,
+        color: h.hovered ? '#ef4444' : '#ef444466', fontSize: size, lineHeight: 1,
         cursor: 'pointer', flexShrink: 0, opacity: h.hovered ? 1 : 0.25, transition: 'opacity 0.1s, color 0.1s',
       }}
     >×</button>
@@ -1459,7 +1459,7 @@ function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
             {ci.done && <span style={{ fontSize: 7, color: '#fff', fontWeight: 700 }}>✓</span>}
           </div>
           <span style={{ fontSize: 12, color: ci.done ? 'var(--text-3)' : 'var(--text)', flex: 1, textDecoration: ci.done ? 'line-through' : 'none' }}>{ci.text}</span>
-          <button onClick={() => remove(ci.id)} style={{ background: 'none', border: 'none', color: 'var(--border-b)', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: '0 2px' }}>×</button>
+          <button onClick={() => remove(ci.id)} style={{ background: 'none', border: 'none', color: '#ef444488', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: '0 2px' }}>×</button>
         </div>
       ))}
       <div style={{ display: 'flex', gap: 5, marginTop: 3 }}>
@@ -1508,7 +1508,7 @@ function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete, onGoLiv
         >
           {done ? '✓ Went Live' : '🚀 Go Live!'}
           {onDelete && !done && (
-            <span onClick={e => { e.stopPropagation(); onDelete?.() }} style={{ marginLeft: 'auto', opacity: 0.5, fontSize: 12 }}>✕</span>
+            <span onClick={e => { e.stopPropagation(); onDelete?.() }} style={{ marginLeft: 'auto', fontSize: 12, color: '#ef444488' }}>✕</span>
           )}
         </button>
       </div>
@@ -3023,7 +3023,7 @@ function SessionModal({ item, onClose, onUpdate }: {
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}>
                   <span style={{ fontSize: 11, color: '#7757F5', fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
                   <span style={{ fontSize: 13, color: 'var(--text)', flex: 1 }}>{item}</span>
-                  <button onClick={() => removeAgendaItem(i)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>×</button>
+                  <button onClick={() => removeAgendaItem(i)} style={{ background: 'none', border: 'none', color: '#ef444488', cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>×</button>
                 </div>
               ))}
             </div>
@@ -3081,7 +3081,7 @@ function SessionModal({ item, onClose, onUpdate }: {
                     fontSize: 13, color: ai.done ? 'var(--text-3)' : 'var(--text)', flex: 1,
                     textDecoration: ai.done ? 'line-through' : 'none',
                   }}>{ai.text}</span>
-                  <button onClick={() => removeActionItem(ai.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>×</button>
+                  <button onClick={() => removeActionItem(ai.id)} style={{ background: 'none', border: 'none', color: '#ef444488', cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>×</button>
                 </div>
               ))}
             </div>
