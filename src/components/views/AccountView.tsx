@@ -463,6 +463,7 @@ function PlanTab({ account, sessionTemplates, trainingTemplates, onUpdate }: {
       {sessionModal && (
         <SessionModal
           item={sessionModal}
+          accountId={account.id}
           onClose={() => setSessionModal(null)}
           onUpdate={handleSessionUpdate}
         />
@@ -2209,6 +2210,8 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
   const [softwareSaved, setSoftwareSaved] = useState(true)
   const [requirementsDraft, setRequirementsDraft] = useState(account.core_system_requirements || '')
   const [requirementsSaved, setRequirementsSaved] = useState(true)
+  const [notesDraft, setNotesDraft] = useState(account.notes || '')
+  const [notesSaved, setNotesSaved] = useState(true)
   const [linkedResourceIds, setLinkedResourceIds] = useState<Set<string>>(new Set())
   const [resourcesLoaded, setResourcesLoaded] = useState(false)
   const supabase = createClient()
@@ -2251,121 +2254,154 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
     setRequirementsSaved(true)
   }
 
+  const saveNotes = async () => {
+    await supabase.from('accounts').update({ notes: notesDraft }).eq('id', account.id)
+    onUpdate({ ...account, notes: notesDraft })
+    setNotesSaved(true)
+  }
+
   return (
-    <div style={{ padding: '20px 24px', maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Account name/SKU/ARR/dates moved to header — edit via the "Edit Details" button there */}
+    <div style={{ padding: '20px 24px', display: 'flex', gap: 32, alignItems: 'flex-start' }}>
+      {/* Left column */}
+      <div style={{ width: 520, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {/* Plan template assignment */}
+        {planTemplates.length > 0 && (
+          <ApplyPlanTemplateSection account={account} planTemplates={planTemplates} onRefresh={onRefresh} />
+        )}
 
-      {/* Plan template assignment */}
-      {planTemplates.length > 0 && (
-        <ApplyPlanTemplateSection account={account} planTemplates={planTemplates} onRefresh={onRefresh} />
-      )}
-
-      {/* Sales context — always editable */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={sectionLabel}>Sales Context</span>
-          {!contextSaved && (
-            <button onClick={saveContext} style={primaryBtn}>Save</button>
-          )}
-        </div>
-        <textarea
-          name="sales-context"
-          value={contextDraft}
-          onChange={e => { setContextDraft(e.target.value); setContextSaved(false) }}
-          onBlur={saveContext}
-          rows={4}
-          placeholder="Add deal context, sales notes, key stakeholders…"
-          style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
-        />
-      </section>
-
-      {/* Current software — always editable */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={sectionLabel}>Current Software</span>
-          {!softwareSaved && (
-            <button onClick={saveSoftware} style={primaryBtn}>Save</button>
-          )}
-        </div>
-        <textarea
-          name="current-software"
-          value={softwareDraft}
-          onChange={e => { setSoftwareDraft(e.target.value); setSoftwareSaved(false) }}
-          onBlur={saveSoftware}
-          rows={3}
-          placeholder="What's the customer using today? Scrap software, accounting, compliance, ATMS…"
-          style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
-        />
-      </section>
-
-      {/* Core System Requirements */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={sectionLabel}>Core System Requirements</span>
-          {!requirementsSaved && (
-            <button onClick={saveRequirements} style={primaryBtn}>Save</button>
-          )}
-        </div>
-        <textarea
-          name="core-system-requirements"
-          value={requirementsDraft}
-          onChange={e => { setRequirementsDraft(e.target.value); setRequirementsSaved(false) }}
-          onBlur={saveRequirements}
-          rows={4}
-          placeholder="Hardware, integrations, compliance rules, custom workflows, reporting needs…"
-          style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
-        />
-      </section>
-
-      {/* Linked Resources */}
-      {resourcesLoaded && resources.length > 0 && (
+        {/* Sales context — always editable */}
         <section>
-          <span style={sectionLabel}>Linked Resources</span>
-          <p style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4, marginBottom: 10, lineHeight: 1.5 }}>
-            Pin links from your resource library to this account for quick access.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {resources.map(r => {
-              const isLinked = linkedResourceIds.has(r.id)
-              const hostname = (() => { try { return new URL(r.url).hostname.replace('www.', '') } catch { return r.url } })()
-              return (
-                <div key={r.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  background: isLinked ? 'var(--bg-surface2)' : 'var(--bg-surface)',
-                  border: '1px solid ' + (isLinked ? 'var(--border-b)' : 'var(--border)'),
-                  borderRadius: 7, padding: '8px 12px',
-                }}>
-                  <span style={{ fontSize: 13 }}>🔗</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <a href={r.url} target="_blank" rel="noopener noreferrer"
-                      style={{ fontSize: 13, fontWeight: 500, color: '#5DDDE3', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                      onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                    >{r.title}</a>
-                    <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{hostname}</span>
-                  </div>
-                  <button
-                    onClick={() => toggleResource(r.id)}
-                    style={{
-                      background: isLinked ? '#1BB3BB20' : 'none',
-                      border: '1px solid ' + (isLinked ? '#1BB3BB40' : 'var(--border)'),
-                      borderRadius: 5, padding: '3px 10px', fontSize: 11,
-                      color: isLinked ? '#5DDDE3' : 'var(--text-3)',
-                      cursor: 'pointer', fontFamily: 'var(--font-ui)', flexShrink: 0,
-                    }}
-                  >{isLinked ? '✓ Linked' : 'Link'}</button>
-                </div>
-              )
-            })}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={sectionLabel}>Sales Context</span>
+            {!contextSaved && (
+              <button onClick={saveContext} style={primaryBtn}>Save</button>
+            )}
           </div>
+          <textarea
+            name="sales-context"
+            value={contextDraft}
+            onChange={e => { setContextDraft(e.target.value); setContextSaved(false) }}
+            onBlur={saveContext}
+            rows={4}
+            placeholder="Add deal context, sales notes, key stakeholders…"
+            style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+          />
         </section>
-      )}
 
-      {/* Contacts */}
-      <ContactsSection account={account} onUpdate={onUpdate} />
+        {/* Current software — always editable */}
+        <section>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={sectionLabel}>Current Software</span>
+            {!softwareSaved && (
+              <button onClick={saveSoftware} style={primaryBtn}>Save</button>
+            )}
+          </div>
+          <textarea
+            name="current-software"
+            value={softwareDraft}
+            onChange={e => { setSoftwareDraft(e.target.value); setSoftwareSaved(false) }}
+            onBlur={saveSoftware}
+            rows={3}
+            placeholder="What's the customer using today? Scrap software, accounting, compliance, ATMS…"
+            style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+          />
+        </section>
 
-      {/* Requests */}
-      <RequestsSection account={account} onUpdate={onUpdate} />
+        {/* Core System Requirements */}
+        <section>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={sectionLabel}>Core System Requirements</span>
+            {!requirementsSaved && (
+              <button onClick={saveRequirements} style={primaryBtn}>Save</button>
+            )}
+          </div>
+          <textarea
+            name="core-system-requirements"
+            value={requirementsDraft}
+            onChange={e => { setRequirementsDraft(e.target.value); setRequirementsSaved(false) }}
+            onBlur={saveRequirements}
+            rows={4}
+            placeholder="Hardware, integrations, compliance rules, custom workflows, reporting needs…"
+            style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+          />
+        </section>
+
+        {/* Linked Resources */}
+        {resourcesLoaded && resources.length > 0 && (
+          <section>
+            <span style={sectionLabel}>Linked Resources</span>
+            <p style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4, marginBottom: 10, lineHeight: 1.5 }}>
+              Pin links from your resource library to this account for quick access.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {resources.map(r => {
+                const isLinked = linkedResourceIds.has(r.id)
+                const hostname = (() => { try { return new URL(r.url).hostname.replace('www.', '') } catch { return r.url } })()
+                return (
+                  <div key={r.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: isLinked ? 'var(--bg-surface2)' : 'var(--bg-surface)',
+                    border: '1px solid ' + (isLinked ? 'var(--border-b)' : 'var(--border)'),
+                    borderRadius: 7, padding: '8px 12px',
+                  }}>
+                    <span style={{ fontSize: 13 }}>🔗</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <a href={r.url} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: 13, fontWeight: 500, color: '#5DDDE3', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                      >{r.title}</a>
+                      <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{hostname}</span>
+                    </div>
+                    <button
+                      onClick={() => toggleResource(r.id)}
+                      style={{
+                        background: isLinked ? '#1BB3BB20' : 'none',
+                        border: '1px solid ' + (isLinked ? '#1BB3BB40' : 'var(--border)'),
+                        borderRadius: 5, padding: '3px 10px', fontSize: 11,
+                        color: isLinked ? '#5DDDE3' : 'var(--text-3)',
+                        cursor: 'pointer', fontFamily: 'var(--font-ui)', flexShrink: 0,
+                      }}
+                    >{isLinked ? '✓ Linked' : 'Link'}</button>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Contacts */}
+        <ContactsSection account={account} onUpdate={onUpdate} />
+
+        {/* Requests */}
+        <RequestsSection account={account} onUpdate={onUpdate} />
+      </div>
+
+      {/* Right column — notes scratchpad */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={sectionLabel}>Notes</span>
+          {!notesSaved && (
+            <button onClick={saveNotes} style={primaryBtn}>Save</button>
+          )}
+        </div>
+        <textarea
+          name="account-notes"
+          value={notesDraft}
+          onChange={e => { setNotesDraft(e.target.value); setNotesSaved(false) }}
+          onBlur={saveNotes}
+          placeholder="Scratch pad — anything useful about this account…"
+          style={{
+            ...inputStyle,
+            width: '100%',
+            boxSizing: 'border-box',
+            resize: 'none',
+            flex: 1,
+            minHeight: 480,
+            lineHeight: 1.6,
+          }}
+        />
+      </div>
     </div>
   )
 }
@@ -2895,8 +2931,9 @@ function AITab({ account }: { account: Account }) {
 
 // ─── Session Modal ────────────────────────────────────────────────────────────
 
-function SessionModal({ item, onClose, onUpdate }: {
+function SessionModal({ item, accountId, onClose, onUpdate }: {
   item: Item
+  accountId: string
   onClose: () => void
   onUpdate: (updated: Item) => void
 }) {
@@ -2943,11 +2980,27 @@ function SessionModal({ item, onClose, onUpdate }: {
 
   const addActionItem = async () => {
     if (!actionInput.trim()) return
+    // Insert into open_tasks so it appears in Action Items tab
+    const { data: taskRow } = await supabase
+      .from('open_tasks')
+      .insert({
+        account_id: accountId,
+        name: actionInput.trim(),
+        assignee: 'internal',
+        source: 'session',
+        item_type: 'task',
+        item_owner: 'respark',
+        item_status: 'open',
+        done: false,
+      })
+      .select('id')
+      .single()
     const newItem: SessionActionItem = {
       id: crypto.randomUUID(),
       text: actionInput.trim(),
       done: false,
       created_at: new Date().toISOString(),
+      open_task_id: taskRow?.id,
     }
     const next = [...actionItems, newItem]
     setActionItems(next)
@@ -2956,15 +3009,26 @@ function SessionModal({ item, onClose, onUpdate }: {
   }
 
   const toggleActionItem = async (id: string) => {
+    const target = actionItems.find(a => a.id === id)
     const next = actionItems.map(a => a.id === id ? { ...a, done: !a.done } : a)
     setActionItems(next)
     await patch({ session_action_items: next })
+    if (target?.open_task_id) {
+      await supabase
+        .from('open_tasks')
+        .update({ done: !target.done, item_status: !target.done ? 'done' : 'open' })
+        .eq('id', target.open_task_id)
+    }
   }
 
   const removeActionItem = async (id: string) => {
+    const target = actionItems.find(a => a.id === id)
     const next = actionItems.filter(a => a.id !== id)
     setActionItems(next)
     await patch({ session_action_items: next })
+    if (target?.open_task_id) {
+      await supabase.from('open_tasks').delete().eq('id', target.open_task_id)
+    }
   }
 
   const toggleComplete = async () => {

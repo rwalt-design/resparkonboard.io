@@ -48,6 +48,7 @@ export interface Account {
   kickoff_date?: string | null
   current_software?: string | null
   core_system_requirements?: string | null
+  notes?: string | null
   paused_days?: number | null
   plan_template_id?: string | null
   created_at: string
@@ -132,6 +133,7 @@ export interface SessionActionItem {
   done: boolean
   assignee?: string
   created_at: string
+  open_task_id?: string
 }
 
 export interface RecordField {
