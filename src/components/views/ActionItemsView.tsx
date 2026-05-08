@@ -155,8 +155,81 @@ export function ActionItemsView({ accounts, onSelectAccount }: Props) {
 
 // ── Action Items list (unchanged logic) ───────────────────────────────────────
 
+function AddItemForm({ accounts, onAdded }: { accounts: Account[]; onAdded: (task: FlatTask) => void }) {
+  const supabase = createClient()
+  const [name, setName]           = useState('')
+  const [accountId, setAccountId] = useState(accounts[0]?.id ?? '')
+  const [assignee, setAssignee]   = useState<'personal' | 'customer'>('personal')
+  const [saving, setSaving]       = useState(false)
+
+  const submit = async () => {
+    if (!name.trim() || !accountId) return
+    setSaving(true)
+    const account = accounts.find(a => a.id === accountId)!
+    const { data } = await supabase
+      .from('open_tasks')
+      .insert({ account_id: accountId, name: name.trim(), assignee, source: 'manual', done: false })
+      .select()
+      .single()
+    if (data) {
+      onAdded({ kind: 'task', ...data, account, fromPlan: false })
+      setName('')
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div style={{
+      display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+      background: 'var(--bg-surface)', border: '1px solid var(--border)',
+      borderRadius: 7, padding: '10px 12px', marginBottom: 16,
+    }}>
+      <input
+        autoFocus
+        value={name}
+        onChange={e => setName(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') submit() }}
+        placeholder="Task name…"
+        style={{
+          flex: 1, minWidth: 180, background: 'var(--bg-surface2)', border: '1px solid var(--border-b)',
+          borderRadius: 5, padding: '6px 10px', color: 'var(--text)', fontSize: 13,
+          fontFamily: 'var(--font-ui)', outline: 'none',
+        }}
+      />
+      <select
+        value={accountId}
+        onChange={e => setAccountId(e.target.value)}
+        style={selectStyle}
+      >
+        {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+      </select>
+      <div style={{ display: 'flex', background: 'var(--bg-surface2)', border: '1px solid var(--border-b)', borderRadius: 5, overflow: 'hidden' }}>
+        {(['personal', 'customer'] as const).map(a => (
+          <button key={a} onClick={() => setAssignee(a)} style={{
+            background: assignee === a ? (a === 'customer' ? '#f59e0b22' : '#1BB3BB22') : 'none',
+            border: 'none', padding: '5px 10px',
+            color: assignee === a ? (a === 'customer' ? '#f59e0b' : '#1BB3BB') : 'var(--text-2)',
+            fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+          }}>{a === 'personal' ? 'Me' : 'Customer'}</button>
+        ))}
+      </div>
+      <button
+        onClick={submit}
+        disabled={!name.trim() || saving}
+        style={{
+          background: 'var(--accent)', border: 'none', borderRadius: 5,
+          padding: '6px 14px', color: '#fff', fontSize: 13, fontWeight: 600,
+          cursor: name.trim() ? 'pointer' : 'default', fontFamily: 'var(--font-ui)',
+          opacity: name.trim() ? 1 : 0.5,
+        }}
+      >{saving ? '…' : 'Add'}</button>
+    </div>
+  )
+}
+
 function ActionItemsList({ accounts, onSelectAccount }: Props) {
   const supabase = createClient()
+  const [showAddForm, setShowAddForm] = useState(false)
 
   const allTasks = useMemo<FlatTask[]>(() => {
     const tasks: FlatTask[] = []
@@ -172,6 +245,11 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
 
   const [tasks, setTasks]                 = useState<FlatTask[]>(allTasks)
   useEffect(() => { setTasks(allTasks) }, [allTasks])
+
+  const handleAdded = (task: FlatTask) => {
+    setTasks(prev => [task, ...prev])
+    setShowAddForm(false)
+  }
   const [filterMode, setFilterMode]       = useState<'all'|'me'|'customer'|'internal'>('all')
   const [filterAccount, setFilterAccount] = useState('all')
   const [filterSource, setFilterSource]   = useState('all')
@@ -281,11 +359,26 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
 
   return (
     <div>
-      <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 16px' }}>
-        <span style={{ color: 'var(--text-h)', fontWeight: 600 }}>{myOpen}</span> on you ·{' '}
-        <span style={{ color: '#f59e0b', fontWeight: 600 }}>{waitingCount}</span> waiting on customer ·{' '}
-        <span style={{ color: 'var(--text-3)' }}>{doneCount} done</span>
-      </p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>
+          <span style={{ color: 'var(--text-h)', fontWeight: 600 }}>{myOpen}</span> on you ·{' '}
+          <span style={{ color: '#f59e0b', fontWeight: 600 }}>{waitingCount}</span> waiting on customer ·{' '}
+          <span style={{ color: 'var(--text-3)' }}>{doneCount} done</span>
+        </p>
+        <button
+          onClick={() => setShowAddForm(v => !v)}
+          style={{
+            background: showAddForm ? 'var(--bg-surface2)' : 'var(--accent)',
+            border: 'none', borderRadius: 6, padding: '6px 14px',
+            color: showAddForm ? 'var(--text-2)' : '#fff',
+            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+          }}
+        >{showAddForm ? 'Cancel' : '+ Add Item'}</button>
+      </div>
+
+      {showAddForm && accounts.length > 0 && (
+        <AddItemForm accounts={accounts} onAdded={handleAdded} />
+      )}
 
       {lastAction && (
         <div style={{
