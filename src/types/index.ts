@@ -47,6 +47,7 @@ export interface Account {
   go_live_date?: string | null
   kickoff_date?: string | null
   current_software?: string | null
+  core_system_requirements?: string | null
   paused_days?: number | null
   plan_template_id?: string | null
   created_at: string

@@ -65,9 +65,10 @@ div:hover .drag-handle { opacity: 0.6 !important; }
 .drag-handle:hover { opacity: 1 !important; }
 
 /* Item delete button — show on row hover */
+.item-delete-btn { color: #ef444466 !important; }
 div:hover > .item-delete-btn,
-div:hover .item-delete-btn { opacity: 0.4 !important; }
-.item-delete-btn:hover { opacity: 1 !important; color: #ef4444 !important; }
+div:hover .item-delete-btn { color: #ef4444aa !important; opacity: 1 !important; }
+.item-delete-btn:hover { color: #ef4444 !important; opacity: 1 !important; }
 
 /* ── Mobile / PWA bottom nav ──────────────────────────────────────────────── */
 .bottom-nav {

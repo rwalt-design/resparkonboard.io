@@ -275,9 +275,9 @@ export function SettingsView({ section, trainingTemplates: initial, planTemplate
                         <button onClick={() => handleClone(t)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 9px', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
                           onMouseEnter={e => (e.currentTarget.style.color = '#5DDDE3')}
                           onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Clone</button>
-                        <button onClick={() => handleDelete(t.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
+                        <button onClick={() => handleDelete(t.id)} style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
                           onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}>×</button>
+                          onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
                       </div>
                       {t.description && (
                         <p style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{t.description}</p>
@@ -489,9 +489,9 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
               style={{ ...inputStyle, marginTop: 0, flex: 1 }}
             />
             <button onClick={() => setAgenda(prev => prev.filter((_, j) => j !== i))}
-              style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 14, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
+              style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 14, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
               onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}>×</button>
+              onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
           </div>
         ))}
         <div style={{ display: 'flex', gap: 6 }}>
@@ -525,9 +525,9 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
               style={{ ...inputStyle, marginTop: 0, flex: 1 }}
             />
             <button onClick={() => setTasks(prev => prev.filter((_, j) => j !== i))}
-              style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 14, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
+              style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 14, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
               onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}>×</button>
+              onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
           </div>
         ))}
         <div style={{ display: 'flex', gap: 6 }}>
@@ -603,9 +603,9 @@ function SessionTemplatesPanel({ sessionTemplates: initialTemplates, onTemplates
                     <button onClick={() => handleClone(t)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 9px', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
                       onMouseEnter={e => (e.currentTarget.style.color = '#5DDDE3')}
                       onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Clone</button>
-                    <button onClick={() => handleDelete(t.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
+                    <button onClick={() => handleDelete(t.id)} style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
                       onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}>×</button>
+                      onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
                   </div>
                   {t.description && (
                     <p style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{t.description}</p>
@@ -888,9 +888,9 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
                   {pushingId === t.id ? 'Pushing…' : '↑ Push to accounts'}
                 </button>
                 <button onClick={() => handleDelete(t.id)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 14, cursor: 'pointer', padding: '0 4px' }}
+                  style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 14, cursor: 'pointer', padding: '0 4px' }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}>×</button>
+                  onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
               </div>
               {pushResult?.id === t.id && (
                 <div style={{ padding: '8px 16px', background: pushResult.message.startsWith('Error') ? '#ef444410' : '#10b98110', borderTop: '1px solid var(--border)', fontSize: 12, color: pushResult.message.startsWith('Error') ? '#ef4444' : '#10b981', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1033,9 +1033,9 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
               onChange={e => updateMilestoneName(mi, e.target.value)}
               style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-h)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)' }}
             />
-            <button onClick={() => removeMilestone(mi)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
+            <button onClick={() => removeMilestone(mi)} style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
               onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}>×</button>
+              onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
           </div>
 
           {/* Training milestone — pick training templates explicitly */}
@@ -1077,9 +1077,9 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
                       onChange={e => updateStageName(mi, si, e.target.value)}
                       style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-ui)' }}
                     />
-                    <button onClick={() => removeStage(mi, si)} style={{ background: 'none', border: 'none', color: 'var(--text-4)', fontSize: 13, cursor: 'pointer' }}
+                    <button onClick={() => removeStage(mi, si)} style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 13, cursor: 'pointer' }}
                       onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-4)')}>×</button>
+                      onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
                   </div>
 
                   {stage.items.map((item, ii) => (
@@ -1135,9 +1135,9 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
                         {item.required ? 'req' : 'opt'}
                       </button>
                       <button onClick={() => removeItem(mi, si, ii)}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-4)', fontSize: 12, cursor: 'pointer' }}
+                        style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 12, cursor: 'pointer' }}
                         onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-4)')}>×</button>
+                        onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
                     </div>
                   ))}
 
@@ -1456,9 +1456,9 @@ function UnmatchedSignalsPanel() {
                   </div>
                 </div>
                 <button onClick={() => dismiss(s.id)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-4)', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
+                  style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-4)')}>×</button>
+                  onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
               </div>
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                 <select
