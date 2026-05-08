@@ -721,7 +721,18 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
   const [pushResult, setPushResult] = useState<{ id: string; message: string } | null>(null)
   const [deduping, setDeduping] = useState(false)
   const [dedupeResult, setDedupeResult] = useState<string | null>(null)
+  const [editingNameId, setEditingNameId] = useState<string | null>(null)
+  const [editingNameValue, setEditingNameValue] = useState('')
   const supabase = createClient()
+
+  const handleSaveName = async (id: string) => {
+    const trimmed = editingNameValue.trim()
+    if (!trimmed) { setEditingNameId(null); return }
+    await supabase.from('plan_templates').update({ name: trimmed }).eq('id', id)
+    setTemplates(prev => prev.map(t => t.id === id ? { ...t, name: trimmed } : t))
+    setEditingNameId(null)
+    await onTemplatesChange?.()
+  }
 
   const handleDedupeAll = async () => {
     setDeduping(true)
@@ -863,7 +874,22 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
             <div key={t.id} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
               {/* Header row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px' }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)', flex: 1 }}>{t.name}</span>
+                {editingNameId === t.id ? (
+                  <input
+                    autoFocus
+                    value={editingNameValue}
+                    onChange={e => setEditingNameValue(e.target.value)}
+                    onBlur={() => handleSaveName(t.id)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSaveName(t.id); if (e.key === 'Escape') setEditingNameId(null) }}
+                    style={{ ...inputStyle, flex: 1, fontSize: 14, fontWeight: 600, padding: '2px 6px' }}
+                  />
+                ) : (
+                  <span
+                    style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)', flex: 1, cursor: 'text' }}
+                    onDoubleClick={() => { setEditingNameId(t.id); setEditingNameValue(t.name) }}
+                    title="Double-click to rename"
+                  >{t.name}</span>
+                )}
                 {t.sku && (
                   <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3,
                     background: '#1BB3BB14', border: '1px solid #1BB3BB30', color: '#5DDDE3',
