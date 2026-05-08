@@ -276,6 +276,7 @@ export interface PlanTemplate {
   is_default: boolean
   structure: PlanTemplateStructure
   created_at: string
+  archived_at?: string | null
 }
 
 export interface Resource {

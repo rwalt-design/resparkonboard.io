@@ -723,6 +723,9 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
   const [dedupeResult, setDedupeResult] = useState<string | null>(null)
   const [editingNameId, setEditingNameId] = useState<string | null>(null)
   const [editingNameValue, setEditingNameValue] = useState('')
+  const [archivedTemplates, setArchivedTemplates] = useState<PlanTemplate[]>([])
+  const [showArchived, setShowArchived] = useState(false)
+  const [archivedLoaded, setArchivedLoaded] = useState(false)
   const supabase = createClient()
 
   const handleSaveName = async (id: string) => {
@@ -732,6 +735,13 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
     setTemplates(prev => prev.map(t => t.id === id ? { ...t, name: trimmed } : t))
     setEditingNameId(null)
     await onTemplatesChange?.()
+  }
+
+  const loadArchived = async () => {
+    if (archivedLoaded) return
+    const { data } = await supabase.from('plan_templates').select('*').not('archived_at', 'is', null).order('archived_at', { ascending: false })
+    setArchivedTemplates(data ?? [])
+    setArchivedLoaded(true)
   }
 
   const handleDedupeAll = async () => {
@@ -814,10 +824,21 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
     }
   }
 
-  const handleDelete = async (id: string) => {
-    await supabase.from('plan_templates').delete().eq('id', id)
+  const handleArchive = async (id: string) => {
+    const archivedAt = new Date().toISOString()
+    await supabase.from('plan_templates').update({ archived_at: archivedAt }).eq('id', id)
+    const t = templates.find(t => t.id === id)
+    if (t) setArchivedTemplates(prev => [{ ...t, archived_at: archivedAt }, ...prev])
     setTemplates(prev => prev.filter(t => t.id !== id))
     if (expandedId === id) setExpandedId(null)
+    await onTemplatesChange?.()
+  }
+
+  const handleRestore = async (id: string) => {
+    await supabase.from('plan_templates').update({ archived_at: null }).eq('id', id)
+    const t = archivedTemplates.find(t => t.id === id)
+    if (t) setTemplates(prev => [...prev, { ...t, archived_at: null }].sort((a, b) => a.name.localeCompare(b.name)))
+    setArchivedTemplates(prev => prev.filter(t => t.id !== id))
     await onTemplatesChange?.()
   }
 
@@ -913,7 +934,8 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
                   style={{ background: '#10b98118', border: '1px solid #10b98140', borderRadius: 5, padding: '3px 10px', color: pushingId === t.id ? 'var(--text-3)' : '#10b981', fontSize: 11, fontWeight: 600, cursor: pushingId === t.id ? 'default' : 'pointer', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap' }}>
                   {pushingId === t.id ? 'Pushing…' : '↑ Push to accounts'}
                 </button>
-                <button onClick={() => handleDelete(t.id)}
+                <button onClick={() => handleArchive(t.id)}
+                  title="Archive template"
                   style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 14, cursor: 'pointer', padding: '0 4px' }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
                   onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
@@ -938,6 +960,42 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
           ))}
         </div>
       )}
+      {/* Archived templates */}
+      <div style={{ marginTop: 12 }}>
+        <button
+          onClick={() => { setShowArchived(v => !v); if (!showArchived) loadArchived() }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 12, cursor: 'pointer', padding: '4px 0', fontFamily: 'var(--font-ui)', display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <span style={{ fontSize: 10 }}>{showArchived ? '▾' : '▸'}</span>
+          Archived templates
+        </button>
+        {showArchived && (
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {!archivedLoaded ? (
+              <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0' }}>Loading…</div>
+            ) : archivedTemplates.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0' }}>No archived templates.</div>
+            ) : archivedTemplates.map(t => (
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, opacity: 0.7 }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-2)', flex: 1 }}>{t.name}</span>
+                {t.sku && (
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: '#1BB3BB14', border: '1px solid #1BB3BB30', color: '#5DDDE3', fontFamily: 'var(--font-mono)' }}>{SKU_LABELS[t.sku] || t.sku}</span>
+                )}
+                <span style={{ fontSize: 11, color: 'var(--text-4)', fontFamily: 'var(--font-mono)' }}>
+                  archived {t.archived_at ? new Date(t.archived_at).toLocaleDateString() : ''}
+                </span>
+                <button
+                  onClick={() => handleRestore(t.id)}
+                  style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '3px 10px', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#5DDDE3')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}
+                >Restore</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Org-wide dedupe tool */}
       <div style={{ marginTop: 20, padding: '12px 16px', background: 'var(--bg-surface2)', borderRadius: 8, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200 }}>

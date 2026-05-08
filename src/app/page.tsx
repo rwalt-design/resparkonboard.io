@@ -41,7 +41,7 @@ export default async function HomePage() {
       .order('created_at', { ascending: false }),
     supabase.from('org_members').select('*').order('name'),
     supabase.from('training_templates').select('*').order('name'),
-    supabase.from('plan_templates').select('*').order('name'),
+    supabase.from('plan_templates').select('*').is('archived_at', null).order('name'),
     supabase.from('session_templates').select('*').order('name'),
     supabase.from('connectors').select('*').order('name'),
     supabase.from('connector_tokens').select('provider, scopes, google_email, updated_at').eq('user_id', user.id),
