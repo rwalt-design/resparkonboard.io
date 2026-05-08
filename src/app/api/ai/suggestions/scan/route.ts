@@ -218,6 +218,16 @@ Return JSON only: an array of suggestion objects.`
       for (const s of suggestions) {
         if (s.suggestion_type === 'task_completion') {
           const title = (s.label as string) || `Mark complete: ${s.task_name}`
+          // Dedup by plan_item_id first (stable across title wording changes)
+          if (s.task_id) {
+            const { data: existingById } = await supabase
+              .from('ai_suggestions').select('id')
+              .eq('account_id', account.id)
+              .filter('meta->>plan_item_id', 'eq', s.task_id as string)
+              .limit(1).single()
+            if (existingById) continue
+          }
+          // Fall back to title dedup
           const { data: existing } = await supabase
             .from('ai_suggestions').select('id')
             .eq('account_id', account.id)
