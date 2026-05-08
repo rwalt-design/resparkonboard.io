@@ -158,13 +158,14 @@ async function stageExtractedItems(
   for (const item of items) {
     if (item.status === 'done') continue // skip already-done items
 
-    // Deduplicate: skip if a pending suggestion with the same title already exists
+    // Deduplicate: skip if ANY suggestion with the same title already exists,
+    // regardless of status — dismissed/confirmed ones should never come back.
     const { data: existing } = await supabase
       .from('ai_suggestions')
       .select('id')
       .eq('account_id', accountId)
-      .eq('status', 'pending')
       .eq('title', item.title)
+      .limit(1)
       .single()
     if (existing) continue
 
