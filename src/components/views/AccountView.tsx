@@ -2207,6 +2207,8 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
   const [contextSaved, setContextSaved] = useState(true)
   const [softwareDraft, setSoftwareDraft] = useState(account.current_software || '')
   const [softwareSaved, setSoftwareSaved] = useState(true)
+  const [requirementsDraft, setRequirementsDraft] = useState(account.core_system_requirements || '')
+  const [requirementsSaved, setRequirementsSaved] = useState(true)
   const [linkedResourceIds, setLinkedResourceIds] = useState<Set<string>>(new Set())
   const [resourcesLoaded, setResourcesLoaded] = useState(false)
   const supabase = createClient()
@@ -2241,6 +2243,12 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
     await supabase.from('accounts').update({ current_software: softwareDraft }).eq('id', account.id)
     onUpdate({ ...account, current_software: softwareDraft })
     setSoftwareSaved(true)
+  }
+
+  const saveRequirements = async () => {
+    await supabase.from('accounts').update({ core_system_requirements: requirementsDraft }).eq('id', account.id)
+    onUpdate({ ...account, core_system_requirements: requirementsDraft })
+    setRequirementsSaved(true)
   }
 
   return (
@@ -2286,6 +2294,25 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
           onBlur={saveSoftware}
           rows={3}
           placeholder="What's the customer using today? Scrap software, accounting, compliance, ATMS…"
+          style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+        />
+      </section>
+
+      {/* Core System Requirements */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={sectionLabel}>Core System Requirements</span>
+          {!requirementsSaved && (
+            <button onClick={saveRequirements} style={primaryBtn}>Save</button>
+          )}
+        </div>
+        <textarea
+          name="core-system-requirements"
+          value={requirementsDraft}
+          onChange={e => { setRequirementsDraft(e.target.value); setRequirementsSaved(false) }}
+          onBlur={saveRequirements}
+          rows={4}
+          placeholder="Hardware, integrations, compliance rules, custom workflows, reporting needs…"
           style={{ ...inputStyle, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
         />
       </section>
