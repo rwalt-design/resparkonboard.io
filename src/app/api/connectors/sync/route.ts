@@ -592,7 +592,7 @@ export async function POST() {
             // Extract tasks from Slack message content → stage as suggestions
             if (text.length > 30) {
               const extracted = await extractTasksFromText(text, account.name, 'Slack message')
-              taskCount += await stageExtractedItems(supabase, account.id, extracted.items, 'manual', 'Slack')
+              taskCount += await stageExtractedItems(supabase, account.id, extracted.items, 'manual', 'Slack', `slack:${match.ts}`)
             }
           }
         } catch (e) {
