@@ -203,7 +203,7 @@ export async function POST() {
 
   const { data: tokens } = await supabase
     .from('connector_tokens')
-    .select('provider, access_token, refresh_token, expires_at')
+    .select('provider, access_token, refresh_token, expires_at, last_synced_at')
     .eq('user_id', user.id)
 
   if (!tokens?.length) return NextResponse.json({ count: 0, message: 'No connectors connected' })
@@ -249,11 +249,17 @@ export async function POST() {
 
     // ── Gmail — known contacts ─────────────────────────────────────────────────
     if (token.provider === 'google' && token.access_token) {
+      // Build date filter: use last sync time if available, otherwise 14 days ago
+      const sinceDate = token.last_synced_at
+        ? new Date(token.last_synced_at)
+        : new Date(Date.now() - 14 * 86400 * 1000)
+      const afterFilter = `after:${sinceDate.getFullYear()}/${String(sinceDate.getMonth() + 1).padStart(2, '0')}/${String(sinceDate.getDate()).padStart(2, '0')}`
+
       for (const contact of contacts || []) {
         if (!contact.email) continue
         const accountName = accountNameMap.get(contact.account_id) || 'Unknown'
         try {
-          const q = encodeURIComponent(`from:${contact.email} newer_than:14d`)
+          const q = encodeURIComponent(`from:${contact.email} ${afterFilter}`)
           const listRes = await fetch(
             `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=10`,
             { headers: { Authorization: `Bearer ${token.access_token}` } }
@@ -319,7 +325,7 @@ export async function POST() {
       if (orgId) {
         try {
           const inboxRes = await fetch(
-            `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=newer_than:14d&maxResults=50`,
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(afterFilter)}&maxResults=50`,
             { headers: { Authorization: `Bearer ${token.access_token}` } }
           )
           const inboxData = await inboxRes.json()
@@ -452,10 +458,9 @@ export async function POST() {
       // ── Google Calendar — past events ────────────────────────────────────────
       try {
         const now = new Date().toISOString()
-        const twoWeeksAgo = new Date(Date.now() - 14 * 86400 * 1000).toISOString()
         const calRes = await fetch(
           `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-          `timeMin=${encodeURIComponent(twoWeeksAgo)}&timeMax=${encodeURIComponent(now)}` +
+          `timeMin=${encodeURIComponent(sinceDate.toISOString())}&timeMax=${encodeURIComponent(now)}` +
           `&singleEvents=true&orderBy=startTime&maxResults=20`,
           { headers: { Authorization: `Bearer ${token.access_token}` } }
         )
@@ -614,6 +619,12 @@ export async function POST() {
       }
     }
   }
+
+  // ── Record sync time so next run only fetches new emails ─────────────────────
+  await supabase.from('connector_tokens')
+    .update({ last_synced_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .eq('provider', 'google')
 
   const parts: string[] = []
   if (emailCount > 0) parts.push(`${emailCount} email${emailCount !== 1 ? 's' : ''}`)
