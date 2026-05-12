@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Resource } from '@/types'
 
@@ -26,7 +26,7 @@ const ghostBtn: React.CSSProperties = {
   cursor: 'pointer', fontFamily: 'var(--font-ui)', flexShrink: 0,
 }
 
-function AddResourceForm({ orgId, onSaved }: { orgId: string; onSaved: () => void }) {
+function AddResourceForm({ onSaved }: { onSaved: () => void }) {
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
   const [description, setDescription] = useState('')
@@ -43,8 +43,10 @@ function AddResourceForm({ orgId, onSaved }: { orgId: string; onSaved: () => voi
   const handleSave = async () => {
     if (!title.trim() || !url.trim()) return
     setSaving(true)
+    const { data: memberData } = await supabase.from('org_members').select('org_id').single()
+    if (!memberData?.org_id) { setSaving(false); return }
     await supabase.from('resources').insert({
-      org_id: orgId,
+      org_id: memberData.org_id,
       title: title.trim(),
       url: normalizeUrl(url),
       description: description.trim() || null,
@@ -226,14 +228,6 @@ function ResourceCard({ resource, onRefresh }: { resource: Resource; onRefresh: 
 
 export function ResourcesView({ resources, onRefresh }: Props) {
   const [search, setSearch] = useState('')
-  const [orgId, setOrgId] = useState<string | null>(null)
-
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.from('org_members').select('org_id').single().then(({ data }) => {
-      if (data) setOrgId(data.org_id)
-    })
-  }, [])
 
   const filtered = resources.filter(r => {
     if (!search.trim()) return true
@@ -255,7 +249,7 @@ export function ResourcesView({ resources, onRefresh }: Props) {
         </span>
       </div>
 
-      {orgId && <AddResourceForm orgId={orgId} onSaved={onRefresh} />}
+      <AddResourceForm onSaved={onRefresh} />
 
       {resources.length > 4 && (
         <input
