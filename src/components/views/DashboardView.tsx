@@ -60,15 +60,19 @@ function computeSummary(account: Account): AccountSummary {
   }
 
   // Last Contact = any qualifying interaction (not internal_note)
+  // Use event_at when present (synced emails/calendar), fall back to created_at
+  const effectiveDate = (i: { event_at?: string | null; created_at: string }) =>
+    i.event_at ?? i.created_at
+
   const allInteractions = (account.interactions || []).filter(i => i.type !== 'internal_note')
   let daysSinceContact = 999
   let lastContactDate: string | undefined
   if (allInteractions.length > 0) {
     const latest = allInteractions.reduce((a, b) =>
-      new Date(a.created_at) > new Date(b.created_at) ? a : b
+      new Date(effectiveDate(a)) > new Date(effectiveDate(b)) ? a : b
     )
-    lastContactDate = latest.created_at
-    daysSinceContact = calendarDaysAgo(latest.created_at)
+    lastContactDate = effectiveDate(latest)
+    daysSinceContact = calendarDaysAgo(lastContactDate)
   }
 
   // Last Outreach = last CSM-initiated interaction only
@@ -77,10 +81,10 @@ function computeSummary(account: Account): AccountSummary {
   let lastOutreachDate: string | undefined
   if (outreachInteractions.length > 0) {
     const latest = outreachInteractions.reduce((a, b) =>
-      new Date(a.created_at) > new Date(b.created_at) ? a : b
+      new Date(effectiveDate(a)) > new Date(effectiveDate(b)) ? a : b
     )
-    lastOutreachDate = latest.created_at
-    daysSinceOutreach = calendarDaysAgo(latest.created_at)
+    lastOutreachDate = effectiveDate(latest)
+    daysSinceOutreach = calendarDaysAgo(lastOutreachDate)
   }
 
   return {
