@@ -153,25 +153,29 @@ async function stageExtractedItems(
   items: ExtractedItem[],
   source: string,
   sourceLabel: string,
+  sourceMessageId?: string,
 ): Promise<number> {
-  let count = 0
-  for (const item of items) {
-    if (item.status === 'done') continue // skip already-done items
-
-    // Deduplicate: skip if ANY suggestion with the same title already exists,
-    // regardless of status — dismissed/confirmed ones should never come back.
-    const { data: existing } = await supabase
+  // If we have a message ID, skip entirely if we've already extracted from this message.
+  // This prevents re-processing the same email/Slack message across syncs even if
+  // the AI generates slightly different task titles each time.
+  if (sourceMessageId) {
+    const { data: alreadyProcessed } = await supabase
       .from('ai_suggestions')
       .select('id')
       .eq('account_id', accountId)
-      .eq('title', item.title)
+      .eq('meta->>source_message_id', sourceMessageId)
       .limit(1)
       .single()
-    if (existing) continue
+    if (alreadyProcessed) return 0
+  }
+
+  let count = 0
+  for (const item of items) {
+    if (item.status === 'done') continue
 
     await supabase.from('ai_suggestions').insert({
       account_id: accountId,
-      type:       item.type,            // 'task' | 'dependency'
+      type:       item.type,
       title:      item.title,
       body:       item.why_important || null,
       status:     'pending',
@@ -183,6 +187,7 @@ async function stageExtractedItems(
         source,
         source_label: sourceLabel,
         why_important: item.why_important,
+        source_message_id: sourceMessageId,
       },
     })
     count++
@@ -309,7 +314,7 @@ export async function POST() {
                 accountName,
                 subject || 'email'
               )
-              taskCount += await stageExtractedItems(supabase, contact.account_id, extracted.items, 'email', subject || 'email')
+              taskCount += await stageExtractedItems(supabase, contact.account_id, extracted.items, 'email', subject || 'email', `gmail:${msg.id}`)
             }
           }
         } catch (e) {
@@ -400,7 +405,7 @@ export async function POST() {
                             matchedAccount.name,
                             `${fromDomain} email`
                           )
-                          taskCount += await stageExtractedItems(supabase, matchedAccount.id, extracted.items, 'email', subject || `${fromDomain} email`)
+                          taskCount += await stageExtractedItems(supabase, matchedAccount.id, extracted.items, 'email', subject || `${fromDomain} email`, `gmail:${msg.id}`)
                         }
                       } catch { /* skip full fetch */ }
                     }
@@ -521,7 +526,7 @@ export async function POST() {
                 'calendar event'
               )
 
-              taskCount += await stageExtractedItems(supabase, matchedAccountId, extracted.items, 'session', eventTitle || 'calendar event')
+              taskCount += await stageExtractedItems(supabase, matchedAccountId, extracted.items, 'session', eventTitle || 'calendar event', `gcal:${event.id}`)
             }
           }
         }
