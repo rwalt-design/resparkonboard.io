@@ -7,6 +7,16 @@ export interface ChangelogEntry {
 // Add new entries at the TOP. The date drives what users see vs. what they've dismissed.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-05-12',
+    title: 'Smarter syncing, cleaner suggestions',
+    bullets: [
+      'AI suggestions now only appear once per email or Slack message — dismissing something means it\'s gone for good',
+      'Sync now only pulls emails received since your last sync, so old threads stop generating new suggestions',
+      'Added a "Dismiss all" button to clear your suggestion backlog in one click',
+      'Fixed the Add Resource form',
+    ],
+  },
+  {
     date: '2026-05-08',
     title: 'A few things you\'ve been asking for',
     bullets: [
