@@ -597,7 +597,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
             onTemplatesChange={refreshTemplates}
           />
         ) : view === 'resources' ? (
-          <ResourcesView resources={resources} onRefresh={refreshResources} />
+          <ResourcesView resources={resources} onRefresh={refreshResources} orgId={currentMember?.org_id ?? ''} />
         ) : view === 'settings' ? (
           <SettingsView
             section="connectors"

@@ -7,6 +7,7 @@ import type { Resource } from '@/types'
 interface Props {
   resources: Resource[]
   onRefresh: () => void
+  orgId: string
 }
 
 const inputStyle: React.CSSProperties = {
@@ -26,7 +27,7 @@ const ghostBtn: React.CSSProperties = {
   cursor: 'pointer', fontFamily: 'var(--font-ui)', flexShrink: 0,
 }
 
-function AddResourceForm({ onSaved }: { onSaved: () => void }) {
+function AddResourceForm({ orgId, onSaved }: { orgId: string; onSaved: () => void }) {
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
   const [description, setDescription] = useState('')
@@ -41,12 +42,10 @@ function AddResourceForm({ onSaved }: { onSaved: () => void }) {
   }
 
   const handleSave = async () => {
-    if (!title.trim() || !url.trim()) return
+    if (!title.trim() || !url.trim() || !orgId) return
     setSaving(true)
-    const { data: memberData } = await supabase.from('org_members').select('org_id').single()
-    if (!memberData?.org_id) { setSaving(false); return }
     await supabase.from('resources').insert({
-      org_id: memberData.org_id,
+      org_id: orgId,
       title: title.trim(),
       url: normalizeUrl(url),
       description: description.trim() || null,
@@ -226,7 +225,7 @@ function ResourceCard({ resource, onRefresh }: { resource: Resource; onRefresh: 
   )
 }
 
-export function ResourcesView({ resources, onRefresh }: Props) {
+export function ResourcesView({ resources, onRefresh, orgId }: Props) {
   const [search, setSearch] = useState('')
 
   const filtered = resources.filter(r => {
@@ -249,7 +248,7 @@ export function ResourcesView({ resources, onRefresh }: Props) {
         </span>
       </div>
 
-      <AddResourceForm onSaved={onRefresh} />
+      <AddResourceForm orgId={orgId} onSaved={onRefresh} />
 
       {resources.length > 4 && (
         <input
