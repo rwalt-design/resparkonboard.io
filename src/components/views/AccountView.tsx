@@ -42,7 +42,7 @@ const STAGE_STATUS_COLORS: Record<string, string> = {
   complete: '#10b981',
 }
 const INTERACTION_ICONS: Record<string, string> = {
-  email: '✉️', call: '📞', meeting: '🗓', note: '📝', session: '🎓',
+  email: '✉️', email_sent: '📤', call: '📞', meeting: '🗓', note: '📝', session: '🎓',
   called: '📞', texted: '💬', bumped_email: '📧', sent_follow_up: '📨',
   internal_note: '📝', custom: '⚡',
 }

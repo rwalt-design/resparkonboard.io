@@ -317,6 +317,44 @@ export async function POST() {
               taskCount += await stageExtractedItems(supabase, contact.account_id, extracted.items, 'email', subject || 'email', `gmail:${msg.id}`)
             }
           }
+
+          // Outbound: emails YOU sent to this contact → counts as Last Outreach
+          const sentQ = encodeURIComponent(`in:sent to:${contact.email} ${afterFilter}`)
+          const sentRes = await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${sentQ}&maxResults=5`,
+            { headers: { Authorization: `Bearer ${token.access_token}` } }
+          )
+          const sentData = await sentRes.json()
+          if (sentData.messages?.length) {
+            for (const msg of sentData.messages) {
+              const { data: existing } = await supabase
+                .from('interactions').select('id')
+                .eq('account_id', contact.account_id).eq('gmail_message_id', msg.id).single()
+              if (existing) continue
+
+              const fullRes = await fetch(
+                `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
+                { headers: { Authorization: `Bearer ${token.access_token}` } }
+              )
+              const fullData = await fullRes.json()
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const headers: any[] = fullData.payload?.headers || []
+              const subject = headers.find((h: any) => h.name === 'Subject')?.value || 'No subject'
+              const emailDate = fullData.internalDate
+                ? new Date(parseInt(fullData.internalDate)).toISOString()
+                : null
+
+              await supabase.from('interactions').insert({
+                account_id: contact.account_id,
+                type: 'email_sent',
+                summary: `Email to ${contact.name}: ${subject}`,
+                gmail_message_id: msg.id,
+                event_at: emailDate,
+              })
+              emailCount++
+              touchedAccountIds.add(contact.account_id)
+            }
+          }
         } catch (e) {
           console.error('Gmail sync error for contact', contact.email, e)
         }

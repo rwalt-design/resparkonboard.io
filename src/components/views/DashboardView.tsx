@@ -49,8 +49,8 @@ function computeSummary(account: Account): AccountSummary {
     if (currentStage) break
   }
 
-  // CSM-initiated (outbound): manually logged by the CSM
-  const OUTREACH_TYPES = new Set(['called', 'texted', 'bumped_email', 'sent_follow_up', 'custom'])
+  // CSM-initiated (outbound): manually logged or outbound emails synced from Gmail
+  const OUTREACH_TYPES = new Set(['called', 'texted', 'bumped_email', 'sent_follow_up', 'custom', 'email_sent'])
   // Inbound/mutual: synced from email/calendar/Slack — the customer engaged
   const CONTACT_TYPES = new Set(['email', 'call', 'note'])
 
