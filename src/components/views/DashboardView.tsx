@@ -49,8 +49,10 @@ function computeSummary(account: Account): AccountSummary {
     if (currentStage) break
   }
 
-  // Outreach = CSM-initiated contact (not internal notes or inbound sessions)
-  const OUTREACH_TYPES = new Set(['called', 'texted', 'bumped_email', 'sent_follow_up', 'custom', 'email', 'call', 'meeting'])
+  // CSM-initiated (outbound): manually logged by the CSM
+  const OUTREACH_TYPES = new Set(['called', 'texted', 'bumped_email', 'sent_follow_up', 'custom'])
+  // Inbound/mutual: synced from email/calendar/Slack — the customer engaged
+  const CONTACT_TYPES = new Set(['email', 'call', 'note'])
 
   // Use calendar-day diff so "yesterday at 11pm" = 1d ago, not 0d ago
   const calendarDaysAgo = (dateStr: string) => {
@@ -59,24 +61,24 @@ function computeSummary(account: Account): AccountSummary {
     return Math.round((today.getTime() - d.getTime()) / 86400000)
   }
 
-  // Last Contact = any qualifying interaction (not internal_note)
   // Use event_at when present (synced emails/calendar), fall back to created_at
   const effectiveDate = (i: { event_at?: string | null; created_at: string }) =>
     i.event_at ?? i.created_at
 
-  const allInteractions = (account.interactions || []).filter(i => i.type !== 'internal_note')
+  // Last Contact = last time the customer engaged (inbound email, Slack msg, calendar meeting)
+  const contactInteractions = (account.interactions || []).filter(i => CONTACT_TYPES.has(i.type))
   let daysSinceContact = 999
   let lastContactDate: string | undefined
-  if (allInteractions.length > 0) {
-    const latest = allInteractions.reduce((a, b) =>
+  if (contactInteractions.length > 0) {
+    const latest = contactInteractions.reduce((a, b) =>
       new Date(effectiveDate(a)) > new Date(effectiveDate(b)) ? a : b
     )
     lastContactDate = effectiveDate(latest)
     daysSinceContact = calendarDaysAgo(lastContactDate)
   }
 
-  // Last Outreach = last CSM-initiated interaction only
-  const outreachInteractions = allInteractions.filter(i => OUTREACH_TYPES.has(i.type))
+  // Last Outreach = last time the CSM reached out (manually logged, CSM-initiated)
+  const outreachInteractions = (account.interactions || []).filter(i => OUTREACH_TYPES.has(i.type))
   let daysSinceOutreach = 999
   let lastOutreachDate: string | undefined
   if (outreachInteractions.length > 0) {
