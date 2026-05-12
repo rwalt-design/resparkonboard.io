@@ -719,7 +719,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
   const accountFor = (id: string) => accounts.find(a => a.id === id)
 
   const pending = suggestions
-    .filter(s => s.status === 'pending')
+    .filter(s => s.status === 'pending' && s.type !== 'sync')
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   return (
