@@ -160,6 +160,7 @@ export interface Interaction {
   detail?: string
   user_id?: string
   event_at?: string | null
+  gmail_message_id?: string | null
   created_at: string
 }
 

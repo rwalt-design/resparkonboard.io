@@ -51,8 +51,9 @@ function computeSummary(account: Account): AccountSummary {
 
   // Last Outreach: outbound emails + manually logged CSM-initiated actions
   const OUTREACH_TYPES = new Set(['email_sent', 'called', 'texted', 'bumped_email', 'sent_follow_up', 'custom', 'no_show'])
-  // Last Contact: inbound emails + calendar meetings (Slack excluded)
-  const CONTACT_TYPES = new Set(['email', 'meeting'])
+  // Last Contact: inbound emails from Gmail (must have gmail_message_id) + confirmed calendar meetings
+  // 'call' = legacy calendar type, 'meeting' = current calendar type
+  const CONTACT_MEETING_TYPES = new Set(['call', 'meeting'])
 
   // Use calendar-day diff so "yesterday at 11pm" = 1d ago, not 0d ago
   const calendarDaysAgo = (dateStr: string) => {
@@ -65,8 +66,10 @@ function computeSummary(account: Account): AccountSummary {
   const effectiveDate = (i: { event_at?: string | null; created_at: string }) =>
     i.event_at ?? i.created_at
 
-  // Last Contact = last time the customer engaged (inbound email, Slack msg, calendar meeting)
-  const contactInteractions = (account.interactions || []).filter(i => CONTACT_TYPES.has(i.type))
+  // Last Contact = inbound emails (must have gmail_message_id = real Gmail) + confirmed meetings
+  const contactInteractions = (account.interactions || []).filter(i =>
+    (i.type === 'email' && i.gmail_message_id) || CONTACT_MEETING_TYPES.has(i.type)
+  )
   let daysSinceContact = 999
   let lastContactDate: string | undefined
   if (contactInteractions.length > 0) {
