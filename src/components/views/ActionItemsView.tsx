@@ -632,6 +632,14 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
     if (target) setLastAction({ suggestion: target, action })
   }
 
+  const dismissAll = async () => {
+    const pendingIds = suggestions.filter(s => s.status === 'pending' && s.type !== 'sync').map(s => s.id)
+    await fetch('/api/ai/suggestions/dismiss-all', { method: 'POST' })
+    setSuggestions(prev => prev.map(s => pendingIds.includes(s.id) ? { ...s, status: 'dismissed' } : s))
+    onCountChange(0)
+    setLastAction(null)
+  }
+
   const undo = async () => {
     if (!lastAction) return
     await fetch('/api/ai/suggestions', {
@@ -731,6 +739,17 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
             ? 'No pending suggestions.'
             : `${pending.length} suggestion${pending.length !== 1 ? 's' : ''} awaiting review — accept to move to Action Items, or dismiss.`}
         </p>
+        {pending.length > 1 && (
+          <button
+            onClick={dismissAll}
+            style={{
+              background: 'none', border: '1px solid var(--border)', borderRadius: 6,
+              padding: '6px 14px', color: 'var(--text-3)',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'var(--font-ui)',
+            }}
+          >Dismiss all</button>
+        )}
         <button
           onClick={scanPlans}
           disabled={scanning}
