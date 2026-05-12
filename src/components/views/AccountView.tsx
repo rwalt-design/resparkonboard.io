@@ -908,7 +908,7 @@ function ExchangeRow({ sendItem, returnItem, stageStatus, onUpdate, accountId, o
     const { data: { user } } = await supabase.auth.getUser()
     await supabase.from('interactions').insert({
       account_id: accountId,
-      type: 'email',
+      type: 'email_sent',
       summary: `Followed up: re-requested ${label}`,
       detail: `Sent a follow-up request for the "${label}" document.`,
       user_id: user?.id || null,
