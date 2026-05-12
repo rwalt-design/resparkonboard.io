@@ -49,10 +49,10 @@ function computeSummary(account: Account): AccountSummary {
     if (currentStage) break
   }
 
-  // CSM-initiated (outbound): manually logged, outbound emails, or no-show attempts
-  const OUTREACH_TYPES = new Set(['called', 'texted', 'bumped_email', 'sent_follow_up', 'custom', 'email_sent', 'no_show'])
-  // Inbound/mutual: synced from email/calendar/Slack — the customer engaged
-  const CONTACT_TYPES = new Set(['email', 'call', 'note'])
+  // Last Outreach: outbound emails + manually logged CSM-initiated actions
+  const OUTREACH_TYPES = new Set(['email_sent', 'called', 'texted', 'bumped_email', 'sent_follow_up', 'custom', 'no_show'])
+  // Last Contact: inbound emails + calendar meetings (Slack excluded)
+  const CONTACT_TYPES = new Set(['email', 'call'])
 
   // Use calendar-day diff so "yesterday at 11pm" = 1d ago, not 0d ago
   const calendarDaysAgo = (dateStr: string) => {
