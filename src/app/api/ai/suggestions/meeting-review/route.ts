@@ -22,10 +22,10 @@ export async function POST(req: Request) {
   const eventTitle = meta?.event_title ?? 'Meeting'
 
   if (action === 'complete') {
-    // Log as a call interaction (counts as Last Contact)
+    // Log as a meeting interaction (counts as Last Contact)
     await supabase.from('interactions').insert({
       account_id,
-      type: 'call',
+      type: 'meeting',
       summary: `Meeting: ${eventTitle}`,
       detail: meta?.gcal_event_id ? `gcal:${meta.gcal_event_id}` : null,
       event_at: eventAt,

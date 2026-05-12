@@ -52,7 +52,7 @@ function computeSummary(account: Account): AccountSummary {
   // Last Outreach: outbound emails + manually logged CSM-initiated actions
   const OUTREACH_TYPES = new Set(['email_sent', 'called', 'texted', 'bumped_email', 'sent_follow_up', 'custom', 'no_show'])
   // Last Contact: inbound emails + calendar meetings (Slack excluded)
-  const CONTACT_TYPES = new Set(['email', 'call'])
+  const CONTACT_TYPES = new Set(['email', 'meeting'])
 
   // Use calendar-day diff so "yesterday at 11pm" = 1d ago, not 0d ago
   const calendarDaysAgo = (dateStr: string) => {
