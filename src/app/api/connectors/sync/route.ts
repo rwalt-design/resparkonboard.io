@@ -533,20 +533,35 @@ export async function POST() {
             const eventDesc = event.description || ''
             const startTime = event.start?.dateTime || event.start?.date || ''
 
-            // Dedup by event ID
+            // Dedup: check both existing interactions (backward compat) and pending suggestions
             const { data: existingCal } = await supabase
               .from('interactions').select('id')
               .eq('account_id', matchedAccountId)
               .eq('detail', `gcal:${event.id}`).single()
             if (existingCal) continue
 
-            // Log the event as an interaction
-            await supabase.from('interactions').insert({
+            const { data: existingSuggestion } = await supabase
+              .from('ai_suggestions').select('id')
+              .eq('account_id', matchedAccountId)
+              .eq('meta->>gcal_event_id', event.id)
+              .neq('status', 'dismissed')
+              .single()
+            if (existingSuggestion) continue
+
+            // Create a meeting_review suggestion instead of silently logging the interaction
+            const eventDate = startTime ? new Date(startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'recently'
+            await supabase.from('ai_suggestions').insert({
               account_id: matchedAccountId,
-              type: 'call',
-              summary: `Meeting: ${eventTitle}`,
-              detail: `gcal:${event.id}`,
-              event_at: startTime || null,
+              account_name: matchedAccountName,
+              type: 'meeting_review',
+              status: 'pending',
+              title: eventTitle,
+              body: `Calendar event on ${eventDate}. Mark it completed or log as a no-show.`,
+              meta: {
+                gcal_event_id: event.id,
+                event_at: startTime || null,
+                event_title: eventTitle,
+              },
             })
             calCount++
             touchedAccountIds.add(matchedAccountId)

@@ -604,7 +604,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
   const [loading, setLoading]         = useState(true)
   const [scanning, setScanning]       = useState(false)
   const [acting, setActing]           = useState<string | null>(null)
-  const [lastAction, setLastAction]   = useState<{ suggestion: AiSuggestion; action: 'accept' | 'dismiss' } | null>(null)
+  const [lastAction, setLastAction]   = useState<{ suggestion: AiSuggestion; action: 'accept' | 'dismiss' | 'complete' | 'no_show' } | null>(null)
 
   const loadSuggestions = useCallback(async () => {
     setLoading(true)
@@ -625,6 +625,20 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, action }),
+    })
+    setSuggestions(prev => prev.filter(s => s.id !== id))
+    onCountChange(suggestions.filter(s => s.id !== id && s.status === 'pending').length)
+    setActing(null)
+    if (target) setLastAction({ suggestion: target, action })
+  }
+
+  const actMeetingReview = async (id: string, action: 'complete' | 'no_show') => {
+    const target = suggestions.find(s => s.id === id)
+    setActing(id)
+    await fetch('/api/ai/suggestions/meeting-review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ suggestionId: id, action }),
     })
     setSuggestions(prev => prev.filter(s => s.id !== id))
     onCountChange(suggestions.filter(s => s.id !== id && s.status === 'pending').length)
@@ -770,7 +784,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
           padding: '8px 14px', marginBottom: 12, gap: 12,
         }}>
           <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
-            {lastAction.action === 'accept' ? 'Accepted' : 'Dismissed'}:{' '}
+            {lastAction.action === 'accept' ? 'Accepted' : lastAction.action === 'complete' ? 'Marked complete' : lastAction.action === 'no_show' ? 'Logged no-show' : 'Dismissed'}:{' '}
             <span style={{ color: 'var(--text-h)' }}>{lastAction.suggestion.title}</span>
           </span>
           <button onClick={undo} style={{
@@ -792,7 +806,10 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {pending.map(s => {
-            const { label, color } = categoryLabel(s)
+            const isMeetingReview = s.type === 'meeting_review'
+            const { label, color } = isMeetingReview
+              ? { label: '📅 Meeting review', color: '#7757F5' }
+              : categoryLabel(s)
             const account = accountFor(s.account_id)
             const isCompletion = s.meta?.suggestion_category === 'completion'
             const isNextAction = s.meta?.suggestion_category === 'next_action'
@@ -827,7 +844,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
                           {s.meta.milestone_name} › {s.meta.stage_name}
                         </span>
                       )}
-                      {!isCompletion && s.meta?.source_label && (
+                      {!isCompletion && !isMeetingReview && s.meta?.source_label && (
                         <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
                           {s.meta.source_label}
                         </span>
@@ -835,7 +852,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)', marginBottom: s.body ? 4 : 0, lineHeight: 1.4, display: 'flex', alignItems: 'baseline', gap: 5 }}>
                       <span>{s.title}</span>
-                      {sourceEmoji(s.meta?.source) && (
+                      {!isMeetingReview && sourceEmoji(s.meta?.source) && (
                         <span style={{ fontSize: 12, flexShrink: 0, background: 'var(--border)', borderRadius: 4, padding: '1px 4px', lineHeight: 1.4 }} title={s.meta?.source}>{sourceEmoji(s.meta?.source)}</span>
                       )}
                     </div>
@@ -845,24 +862,58 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
                   </div>
                   {/* Actions */}
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                    <button
-                      onClick={() => act(s.id, 'accept')}
-                      disabled={acting === s.id}
-                      style={{
-                        background: color + '20', border: `1px solid ${color}60`,
-                        borderRadius: 5, padding: '5px 12px', color,
-                        fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                      }}
-                    >{acting === s.id ? '…' : isCompletion ? 'Mark complete' : isNextAction ? 'Add as task' : 'Add to items'}</button>
-                    <button
-                      onClick={() => act(s.id, 'dismiss')}
-                      disabled={acting === s.id}
-                      style={{
-                        background: 'none', border: '1px solid var(--border)',
-                        borderRadius: 5, padding: '5px 10px', color: 'var(--text-3)',
-                        fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                      }}
-                    >Dismiss</button>
+                    {isMeetingReview ? (
+                      <>
+                        <button
+                          onClick={() => actMeetingReview(s.id, 'complete')}
+                          disabled={acting === s.id}
+                          style={{
+                            background: '#10b98120', border: '1px solid #10b98160',
+                            borderRadius: 5, padding: '5px 12px', color: '#10b981',
+                            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                          }}
+                        >{acting === s.id ? '…' : 'Completed'}</button>
+                        <button
+                          onClick={() => actMeetingReview(s.id, 'no_show')}
+                          disabled={acting === s.id}
+                          style={{
+                            background: '#f59e0b18', border: '1px solid #f59e0b50',
+                            borderRadius: 5, padding: '5px 12px', color: '#f59e0b',
+                            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                          }}
+                        >No Show</button>
+                        <button
+                          onClick={() => act(s.id, 'dismiss')}
+                          disabled={acting === s.id}
+                          style={{
+                            background: 'none', border: '1px solid var(--border)',
+                            borderRadius: 5, padding: '5px 10px', color: 'var(--text-3)',
+                            fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                          }}
+                        >Dismiss</button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => act(s.id, 'accept')}
+                          disabled={acting === s.id}
+                          style={{
+                            background: color + '20', border: `1px solid ${color}60`,
+                            borderRadius: 5, padding: '5px 12px', color,
+                            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                          }}
+                        >{acting === s.id ? '…' : isCompletion ? 'Mark complete' : isNextAction ? 'Add as task' : 'Add to items'}</button>
+                        <button
+                          onClick={() => act(s.id, 'dismiss')}
+                          disabled={acting === s.id}
+                          style={{
+                            background: 'none', border: '1px solid var(--border)',
+                            borderRadius: 5, padding: '5px 10px', color: 'var(--text-3)',
+                            fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                          }}
+                        >Dismiss</button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

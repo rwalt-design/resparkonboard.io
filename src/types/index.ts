@@ -211,6 +211,10 @@ export interface AiSuggestionMeta {
   stage_id?:       string
   // For category = 'next_action'
   priority?: 'high' | 'medium' | 'low'
+  // For type = 'meeting_review'
+  gcal_event_id?: string
+  event_at?: string
+  event_title?: string
 }
 
 export interface AiSuggestion {
