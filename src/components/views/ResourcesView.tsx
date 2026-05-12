@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Resource } from '@/types'
 
@@ -228,13 +228,12 @@ export function ResourcesView({ resources, onRefresh }: Props) {
   const [search, setSearch] = useState('')
   const [orgId, setOrgId] = useState<string | null>(null)
 
-  // Get orgId once
-  useState(() => {
+  useEffect(() => {
     const supabase = createClient()
     supabase.from('org_members').select('org_id').single().then(({ data }) => {
       if (data) setOrgId(data.org_id)
     })
-  })
+  }, [])
 
   const filtered = resources.filter(r => {
     if (!search.trim()) return true
