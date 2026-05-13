@@ -268,15 +268,12 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 32 }}>
             {account.milestones.map((m, i) => [
               <View key={m.id} style={{ flex: 1 }}>
-                <View style={s.milestoneBox}>
+                <View style={[s.milestoneBox, { paddingVertical: 10 }]}>
                   <Text style={s.milestoneBoxName}>{m.name}</Text>
-                  <Text style={s.milestoneBoxDesc}>
-                    {MILESTONE_DESC[m.name] || ''}
-                  </Text>
                 </View>
               </View>,
               i < account.milestones.length - 1
-                ? <View key={`arrow-${i}`} style={{ width: 18, alignItems: 'center', paddingTop: 14 }}>
+                ? <View key={`arrow-${i}`} style={{ width: 18, alignItems: 'center', paddingTop: 10 }}>
                     <Text style={{ fontSize: 13, color: c.blue }}>›</Text>
                   </View>
                 : null,
