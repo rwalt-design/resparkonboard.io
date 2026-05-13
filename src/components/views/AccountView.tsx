@@ -1427,6 +1427,8 @@ function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
   useEffect(() => { if (expandAll !== undefined) setOpen(expandAll) }, [expandAll])
   const [items, setItems] = useState<ChecklistItem[]>(item.checklist ?? [])
   const [input, setInput] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
 
   const save = async (next: ChecklistItem[]) => {
     setItems(next)
@@ -1440,6 +1442,11 @@ function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
   }
   const toggle = (id: string) => save(items.map(x => x.id === id ? { ...x, done: !x.done } : x))
   const remove = (id: string) => save(items.filter(x => x.id !== id))
+  const startEdit = (ci: ChecklistItem) => { setEditingId(ci.id); setEditText(ci.text) }
+  const commitEdit = () => {
+    if (editingId && editText.trim()) save(items.map(x => x.id === editingId ? { ...x, text: editText.trim() } : x))
+    setEditingId(null)
+  }
 
   const doneCount = items.filter(x => x.done).length
 
@@ -1474,7 +1481,21 @@ function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
           }}>
             {ci.done && <span style={{ fontSize: 7, color: '#fff', fontWeight: 700 }}>✓</span>}
           </div>
-          <span style={{ fontSize: 12, color: ci.done ? 'var(--text-3)' : 'var(--text)', flex: 1, textDecoration: ci.done ? 'line-through' : 'none' }}>{ci.text}</span>
+          {editingId === ci.id ? (
+            <input
+              autoFocus
+              value={editText}
+              onChange={e => setEditText(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingId(null) }}
+              style={{ ...inputStyle, flex: 1, fontSize: 12, padding: '1px 5px', marginTop: 0 }}
+            />
+          ) : (
+            <span
+              onClick={() => !ci.done && startEdit(ci)}
+              style={{ fontSize: 12, color: ci.done ? 'var(--text-3)' : 'var(--text)', flex: 1, textDecoration: ci.done ? 'line-through' : 'none', cursor: ci.done ? 'default' : 'text' }}
+            >{ci.text}</span>
+          )}
           <button onClick={() => remove(ci.id)} style={{ background: 'none', border: 'none', color: '#ef444488', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: '0 2px' }}>×</button>
         </div>
       ))}

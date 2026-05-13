@@ -18,6 +18,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fixed the exported onboarding plan PDF — milestone timeline no longer overlaps, and content flows across pages without leaving blank pages at the end',
       'Calendar sync now matches meetings by account name in the event title (not just by attendee email), logs them directly without a review step, and always looks back 14 days so meetings are never missed due to sync timing',
       'Fixed the AI Suggestions badge showing a count when the list was empty — internal sync notifications were inflating the number',
+      'Sub-item names are now editable — click any sub-item text to edit it in place',
     ],
   },
   {
