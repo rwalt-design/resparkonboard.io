@@ -133,11 +133,11 @@ const s = StyleSheet.create({
   milestoneRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 },
   milestoneArrow: { fontSize: 16, color: c.blue, marginTop: 2, marginHorizontal: 8 },
   milestoneBox: {
-    flex: 1, backgroundColor: c.blueLight,
+    flex: 1, backgroundColor: c.blue,
     borderRadius: 6, padding: '10 12',
     alignItems: 'center',
   },
-  milestoneBoxName: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: c.blue, marginBottom: 4, textAlign: 'center' },
+  milestoneBoxName: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: c.white, textAlign: 'center' },
   milestoneBoxDesc: { fontSize: 9, color: '#007580', textAlign: 'center', lineHeight: 1.4 },
 
   // Plan pages
@@ -238,12 +238,16 @@ export function OnboardingPlanPDF({ account, repName, companyName, intro }: Prop
   const primaryContacts = account.contacts.slice(0, 3)
 
   // Build plan milestones — show all visible items (task, session, dependency)
+  // Exclude "Account Creation" stage — that's internal setup, not customer-facing
+  const HIDDEN_STAGES = new Set(['Account Creation'])
   const planMilestones = account.milestones.map(m => ({
     ...m,
-    stages: m.stages.map(s => ({
-      ...s,
-      visibleItems: s.items.filter(isVisibleItem),
-    })).filter(s => s.visibleItems.length > 0),
+    stages: m.stages
+      .filter(s => !HIDDEN_STAGES.has(s.name))
+      .map(s => ({
+        ...s,
+        visibleItems: s.items.filter(isVisibleItem),
+      })).filter(s => s.visibleItems.length > 0),
   })).filter(m => m.stages.length > 0)
 
   // Customer-facing requests only (not 'complete' hidden)
@@ -479,6 +483,11 @@ export function OnboardingPlanPDF({ account, repName, companyName, intro }: Prop
                           <Text style={s.milestoneNumText}>{mi + 1}</Text>
                         </View>
                         <Text style={s.milestoneName}>{milestone.name}</Text>
+                        {milestone.name === 'Go-Live' && account.go_live_date && (
+                          <Text style={{ fontSize: 10, color: c.blue, fontFamily: 'Helvetica-Bold', marginLeft: 8 }}>
+                            {formatDate(account.go_live_date)}
+                          </Text>
+                        )}
                       </View>
                       {stageBlock}
                     </View>

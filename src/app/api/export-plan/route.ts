@@ -29,13 +29,13 @@ async function generateIntro(account: any, repName: string): Promise<string> {
 Guidelines:
 - Warm, direct, plain English — no jargon or filler phrases
 - Speak to the customer ("your team", "you'll be working with")
+- Do NOT name individual contacts — refer to them collectively as "your team"
 - Don't start with "Welcome" or "Dear"
-- Reference the product, team contacts, CSM, and go-live target naturally
+- Reference the product, CSM name, and go-live target naturally
 - Return only the paragraph, no quotes or labels
 
 Account: ${account.name}
 Product: ${skuLabel}
-Contacts: ${contacts || 'not listed'}
 CSM: ${repName} at Respark
 ${goLive}
 ${salesContext}`
