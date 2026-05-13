@@ -143,7 +143,7 @@ export function SettingsView({ section, trainingTemplates: initial, planTemplate
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
         {(section === 'connectors'
           ? [['connectors', 'Connectors']] as const
-          : [['training', 'Training Templates'], ['sessions', 'Session Templates'], ['plans', 'Plan Templates']] as const
+          : [['plans', 'Plan Templates'], ['sessions', 'Session Templates'], ['training', 'Training Templates']] as const
         ).map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as typeof tab)} style={{
             background: 'none', border: 'none',
