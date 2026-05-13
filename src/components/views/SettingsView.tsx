@@ -27,111 +27,8 @@ interface Props {
 
 export function SettingsView({ section, trainingTemplates: initial, planTemplates: initialPlans, sessionTemplates: initialSessions, connectors, connectorTokens, onTemplatesChange }: Props) {
   const [tab, setTab] = useState<'training' | 'sessions' | 'plans' | 'connectors'>(
-    section === 'connectors' ? 'connectors' : 'training'
+    section === 'connectors' ? 'connectors' : 'plans'
   )
-  const [templates, setTemplates] = useState<TrainingTemplate[]>(initial)
-  const [showAdd, setShowAdd] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const supabase = createClient()
-
-  // New/edit template form state
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [duration, setDuration] = useState('')
-  const [triggers, setTriggers] = useState<string[]>([])
-  const [saving, setSaving] = useState(false)
-
-  const toggleTrigger = (t: string) =>
-    setTriggers(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
-
-  const startEdit = (t: TrainingTemplate) => {
-    setEditingId(t.id)
-    setName(t.name)
-    setDescription(t.description || '')
-    setDuration(t.duration_minutes ? String(t.duration_minutes) : '')
-    setTriggers(t.triggers || [])
-    setShowAdd(false)
-  }
-
-  const cancelEdit = () => {
-    setEditingId(null)
-    setName(''); setDescription(''); setDuration(''); setTriggers([])
-  }
-
-  const handleSaveEdit = async () => {
-    if (!editingId || !name.trim()) return
-    setSaving(true)
-    const patch = {
-      name: name.trim(),
-      description: description || null,
-      duration_minutes: duration ? parseInt(duration) : null,
-      triggers,
-    }
-    const { data } = await supabase.from('training_templates').update(patch).eq('id', editingId).select().single()
-    if (data) {
-      setTemplates(prev => prev.map(t => t.id === editingId ? data as TrainingTemplate : t))
-      // Propagate name change to all session items linked to this template
-      await supabase
-        .from('items')
-        .update({ session_name: name.trim() })
-        .eq('training_template_id', editingId)
-        .eq('type', 'session')
-      cancelEdit()
-      await onTemplatesChange?.()
-    }
-    setSaving(false)
-  }
-
-  const handleClone = async (t: TrainingTemplate) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { data: member } = await supabase.from('org_members').select('org_id').eq('user_id', user.id).single()
-    if (!member) return
-    const { data } = await supabase.from('training_templates').insert({
-      org_id: member.org_id,
-      name: `Copy of ${t.name}`,
-      description: t.description || null,
-      duration_minutes: t.duration_minutes || null,
-      triggers: t.triggers || [],
-    }).select().single()
-    if (data) {
-      setTemplates(prev => [...prev, data as TrainingTemplate])
-      await onTemplatesChange?.()
-    }
-  }
-
-  const handleAdd = async () => {
-    if (!name.trim()) return
-    setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { data: member } = await supabase
-      .from('org_members').select('org_id').eq('user_id', user.id).single()
-    if (!member) { setSaving(false); return }
-
-    const { data } = await supabase.from('training_templates').insert({
-      org_id: member.org_id,
-      name,
-      description: description || null,
-      duration_minutes: duration ? parseInt(duration) : null,
-      triggers,
-    }).select().single()
-
-    if (data) {
-      setTemplates(prev => [...prev, data as TrainingTemplate])
-      setName(''); setDescription(''); setDuration(''); setTriggers([])
-      setShowAdd(false)
-      await onTemplatesChange?.()
-    }
-    setSaving(false)
-  }
-
-  const handleDelete = async (id: string) => {
-    await supabase.from('training_templates').delete().eq('id', id)
-    setTemplates(prev => prev.filter(t => t.id !== id))
-    await onTemplatesChange?.()
-  }
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 720 }}>
@@ -157,149 +54,10 @@ export function SettingsView({ section, trainingTemplates: initial, planTemplate
       </div>
 
       {tab === 'training' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
-            <button onClick={() => setShowAdd(v => !v)} style={primaryBtn}>
-              {showAdd ? '✕ Cancel' : '+ Add Template'}
-            </button>
-          </div>
-
-          {/* Add form */}
-          {showAdd && (
-            <div style={{
-              background: 'var(--bg-surface)', border: '1px solid var(--border-b)', borderRadius: 8,
-              padding: '18px 20px', marginBottom: 16,
-            }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <label style={labelStyle}>
-                  Name *
-                  <input name="session-name" value={name} onChange={e => setName(e.target.value)}
-                    style={inputStyle} placeholder="Dispatcher Training" />
-                </label>
-                <label style={labelStyle}>
-                  Duration (minutes)
-                  <input name="session-duration" value={duration} onChange={e => setDuration(e.target.value)}
-                    style={inputStyle} placeholder="60" type="number" />
-                </label>
-              </div>
-
-              <label style={{ ...labelStyle, display: 'block', marginBottom: 12 }}>
-                Description
-                <textarea name="session-description" value={description} onChange={e => setDescription(e.target.value)}
-                  style={{ ...inputStyle, resize: 'vertical' }} rows={2}
-                  placeholder="What this session covers..." />
-              </label>
-
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 8 }}>
-                  Triggers (which accounts get this template)
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {[...SKU_OPTIONS, ...ADDON_OPTIONS].map(t => (
-                    <button key={t} onClick={() => toggleTrigger(t)} style={{
-                      padding: '4px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600,
-                      cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                      background: triggers.includes(t) ? '#1BB3BB22' : 'var(--bg-surface2)',
-                      border: `1px solid ${triggers.includes(t) ? '#1BB3BB' : 'var(--border-b)'}`,
-                      color: triggers.includes(t) ? '#5DDDE3' : 'var(--text-2)',
-                    }}>{t}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={handleAdd} disabled={saving || !name.trim()} style={primaryBtn}>
-                  {saving ? 'Saving…' : 'Save Template'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {templates.length === 0 ? (
-            <div style={{ color: 'var(--text-3)', fontSize: 13, padding: '32px 0', textAlign: 'center' }}>
-              No training templates yet. Add one above.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {templates.map(t => (
-                <div key={t.id} style={{
-                  background: 'var(--bg-surface)', border: `1px solid ${editingId === t.id ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 8,
-                  padding: '14px 16px',
-                }}>
-                  {editingId === t.id ? (
-                    /* Inline edit form */
-                    <div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                        <label style={labelStyle}>Name *
-                          <input name="session-name" value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
-                        </label>
-                        <label style={labelStyle}>Duration (minutes)
-                          <input name="session-duration" value={duration} onChange={e => setDuration(e.target.value)} style={inputStyle} type="number" />
-                        </label>
-                      </div>
-                      <label style={{ ...labelStyle, display: 'block', marginBottom: 12 }}>Description
-                        <textarea name="session-description" value={description} onChange={e => setDescription(e.target.value)}
-                          style={{ ...inputStyle, resize: 'vertical' }} rows={2} />
-                      </label>
-                      <div style={{ marginBottom: 14 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 8 }}>Triggers</div>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {[...SKU_OPTIONS, ...ADDON_OPTIONS].map(opt => (
-                            <button key={opt} onClick={() => toggleTrigger(opt)} style={{
-                              padding: '4px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600,
-                              cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                              background: triggers.includes(opt) ? '#1BB3BB22' : 'var(--bg-surface2)',
-                              border: `1px solid ${triggers.includes(opt) ? '#1BB3BB' : 'var(--border-b)'}`,
-                              color: triggers.includes(opt) ? '#5DDDE3' : 'var(--text-2)',
-                            }}>{opt}</button>
-                          ))}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                        <button onClick={cancelEdit} style={{ background: 'none', border: '1px solid var(--border-b)', borderRadius: 6, padding: '5px 14px', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>Cancel</button>
-                        <button onClick={handleSaveEdit} disabled={saving || !name.trim()} style={primaryBtn}>{saving ? 'Saving…' : 'Save'}</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: t.description || (t.triggers?.length) ? 6 : 0 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)', flex: 1 }}>{t.name}</span>
-                        {t.duration_minutes && (
-                          <span style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
-                            {t.duration_minutes}min
-                          </span>
-                        )}
-                        <button onClick={() => startEdit(t)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 9px', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
-                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-h)')}
-                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Edit</button>
-                        <button onClick={() => handleClone(t)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 9px', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
-                          onMouseEnter={e => (e.currentTarget.style.color = '#5DDDE3')}
-                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Clone</button>
-                        <button onClick={() => handleDelete(t.id)} style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
-                          onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                          onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
-                      </div>
-                      {t.description && (
-                        <p style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{t.description}</p>
-                      )}
-                      {t.triggers && t.triggers.length > 0 && (
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {t.triggers.map(trigger => (
-                            <span key={trigger} style={{
-                              fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3,
-                              background: '#1BB3BB14', border: '1px solid #1BB3BB30', color: '#5DDDE3',
-                              fontFamily: 'var(--font-mono)',
-                            }}>{trigger}</span>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <TrainingTemplatesPanel
+          trainingTemplates={initial}
+          onTemplatesChange={onTemplatesChange}
+        />
       )}
 
       {tab === 'sessions' && (
@@ -341,6 +99,290 @@ const inputStyle: React.CSSProperties = {
 }
 const labelStyle: React.CSSProperties = {
   fontSize: 11, color: 'var(--text-2)', fontWeight: 600,
+}
+
+// ─── Training Templates Panel ─────────────────────────────────────────────────
+
+function TrainingTemplatesPanel({ trainingTemplates: initialTemplates, onTemplatesChange }: { trainingTemplates: TrainingTemplate[]; onTemplatesChange?: () => Promise<void> }) {
+  const [templates, setTemplates] = useState<TrainingTemplate[]>(initialTemplates)
+  const [showAdd, setShowAdd] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const supabase = createClient()
+
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [duration, setDuration] = useState('')
+  const [agenda, setAgenda] = useState<string[]>([])
+  const [agendaInput, setAgendaInput] = useState('')
+  const [tasks, setTasks] = useState<{ name: string; assignee: string }[]>([])
+  const [taskInput, setTaskInput] = useState('')
+  const [taskAssignee, setTaskAssignee] = useState('personal')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => { setTemplates(initialTemplates) }, [initialTemplates])
+
+  const resetForm = () => {
+    setName(''); setDescription(''); setDuration('')
+    setAgenda([]); setAgendaInput('')
+    setTasks([]); setTaskInput(''); setTaskAssignee('personal')
+  }
+
+  const startEdit = (t: TrainingTemplate) => {
+    setEditingId(t.id)
+    setName(t.name)
+    setDescription(t.description || '')
+    setDuration(t.duration_minutes ? String(t.duration_minutes) : '')
+    setAgenda(t.agenda || [])
+    setTasks(t.tasks || [])
+    setAgendaInput('')
+    setTaskInput(''); setTaskAssignee('personal')
+    setShowAdd(false)
+  }
+
+  const cancelEdit = () => { setEditingId(null); resetForm() }
+
+  const addAgendaItem = () => {
+    if (!agendaInput.trim()) return
+    setAgenda(prev => [...prev, agendaInput.trim()])
+    setAgendaInput('')
+  }
+
+  const addTask = () => {
+    if (!taskInput.trim()) return
+    setTasks(prev => [...prev, { name: taskInput.trim(), assignee: taskAssignee }])
+    setTaskInput(''); setTaskAssignee('personal')
+  }
+
+  const buildPayload = () => ({
+    name: name.trim(),
+    description: description || null,
+    duration_minutes: duration ? parseInt(duration) : null,
+    agenda,
+    tasks,
+  })
+
+  const handleAdd = async () => {
+    if (!name.trim()) return
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSaving(false); return }
+    const { data: member } = await supabase.from('org_members').select('org_id').eq('user_id', user.id).single()
+    if (!member) { setSaving(false); return }
+    const { data } = await supabase.from('training_templates').insert({ org_id: member.org_id, ...buildPayload() }).select().single()
+    if (data) {
+      setTemplates(prev => [...prev, data as TrainingTemplate])
+      resetForm(); setShowAdd(false)
+      await onTemplatesChange?.()
+    }
+    setSaving(false)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingId || !name.trim()) return
+    setSaving(true)
+    const { data } = await supabase.from('training_templates').update(buildPayload()).eq('id', editingId).select().single()
+    if (data) {
+      setTemplates(prev => prev.map(t => t.id === editingId ? data as TrainingTemplate : t))
+      cancelEdit()
+      await onTemplatesChange?.()
+    }
+    setSaving(false)
+  }
+
+  const handleClone = async (t: TrainingTemplate) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: member } = await supabase.from('org_members').select('org_id').eq('user_id', user.id).single()
+    if (!member) return
+    const { data } = await supabase.from('training_templates').insert({
+      org_id: member.org_id,
+      name: `Copy of ${t.name}`,
+      description: t.description || null,
+      duration_minutes: t.duration_minutes || null,
+      agenda: t.agenda || [],
+      tasks: t.tasks || [],
+    }).select().single()
+    if (data) {
+      setTemplates(prev => [...prev, data as TrainingTemplate])
+      await onTemplatesChange?.()
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    await supabase.from('training_templates').delete().eq('id', id)
+    setTemplates(prev => prev.filter(t => t.id !== id))
+    await onTemplatesChange?.()
+  }
+
+  const ASSIGNEE_COLORS: Record<string, string> = { personal: '#1BB3BB', customer: '#f59e0b', internal: '#6b7280' }
+
+  const renderForm = (onSubmit: () => void, submitLabel: string) => (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <label style={labelStyle}>Name *
+          <input name="training-name" value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder="Dispatcher Training" />
+        </label>
+        <label style={labelStyle}>Duration (minutes)
+          <input name="training-duration" value={duration} onChange={e => setDuration(e.target.value)} style={inputStyle} placeholder="60" type="number" />
+        </label>
+      </div>
+      <label style={{ ...labelStyle, display: 'block', marginBottom: 12 }}>Description
+        <textarea name="training-description" value={description} onChange={e => setDescription(e.target.value)}
+          style={{ ...inputStyle, resize: 'vertical' }} rows={2} placeholder="What this training covers..." />
+      </label>
+
+      {/* Agenda editor */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 6 }}>Agenda Items</div>
+        {agenda.map((item, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 16 }}>{i + 1}.</span>
+            <input name={`training-agenda-${i}`} value={item}
+              onChange={e => setAgenda(prev => prev.map((a, j) => j === i ? e.target.value : a))}
+              style={{ ...inputStyle, marginTop: 0, flex: 1 }} />
+            <button onClick={() => setAgenda(prev => prev.filter((_, j) => j !== i))}
+              style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 14, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input name="training-agenda-new" value={agendaInput} onChange={e => setAgendaInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAgendaItem() } }}
+            style={{ ...inputStyle, marginTop: 0, flex: 1 }} placeholder="Add agenda item…" />
+          <button onClick={addAgendaItem} style={{ background: 'var(--bg-surface2)', border: '1px solid var(--border-b)', borderRadius: 6, padding: '0 12px', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer' }}>+</button>
+        </div>
+      </div>
+
+      {/* Tasks editor */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 6 }}>Associated Tasks</div>
+        {tasks.map((task, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
+              background: `${ASSIGNEE_COLORS[task.assignee] || '#6b7280'}18`,
+              border: `1px solid ${ASSIGNEE_COLORS[task.assignee] || '#6b7280'}44`,
+              color: ASSIGNEE_COLORS[task.assignee] || '#6b7280', minWidth: 52, textAlign: 'center' }}>
+              {task.assignee}
+            </span>
+            <input name={`training-task-${i}`} value={task.name}
+              onChange={e => setTasks(prev => prev.map((t, j) => j === i ? { ...t, name: e.target.value } : t))}
+              style={{ ...inputStyle, marginTop: 0, flex: 1 }} />
+            <button onClick={() => setTasks(prev => prev.filter((_, j) => j !== i))}
+              style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 14, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <select name="training-task-assignee" value={taskAssignee} onChange={e => setTaskAssignee(e.target.value)}
+            style={{ background: 'var(--bg-surface2)', border: '1px solid var(--border-b)', borderRadius: 6, padding: '7px 8px',
+              color: ASSIGNEE_COLORS[taskAssignee] || 'var(--text-2)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', marginTop: 0 }}>
+            <option value="personal">personal</option>
+            <option value="customer">customer</option>
+            <option value="internal">internal</option>
+          </select>
+          <input name="training-task-new" value={taskInput} onChange={e => setTaskInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTask() } }}
+            style={{ ...inputStyle, marginTop: 0, flex: 1 }} placeholder="Add task…" />
+          <button onClick={addTask} style={{ background: 'var(--bg-surface2)', border: '1px solid var(--border-b)', borderRadius: 6, padding: '0 12px', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer' }}>+</button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        {editingId && (
+          <button onClick={cancelEdit} style={{ background: 'none', border: '1px solid var(--border-b)', borderRadius: 6, padding: '5px 14px', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>Cancel</button>
+        )}
+        <button onClick={onSubmit} disabled={saving || !name.trim()} style={primaryBtn}>
+          {saving ? 'Saving…' : submitLabel}
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16, lineHeight: 1.6 }}>
+        Create reusable training templates with agendas and default tasks. Attach them to plan template items.
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+        <button onClick={() => { setShowAdd(v => !v); if (editingId) cancelEdit() }} style={primaryBtn}>
+          {showAdd ? '✕ Cancel' : '+ Add Training Template'}
+        </button>
+      </div>
+
+      {showAdd && (
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-b)', borderRadius: 8, padding: '18px 20px', marginBottom: 16 }}>
+          {renderForm(handleAdd, 'Save Template')}
+        </div>
+      )}
+
+      {templates.length === 0 ? (
+        <div style={{ color: 'var(--text-3)', fontSize: 13, padding: '32px 0', textAlign: 'center' }}>
+          No training templates yet. Add one above.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {templates.map(t => (
+            <div key={t.id} style={{
+              background: 'var(--bg-surface)', border: `1px solid ${editingId === t.id ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 8, padding: '14px 16px',
+            }}>
+              {editingId === t.id ? (
+                renderForm(handleSaveEdit, 'Save')
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: (t.description || (t.agenda?.length ?? 0) > 0 || (t.tasks?.length ?? 0) > 0) ? 8 : 0 }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)', flex: 1 }}>{t.name}</span>
+                    {t.duration_minutes && (
+                      <span style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{t.duration_minutes}min</span>
+                    )}
+                    <button onClick={() => startEdit(t)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 9px', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-h)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Edit</button>
+                    <button onClick={() => handleClone(t)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 9px', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#5DDDE3')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}>Clone</button>
+                    <button onClick={() => handleDelete(t.id)} style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
+                  </div>
+                  {t.description && (
+                    <p style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{t.description}</p>
+                  )}
+                  {t.agenda && t.agenda.length > 0 && (
+                    <div style={{ marginBottom: 6 }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Agenda</div>
+                      <ol style={{ margin: 0, paddingLeft: 18 }}>
+                        {t.agenda.map((item, i) => (
+                          <li key={i} style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 2 }}>{item}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                  {t.tasks && t.tasks.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Tasks</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {t.tasks.map((task, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+                              background: `${ASSIGNEE_COLORS[task.assignee] || '#6b7280'}18`,
+                              border: `1px solid ${ASSIGNEE_COLORS[task.assignee] || '#6b7280'}44`,
+                              color: ASSIGNEE_COLORS[task.assignee] || '#6b7280' }}>{task.assignee}</span>
+                            <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{task.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── Session Templates Panel ──────────────────────────────────────────────────

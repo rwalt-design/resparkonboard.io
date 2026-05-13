@@ -258,6 +258,8 @@ export interface TrainingTemplate {
   triggers: string[]
   duration_minutes?: number
   description?: string
+  agenda: string[]
+  tasks: { name: string; assignee: string }[]
 }
 
 export interface SessionTemplate {
