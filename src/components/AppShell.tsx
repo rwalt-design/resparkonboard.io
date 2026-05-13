@@ -221,6 +221,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
         interactions(*),
         open_tasks(*),
         requests(*),
+        quick_logs(*),
         milestones(
           *,
           stages(
@@ -247,6 +248,7 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
                   .sort((x: any, y: any) => x.order_index - y.order_index),
               })),
           })),
+        quick_logs: ((a.quick_logs || []) as any[]).sort((x: any, y: any) => new Date(y.logged_at).getTime() - new Date(x.logged_at).getTime()),
       })) as Account[]
       setAccounts(sorted)
       if (selectedAccount) {

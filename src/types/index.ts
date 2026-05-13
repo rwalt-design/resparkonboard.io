@@ -1,7 +1,7 @@
 export type Sku = 'dispatch' | 'facility_management' | 'full_suite'
 export type Addon = 'brokerage' | 'export' | 'api'
 export type StageStatus = 'locked' | 'active' | 'unlocked' | 'complete'
-export type ItemType = 'task' | 'session' | 'record' | 'handoff' | 'log' | 'dependency' | 'golive'
+export type ItemType = 'task' | 'session' | 'record' | 'handoff' | 'log' | 'dependency' | 'golive' | 'report'
 
 export interface ChecklistItem {
   id: string
@@ -33,6 +33,20 @@ export interface OrgMember {
 }
 
 export type HealthStatus = 'active' | 'stalled' | 'on_hold' | 'unresponsive' | 'blocked'
+export type QuickLogType = 'called' | 'texted' | 'bumped_email' | 'sent_follow_up' | 'internal_note' | 'custom'
+export type QuickLogOutcome = 'reached' | 'left_voicemail' | 'no_answer'
+
+export interface QuickLog {
+  id: string
+  account_id: string
+  log_type: QuickLogType
+  outcome?: QuickLogOutcome
+  note?: string
+  custom_label?: string
+  logged_at: string
+  created_by?: string
+  created_at: string
+}
 
 export interface Account {
   id: string
@@ -59,6 +73,8 @@ export interface Account {
   interactions?: Interaction[]
   requests?: Request[]
   open_tasks?: OpenTask[]
+  quick_logs?: QuickLog[]
+  last_contact?: string | null
 }
 
 export interface Contact {
@@ -117,6 +133,11 @@ export interface Item {
   handoff_name?: string
   handoff_incoming_rep?: string
   handoff_report?: string
+  // report
+  report_legacy_name?: string
+  report_date_range?: string
+  report_purpose?: string
+  report_converted_name?: string | null
   // sub-checklist
   checklist?: ChecklistItem[]
   // log
@@ -312,6 +333,3 @@ export interface AccountSummary extends Account {
   lastOutreachDate?: string
   openTaskCount: number
 }
-
-export type QuickLogType = 'called' | 'texted' | 'bumped_email' | 'sent_follow_up' | 'internal_note' | 'custom'
-export type QuickLogOutcome = 'reached' | 'left_voicemail' | 'no_answer'

@@ -973,7 +973,7 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
   const expandAll = useContext(ExpandAllCtx)
   useEffect(() => { if (expandAll !== undefined) setOpen(expandAll) }, [expandAll])
   const [addingItem, setAddingItem] = useState(false)
-  const [itemType, setItemType] = useState<'task' | 'dependency' | 'exchange' | 'session' | 'training' | 'log' | 'golive'>('task')
+  const [itemType, setItemType] = useState<'task' | 'dependency' | 'exchange' | 'session' | 'training' | 'log' | 'golive' | 'report'>('task')
   const [itemName, setItemName] = useState('')
   const [itemRequired, setItemRequired] = useState(true)
   const [selectedSessionTemplateId, setSelectedSessionTemplateId] = useState('')
@@ -1118,6 +1118,11 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
       insertPayload.session_name         = itemName.trim()
       insertPayload.session_status       = 'pending'
       if (selectedTrainingTemplateId)    insertPayload.training_template_id = selectedTrainingTemplateId
+    } else if (itemType === 'report') {
+      insertPayload.report_legacy_name    = itemName.trim()
+      insertPayload.report_date_range     = ''
+      insertPayload.report_purpose        = ''
+      insertPayload.report_converted_name = null
     } else if (itemType === 'exchange') {
       // Two tasks: Send (respark) + Return (customer)
       const base = { stage_id: stage.id, type: 'task', required: itemRequired, task_source: 'manual', task_done: false }
@@ -1271,6 +1276,12 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                         })
                       }}
                     />
+                  ) : group.item.type === 'report' ? (
+                    <ReportItemRow
+                      item={group.item}
+                      onUpdate={handleItemUpdate}
+                      onDelete={() => handleDeleteItem(group.item.id)}
+                    />
                   ) : (
                     <ItemRow
                       item={group.item}
@@ -1300,6 +1311,7 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                   { id: 'session',    label: 'Session',             color: '#10b981', tip: 'A scheduled meeting or call with the customer' },
                   { id: 'training',   label: 'Training',            color: '#06b6d4', tip: 'A training session — optionally linked to a training template' },
                   { id: 'log',        label: 'Log',                 color: '#6b7280', tip: 'Track recurring usage or check-in metrics' },
+                  { id: 'report',     label: 'Report',              color: '#06b6d4', tip: 'Report requirements to build' },
                   { id: 'golive',     label: '🚀 Go Live',          color: '#10b981', tip: 'Mark the account as live and record the go-live date' },
                 ] as const).map(({ id, label, color, tip }) => (
                   <Tooltip key={id} content={tip} placement="top">
@@ -1373,6 +1385,7 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                     itemType === 'exchange'   ? 'Document name (e.g. Data Template)' :
                     itemType === 'session'    ? 'Session name (or pick template above)...' :
                     itemType === 'training'   ? 'Training name (or pick template above)...' :
+                    itemType === 'report'     ? 'Legacy report name...' :
                     itemType === 'golive'     ? 'Label (optional, defaults to "Go Live")' :
                     'Name...'
                   }
@@ -1473,6 +1486,68 @@ function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
   ) : null
 
   return { toggleBtn, panel }
+}
+
+function ReportItemCell({ value, placeholder, multiline, emptyItalic, onSave }: {
+  value: string; placeholder: string; multiline?: boolean; emptyItalic?: boolean; onSave: (v: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  useEffect(() => { setDraft(value) }, [value])
+  const commit = () => { setEditing(false); onSave(draft) }
+  const base: React.CSSProperties = { flex: 1, minWidth: 0, borderRight: '1px solid var(--border)', padding: '0 8px', display: 'flex', alignItems: 'center' }
+  const inputBase: React.CSSProperties = { width: '100%', background: 'none', border: 'none', outline: 'none', fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text)', resize: 'none', padding: '6px 0' }
+  if (editing) return (
+    <div style={base}>
+      {multiline
+        ? <textarea autoFocus rows={2} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Escape') { setDraft(value); setEditing(false) } }} style={inputBase} />
+        : <input autoFocus value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(value); setEditing(false) } }} style={inputBase} />
+      }
+    </div>
+  )
+  const empty = !value || value.trim() === ''
+  return (
+    <div style={{ ...base, cursor: 'text', padding: '6px 8px', minHeight: 32 }} onClick={() => setEditing(true)}>
+      <span style={{ fontSize: 11, color: empty ? 'var(--text-3)' : 'var(--text)', fontStyle: empty && emptyItalic ? 'italic' : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: multiline ? 3 : 1, WebkitBoxOrient: 'vertical' }}>
+        {empty ? placeholder : value}
+      </span>
+    </div>
+  )
+}
+
+function ReportItemRow({ item, onUpdate, onDelete }: {
+  item: Item; onUpdate: (i: Item) => void; onDelete?: () => void
+}) {
+  const supabase = createClient()
+  const [hovered, setHovered] = useState(false)
+  const save = async (field: string, value: string) => {
+    await supabase.from('items').update({ [field]: value }).eq('id', item.id)
+    onUpdate({ ...item, [field]: value })
+  }
+  return (
+    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <div style={{ display: 'flex', background: 'var(--bg-surface2)', borderBottom: '1px solid var(--border)', fontSize: 9, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        {(['Legacy Report Name', 'Date Range', 'Purpose', 'Converted Report Name'] as const).map((label, i) => (
+          <div key={i} style={{ flex: 1, padding: '3px 8px', borderRight: '1px solid var(--border)' }}>{label}</div>
+        ))}
+        <div style={{ width: 28 }} />
+      </div>
+      <div style={{ display: 'flex', background: hovered ? 'var(--bg-hover)' : 'var(--bg-surface)', minHeight: 34 }}>
+        <ReportItemCell value={item.report_legacy_name || ''} placeholder="Legacy report name" onSave={v => save('report_legacy_name', v)} />
+        <ReportItemCell value={item.report_date_range || ''} placeholder="e.g. Last 90 days" onSave={v => save('report_date_range', v)} />
+        <ReportItemCell value={item.report_purpose || ''} placeholder="Purpose / notes" multiline onSave={v => save('report_purpose', v)} />
+        <ReportItemCell value={item.report_converted_name || ''} placeholder="Not yet converted" emptyItalic onSave={v => save('report_converted_name', v)} />
+        <div style={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {onDelete && (
+            <button onClick={onDelete} title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 11, padding: 2, opacity: hovered ? 0.6 : 0, transition: 'opacity 0.1s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ef4444'; (e.currentTarget as HTMLElement).style.opacity = '1' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'; (e.currentTarget as HTMLElement).style.opacity = hovered ? '0.6' : '0' }}
+            >×</button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete, onGoLive }: {
