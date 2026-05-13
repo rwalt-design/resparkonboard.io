@@ -1102,7 +1102,7 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
   }
 
   const ASSIGNEE_COLORS: Record<string, string> = { personal: '#1BB3BB', customer: '#f59e0b', internal: '#6b7280' }
-  const TYPE_COLORS: Record<string, string> = { task: '#1BB3BB', session: '#7757F5', handoff: '#475569', log: '#10b981', exchange: '#f59e0b', report: '#06b6d4' }
+  const TYPE_COLORS: Record<string, string> = { task: '#1BB3BB', session: '#7757F5', training: '#06b6d4', handoff: '#475569', log: '#10b981', exchange: '#f59e0b', report: '#06b6d4' }
 
   return (
     <div style={{ borderTop: '1px solid var(--border)', padding: '16px 16px 12px' }}>
@@ -1122,35 +1122,7 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
               onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
           </div>
 
-          {/* Training milestone — pick training templates explicitly */}
-          {milestone.name === 'Training' ? (
-            <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
-                Training Templates — select which to include (leave empty = all auto-matched)
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {trainingTemplates.map(tt => {
-                  const selected = (milestone as any).training_template_ids?.includes(tt.id)
-                  return (
-                    <button key={tt.id} onClick={() => {
-                      const current: string[] = (milestone as any).training_template_ids || []
-                      const next = selected ? current.filter((x: string) => x !== tt.id) : [...current, tt.id]
-                      setStructure(s => ({ milestones: s.milestones.map((m, i) => i === mi ? { ...m, training_template_ids: next } as any : m) }))
-                    }} style={{
-                      padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                      cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                      background: selected ? '#f59e0b18' : 'none',
-                      border: `1px solid ${selected ? '#f59e0b66' : 'var(--border-b)'}`,
-                      color: selected ? '#f59e0b' : 'var(--text-2)',
-                    }}>{tt.name}</button>
-                  )
-                })}
-                {trainingTemplates.length === 0 && (
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontStyle: 'italic' }}>No training templates defined yet.</span>
-                )}
-              </div>
-            </div>
-          ) : (
+          {(
             <div style={{ padding: '4px 0' }}>
               {milestone.stages.map((stage, si) => (
                 <div key={si} style={{ borderTop: '1px solid var(--border)' }}>
@@ -1168,12 +1140,13 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
 
                   {stage.items.map((item, ii) => (
                     <div key={ii} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px 4px 44px', flexWrap: 'wrap' }}>
-                      <select name={`item-type-${mi}-${si}-${ii}`} value={item.type} onChange={e => updateItem(mi, si, ii, { type: e.target.value as PlanTemplateItem['type'], session_template_id: undefined })}
+                      <select name={`item-type-${mi}-${si}-${ii}`} value={item.type} onChange={e => updateItem(mi, si, ii, { type: e.target.value as PlanTemplateItem['type'], session_template_id: undefined, training_template_id: undefined })}
                         style={{ background: 'var(--bg-surface2)', border: `1px solid ${TYPE_COLORS[item.type] || 'var(--border-b)'}44`, borderRadius: 4,
                           color: TYPE_COLORS[item.type] || 'var(--text-2)', fontSize: 9, fontWeight: 700, padding: '1px 4px',
                           cursor: 'pointer', fontFamily: 'var(--font-ui)', textTransform: 'uppercase' }}>
                         <option value="task">task</option>
                         <option value="session">session</option>
+                        <option value="training">training</option>
                         <option value="exchange">exchange</option>
                         <option value="log">log</option>
                         <option value="report">report</option>
@@ -1197,6 +1170,28 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
                           <option value="">custom session</option>
                           {sessionTemplates.map(st => (
                             <option key={st.id} value={st.id}>{st.name}</option>
+                          ))}
+                        </select>
+                      )}
+                      {/* Training template picker */}
+                      {item.type === 'training' && trainingTemplates.length > 0 && (
+                        <select
+                          name={`item-training-tmpl-${mi}-${si}-${ii}`}
+                          value={item.training_template_id || ''}
+                          onChange={e => {
+                            const tmpl = trainingTemplates.find(t => t.id === e.target.value)
+                            updateItem(mi, si, ii, {
+                              training_template_id: e.target.value || undefined,
+                              name: tmpl ? tmpl.name : item.name,
+                            })
+                          }}
+                          style={{ background: '#06b6d418', border: '1px solid #06b6d444', borderRadius: 4,
+                            color: '#06b6d4', fontSize: 9, fontWeight: 700, padding: '1px 4px',
+                            cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
+                        >
+                          <option value="">custom training</option>
+                          {trainingTemplates.map(tt => (
+                            <option key={tt.id} value={tt.id}>{tt.name}</option>
                           ))}
                         </select>
                       )}
