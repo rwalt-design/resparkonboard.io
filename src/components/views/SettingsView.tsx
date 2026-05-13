@@ -1177,7 +1177,6 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
                         <option value="exchange">exchange</option>
                         <option value="log">log</option>
                         <option value="report">report</option>
-                        <option value="handoff">handoff</option>
                       </select>
                       {/* Session template picker */}
                       {item.type === 'session' && sessionTemplates.length > 0 && (
