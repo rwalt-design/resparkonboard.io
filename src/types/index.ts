@@ -271,7 +271,7 @@ export interface SessionTemplate {
 }
 
 export interface PlanTemplateItem {
-  type: 'task' | 'session' | 'handoff' | 'log' | 'exchange'
+  type: 'task' | 'session' | 'handoff' | 'log' | 'exchange' | 'report'
   name: string
   assignee?: string
   required: boolean

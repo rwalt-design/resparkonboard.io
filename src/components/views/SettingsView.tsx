@@ -1102,7 +1102,7 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
   }
 
   const ASSIGNEE_COLORS: Record<string, string> = { personal: '#1BB3BB', customer: '#f59e0b', internal: '#6b7280' }
-  const TYPE_COLORS: Record<string, string> = { task: '#1BB3BB', session: '#7757F5', handoff: '#475569', log: '#10b981', exchange: '#f59e0b' }
+  const TYPE_COLORS: Record<string, string> = { task: '#1BB3BB', session: '#7757F5', handoff: '#475569', log: '#10b981', exchange: '#f59e0b', report: '#06b6d4' }
 
   return (
     <div style={{ borderTop: '1px solid var(--border)', padding: '16px 16px 12px' }}>
@@ -1176,6 +1176,7 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
                         <option value="session">session</option>
                         <option value="exchange">exchange</option>
                         <option value="log">log</option>
+                        <option value="report">report</option>
                         <option value="handoff">handoff</option>
                       </select>
                       {/* Session template picker */}
