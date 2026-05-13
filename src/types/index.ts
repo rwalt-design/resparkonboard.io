@@ -341,7 +341,11 @@ export interface AccountSummary extends Account {
   completionPct: number
   daysSinceContact: number
   lastContactDate?: string
+  lastContactSummary?: string
+  lastContactType?: string
   daysSinceOutreach: number
   lastOutreachDate?: string
+  lastOutreachSummary?: string
+  lastOutreachType?: string
   openTaskCount: number
 }

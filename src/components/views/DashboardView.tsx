@@ -5,6 +5,19 @@ import { createClient } from '@/lib/supabase/client'
 import { Tooltip } from '@/components/Tooltip'
 import type { Account, AccountSummary, OrgMember, TrainingTemplate, PlanTemplate, SessionTemplate, HealthStatus } from '@/types'
 
+const INTERACTION_TYPE_LABELS: Record<string, string> = {
+  email:           'Email received',
+  email_sent:      'Email sent',
+  called:          'Called',
+  texted:          'Text',
+  bumped_email:    'Bumped email',
+  sent_follow_up:  'Follow-up sent',
+  no_show:         'No-show',
+  custom:          'Logged',
+  meeting:         'Meeting',
+  call:            'Call',
+}
+
 const SKU_LABELS: Record<string, string> = {
   dispatch: 'Dispatch',
   facility_management: 'Facility Mgmt',
@@ -72,11 +85,15 @@ function computeSummary(account: Account): AccountSummary {
   )
   let daysSinceContact = 999
   let lastContactDate: string | undefined
+  let lastContactSummary: string | undefined
+  let lastContactType: string | undefined
   if (contactInteractions.length > 0) {
     const latest = contactInteractions.reduce((a, b) =>
       new Date(effectiveDate(a)) > new Date(effectiveDate(b)) ? a : b
     )
     lastContactDate = effectiveDate(latest)
+    lastContactSummary = latest.summary || undefined
+    lastContactType = latest.type
     daysSinceContact = calendarDaysAgo(lastContactDate)
   }
 
@@ -84,11 +101,15 @@ function computeSummary(account: Account): AccountSummary {
   const outreachInteractions = (account.interactions || []).filter(i => OUTREACH_TYPES.has(i.type))
   let daysSinceOutreach = 999
   let lastOutreachDate: string | undefined
+  let lastOutreachSummary: string | undefined
+  let lastOutreachType: string | undefined
   if (outreachInteractions.length > 0) {
     const latest = outreachInteractions.reduce((a, b) =>
       new Date(effectiveDate(a)) > new Date(effectiveDate(b)) ? a : b
     )
     lastOutreachDate = effectiveDate(latest)
+    lastOutreachSummary = latest.summary || undefined
+    lastOutreachType = latest.type
     daysSinceOutreach = calendarDaysAgo(lastOutreachDate)
   }
 
@@ -98,8 +119,12 @@ function computeSummary(account: Account): AccountSummary {
     completionPct,
     daysSinceContact,
     lastContactDate,
+    lastContactSummary,
+    lastContactType,
     daysSinceOutreach,
     lastOutreachDate,
+    lastOutreachSummary,
+    lastOutreachType,
     openTaskCount: (account.open_tasks || []).filter(t => !t.done).length,
   }
 }
@@ -1153,30 +1178,56 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
 
                   {/* Last Outreach */}
                   <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
-                    <span
-                      title={account.lastOutreachDate ? new Date(account.lastOutreachDate).toLocaleString() : undefined}
-                      style={{
-                        fontSize: 11, whiteSpace: 'nowrap',
-                        color: account.daysSinceOutreach >= 14 ? '#ef4444' : account.daysSinceOutreach >= 7 ? '#f59e0b' : 'var(--text-2)',
-                        fontFamily: 'var(--font-mono)',
-                      }}
-                    >
-                      {account.daysSinceOutreach === 999 ? '—' : account.daysSinceOutreach === 0 ? 'today' : `${account.daysSinceOutreach}d ago`}
-                    </span>
+                    {(() => {
+                      const label = account.daysSinceOutreach === 999 ? '—' : account.daysSinceOutreach === 0 ? 'today' : `${account.daysSinceOutreach}d ago`
+                      const tip = account.lastOutreachDate
+                        ? [
+                            INTERACTION_TYPE_LABELS[account.lastOutreachType ?? ''] ?? account.lastOutreachType ?? 'Outreach',
+                            '·',
+                            new Date(account.lastOutreachDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+                            account.lastOutreachSummary ? `\n${account.lastOutreachSummary.slice(0, 120)}` : '',
+                          ].join(' ').trim()
+                        : 'No outreach logged'
+                      return (
+                        <Tooltip content={tip} placement="top">
+                          <span style={{
+                            fontSize: 11, whiteSpace: 'nowrap',
+                            color: account.daysSinceOutreach >= 14 ? '#ef4444' : account.daysSinceOutreach >= 7 ? '#f59e0b' : 'var(--text-2)',
+                            fontFamily: 'var(--font-mono)',
+                            cursor: 'default',
+                          }}>
+                            {label}
+                          </span>
+                        </Tooltip>
+                      )
+                    })()}
                   </div>
 
                   {/* Last Contact */}
                   <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
-                    <span
-                      title={account.lastContactDate ? new Date(account.lastContactDate).toLocaleString() : undefined}
-                      style={{
-                        fontSize: 11, whiteSpace: 'nowrap',
-                        color: account.daysSinceContact >= 14 ? '#ef4444' : account.daysSinceContact >= 7 ? '#f59e0b' : 'var(--text-2)',
-                        fontFamily: 'var(--font-mono)',
-                      }}
-                    >
-                      {account.daysSinceContact === 999 ? '—' : account.daysSinceContact === 0 ? 'today' : `${account.daysSinceContact}d ago`}
-                    </span>
+                    {(() => {
+                      const label = account.daysSinceContact === 999 ? '—' : account.daysSinceContact === 0 ? 'today' : `${account.daysSinceContact}d ago`
+                      const tip = account.lastContactDate
+                        ? [
+                            INTERACTION_TYPE_LABELS[account.lastContactType ?? ''] ?? account.lastContactType ?? 'Contact',
+                            '·',
+                            new Date(account.lastContactDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+                            account.lastContactSummary ? `\n${account.lastContactSummary.slice(0, 120)}` : '',
+                          ].join(' ').trim()
+                        : 'No contact recorded'
+                      return (
+                        <Tooltip content={tip} placement="top">
+                          <span style={{
+                            fontSize: 11, whiteSpace: 'nowrap',
+                            color: account.daysSinceContact >= 14 ? '#ef4444' : account.daysSinceContact >= 7 ? '#f59e0b' : 'var(--text-2)',
+                            fontFamily: 'var(--font-mono)',
+                            cursor: 'default',
+                          }}>
+                            {label}
+                          </span>
+                        </Tooltip>
+                      )
+                    })()}
                   </div>
 
                   {/* Timeline — KO and Go Live stacked */}
@@ -1191,18 +1242,22 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
                       const glLabel = gl === null ? '—' : gl < 0 ? `${-gl}d over` : gl === 0 ? 'today' : `in ${gl}d`
                       return (
                         <>
-                          <span
-                            title={account.kickoff_date ? `KO ${new Date(account.kickoff_date).toLocaleDateString()}` : 'KO not set'}
-                            style={{ fontSize: 10, whiteSpace: 'nowrap', color: ko === null ? 'var(--text-3)' : 'var(--text-2)', fontFamily: 'var(--font-mono)' }}
+                          <Tooltip
+                            content={account.kickoff_date ? `Kicked off ${new Date(account.kickoff_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}` : 'Kickoff date not set'}
+                            placement="top"
                           >
-                            <span style={{ color: 'var(--text-3)' }}>KO </span>{ko === null ? '—' : `${ko}d ago`}
-                          </span>
-                          <span
-                            title={account.go_live_date ? `Go Live ${new Date(account.go_live_date).toLocaleDateString()}` : 'Go Live not set'}
-                            style={{ fontSize: 10, whiteSpace: 'nowrap', color: glColor, fontFamily: 'var(--font-mono)' }}
+                            <span style={{ fontSize: 10, whiteSpace: 'nowrap', color: ko === null ? 'var(--text-3)' : 'var(--text-2)', fontFamily: 'var(--font-mono)', cursor: 'default' }}>
+                              <span style={{ color: 'var(--text-3)' }}>KO </span>{ko === null ? '—' : `${ko}d ago`}
+                            </span>
+                          </Tooltip>
+                          <Tooltip
+                            content={account.go_live_date ? `Go-live ${new Date(account.go_live_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}` : 'Go-live date not set'}
+                            placement="bottom"
                           >
-                            <span style={{ color: 'var(--text-3)' }}>GL </span>{glLabel}
-                          </span>
+                            <span style={{ fontSize: 10, whiteSpace: 'nowrap', color: glColor, fontFamily: 'var(--font-mono)', cursor: 'default' }}>
+                              <span style={{ color: 'var(--text-3)' }}>GL </span>{glLabel}
+                            </span>
+                          </Tooltip>
                         </>
                       )
                     })()}
