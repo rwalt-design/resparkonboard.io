@@ -6,8 +6,9 @@ import {
 
 interface Item {
   id: string; type: string; required: boolean
-  task_name?: string; task_assignee?: string; task_done?: boolean
+  task_name?: string; task_assignee?: string; task_done?: boolean; task_notes?: string
   session_name?: string; session_status?: string
+  session_goals?: string[]; session_agenda?: string[]
 }
 interface Stage { id: string; name: string; status: string; items: Item[] }
 interface Milestone { id: string; name: string; order_index: number; stages: Stage[] }
@@ -18,9 +19,16 @@ interface Account {
   contacts: Contact[]; requests: Request[]; milestones: Milestone[]
   go_live_date?: string | null
   kickoff_date?: string | null
+  sales_context?: string | null
 }
 
-interface Props { account: Account; repName: string; companyName: string }
+const SKU_LABELS: Record<string, string> = {
+  dispatch: 'Dispatch',
+  facility_management: 'Facility Management',
+  full_suite: 'Full Suite',
+}
+
+interface Props { account: Account; repName: string; companyName: string; intro?: string }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -184,6 +192,12 @@ const s = StyleSheet.create({
   badgeSession: { backgroundColor: '#ede9fe', color: '#5b21b6' },
   badgeRequest: { backgroundColor: c.amberLight, color: '#92400e' },
 
+  // Item detail line (goals / notes shown below item name)
+  itemDetail: { fontSize: 8, color: c.muted, marginTop: 2, lineHeight: 1.4 },
+
+  // AI intro paragraph
+  introParagraph: { fontSize: 11, color: c.navy, lineHeight: 1.6, marginBottom: 20 },
+
   // Requests block
   requestsHeader: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: c.navy, marginTop: 20, marginBottom: 8 },
   requestRow: {
@@ -219,7 +233,7 @@ function ContentPageHeader({ account }: { account: Account }) {
 
 // ── Main Document ─────────────────────────────────────────────────────────────
 
-export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
+export function OnboardingPlanPDF({ account, repName, companyName, intro }: Props) {
   const date = generatedDate()
   const primaryContacts = account.contacts.slice(0, 3)
 
@@ -268,6 +282,18 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
             </View>
           )}
 
+          <View style={s.coverField}>
+            <Text style={s.coverLabel}>Product</Text>
+            <Text style={s.coverValueSmall}>{SKU_LABELS[account.sku] || account.sku}</Text>
+          </View>
+
+          {account.kickoff_date && (
+            <View style={s.coverField}>
+              <Text style={s.coverLabel}>Kickoff Date</Text>
+              <Text style={s.coverValueSmall}>{formatDate(account.kickoff_date)}</Text>
+            </View>
+          )}
+
           {account.go_live_date && (
             <View style={s.coverField}>
               <Text style={s.coverLabel}>Go-Live Target</Text>
@@ -293,9 +319,10 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
 
         <View style={s.content}>
           <Text style={s.sectionTitle}>Your Onboarding Journey</Text>
-          <Text style={s.sectionSubtitle}>
-            {"Here's an overview of the four phases of your onboarding. Each phase builds on the last."}
-          </Text>
+          {intro
+            ? <Text style={s.introParagraph}>{intro}</Text>
+            : <Text style={s.sectionSubtitle}>{"Here's an overview of the phases of your onboarding. Each phase builds on the last."}</Text>
+          }
 
           {/* Milestone timeline — milestone boxes in a flat row, arrows as fixed-width siblings */}
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 32 }}>
@@ -397,6 +424,12 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
                     const isCustomer = isCustomerItem(item)
                     const name = itemName(item)
 
+                    // Detail line: session goals take priority, then task notes
+                    const goals = item.session_goals?.length
+                      ? item.session_goals.slice(0, 3).join(' · ')
+                      : null
+                    const detail = goals || item.task_notes || null
+
                     return (
                       <View key={item.id} style={[
                         s.itemRow,
@@ -407,29 +440,33 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
                         <View style={[
                           s.itemBullet,
                           isDone ? s.itemBulletDone : isCustomer ? s.itemBulletCustomer : s.itemBulletRespark,
+                          detail ? { marginTop: 3 } : {},
                         ]}>
                           {isDone && <Text style={s.itemBulletCheck}>✓</Text>}
                         </View>
 
-                        {/* Name */}
-                        <Text style={[
-                          isCustomer ? s.itemName : s.itemNameRespark,
-                          isDone ? s.itemNameDone : {},
-                          isCustomer && !isDone ? { fontFamily: 'Helvetica-Bold' } : {},
-                        ]}>
-                          {name}
-                        </Text>
+                        {/* Name + optional detail */}
+                        <View style={{ flex: 1 }}>
+                          <Text style={[
+                            isCustomer ? s.itemName : s.itemNameRespark,
+                            isDone ? s.itemNameDone : {},
+                            isCustomer && !isDone ? { fontFamily: 'Helvetica-Bold' } : {},
+                          ]}>
+                            {name}
+                          </Text>
+                          {detail && !isDone && (
+                            <Text style={s.itemDetail}>{detail}</Text>
+                          )}
+                        </View>
 
-                        {/* Ownership badge */}
-                        {isCustomer
-                          ? <Text style={[s.itemTypeBadge, s.badgeYours]}>Yours</Text>
-                          : <Text style={[s.itemTypeBadge, s.badgeRespark]}>Respark</Text>
-                        }
-
-                        {/* Due */}
-                        <Text style={s.itemDue}>
-                          {isDone ? 'Done' : 'TBD'}
-                        </Text>
+                        {/* Ownership badge + due — aligned to top */}
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 6 }}>
+                          {isCustomer
+                            ? <Text style={[s.itemTypeBadge, s.badgeYours]}>Yours</Text>
+                            : <Text style={[s.itemTypeBadge, s.badgeRespark]}>Respark</Text>
+                          }
+                          <Text style={s.itemDue}>{isDone ? 'Done' : 'TBD'}</Text>
+                        </View>
                       </View>
                     )
                   })}
