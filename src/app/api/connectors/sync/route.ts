@@ -499,12 +499,16 @@ export async function POST() {
       }
 
       // ── Google Calendar — past events ────────────────────────────────────────
+      // Always look back 14 days regardless of last_synced_at — dedup on gcal event ID
+      // prevents double-logging, and using sinceDate would skip meetings that predated
+      // the last email sync run.
       try {
         const now = new Date().toISOString()
+        const calLookback = new Date(Date.now() - 14 * 86400 * 1000).toISOString()
         const calRes = await fetch(
           `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-          `timeMin=${encodeURIComponent(sinceDate.toISOString())}&timeMax=${encodeURIComponent(now)}` +
-          `&singleEvents=true&orderBy=startTime&maxResults=20`,
+          `timeMin=${encodeURIComponent(calLookback)}&timeMax=${encodeURIComponent(now)}` +
+          `&singleEvents=true&orderBy=startTime&maxResults=50`,
           { headers: { Authorization: `Bearer ${token.access_token}` } }
         )
         const calData = await calRes.json()
