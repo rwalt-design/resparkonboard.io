@@ -550,35 +550,20 @@ export async function POST() {
             const eventDesc = event.description || ''
             const startTime = event.start?.dateTime || event.start?.date || ''
 
-            // Dedup: check both existing interactions (backward compat) and pending suggestions
+            // Dedup by gcal event ID stored in detail field
             const { data: existingCal } = await supabase
               .from('interactions').select('id')
               .eq('account_id', matchedAccountId)
               .eq('detail', `gcal:${event.id}`).single()
             if (existingCal) continue
 
-            const { data: existingSuggestion } = await supabase
-              .from('ai_suggestions').select('id')
-              .eq('account_id', matchedAccountId)
-              .eq('meta->>gcal_event_id', event.id)
-              .neq('status', 'dismissed')
-              .single()
-            if (existingSuggestion) continue
-
-            // Create a meeting_review suggestion instead of silently logging the interaction
-            const eventDate = startTime ? new Date(startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'recently'
-            await supabase.from('ai_suggestions').insert({
+            // Log the meeting directly as an interaction — updates Last Contact immediately
+            await supabase.from('interactions').insert({
               account_id: matchedAccountId,
-              account_name: matchedAccountName,
-              type: 'meeting_review',
-              status: 'pending',
-              title: eventTitle,
-              body: `Calendar event on ${eventDate}. Mark it completed or log as a no-show.`,
-              meta: {
-                gcal_event_id: event.id,
-                event_at: startTime || null,
-                event_title: eventTitle,
-              },
+              type: 'meeting',
+              summary: eventTitle,
+              detail: `gcal:${event.id}`,
+              event_at: startTime || null,
             })
             calCount++
             touchedAccountIds.add(matchedAccountId)

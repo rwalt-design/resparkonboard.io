@@ -16,7 +16,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'You can edit action item titles and notes inline — click any title or note to update it in place',
       'More PDF export polish — milestone pills are now solid teal, the Go-Live section shows the target date, internal steps (Account Creation, Sub Topics) are hidden from the customer view, and the AI intro no longer names individual contacts',
       'Fixed the exported onboarding plan PDF — milestone timeline no longer overlaps, and content flows across pages without leaving blank pages at the end',
-      'Calendar sync now matches meetings by account name in the event title, not just by attendee email — so meetings like "Hamilton Industries | Kickoff" will update Last Contact even if the contact isn\'t explicitly listed as an attendee',
+      'Calendar sync now matches meetings by account name in the event title (not just by attendee email) and logs them directly — Last Contact updates automatically after sync without any review step',
     ],
   },
   {
