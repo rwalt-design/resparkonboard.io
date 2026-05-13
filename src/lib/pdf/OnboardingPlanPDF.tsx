@@ -29,10 +29,11 @@ function isCustomerItem(item: Item) {
 }
 
 const MILESTONE_DESC: Record<string, string> = {
-  'Setup': 'Getting your account configured and your team ready to start',
-  'Training': 'Live sessions tailored to your products and workflows',
-  'Validation': 'Testing, review, and final checks before launch',
-  'Go-Live': 'Launch day and post-launch support',
+  'Configuration': 'Getting your account configured and your team ready to start',
+  'Setup':         'Getting your account configured and your team ready to start',
+  'Training':      'Live sessions tailored to your products and workflows',
+  'Validation':    'Testing, review, and final checks before launch',
+  'Go-Live':       'Launch day and post-launch support',
 }
 
 function generatedDate() {
@@ -263,23 +264,23 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
             {"Here's an overview of the four phases of your onboarding. Each phase builds on the last."}
           </Text>
 
-          {/* Milestone timeline */}
+          {/* Milestone timeline — milestone boxes in a flat row, arrows as fixed-width siblings */}
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 32 }}>
-            {account.milestones.map((m, i) => (
-              <View key={m.id} style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-start' }}>
-                <View style={{ flex: 1 }}>
-                  <View style={s.milestoneBox}>
-                    <Text style={s.milestoneBoxName}>{m.name}</Text>
-                    <Text style={s.milestoneBoxDesc}>
-                      {MILESTONE_DESC[m.name] || ''}
-                    </Text>
-                  </View>
+            {account.milestones.map((m, i) => [
+              <View key={m.id} style={{ flex: 1 }}>
+                <View style={s.milestoneBox}>
+                  <Text style={s.milestoneBoxName}>{m.name}</Text>
+                  <Text style={s.milestoneBoxDesc}>
+                    {MILESTONE_DESC[m.name] || ''}
+                  </Text>
                 </View>
-                {i < account.milestones.length - 1 && (
-                  <Text style={{ fontSize: 14, color: c.blue, marginTop: 14, marginHorizontal: 4 }}>→</Text>
-                )}
-              </View>
-            ))}
+              </View>,
+              i < account.milestones.length - 1
+                ? <View key={`arrow-${i}`} style={{ width: 18, alignItems: 'center', paddingTop: 14 }}>
+                    <Text style={{ fontSize: 13, color: c.blue }}>›</Text>
+                  </View>
+                : null,
+            ])}
           </View>
 
           {/* Milestone details table */}
@@ -345,8 +346,8 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
           </Text>
 
           {planMilestones.map((milestone, mi) => (
-            <View key={milestone.id} wrap={false}>
-              {/* Milestone header */}
+            <View key={milestone.id}>
+              {/* Milestone header — kept with first stage so it never strands alone */}
               <View style={s.milestoneHeader}>
                 <View style={s.milestoneNum}>
                   <Text style={s.milestoneNumText}>{mi + 1}</Text>
@@ -354,9 +355,9 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
                 <Text style={s.milestoneName}>{milestone.name}</Text>
               </View>
 
-              {/* Stages */}
+              {/* Stages — wrap=false keeps each stage intact on a page */}
               {milestone.stages.map(stage => (
-                <View key={stage.id} style={s.stageBlock}>
+                <View key={stage.id} style={s.stageBlock} wrap={false}>
                   <View style={s.stageHeader}>
                     <View style={s.stageLine} />
                     <Text style={s.stageName}>{stage.name}</Text>
