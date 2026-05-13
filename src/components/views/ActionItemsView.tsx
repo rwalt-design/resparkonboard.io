@@ -785,9 +785,12 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
 
   const scanPlans = async () => {
     setScanning(true)
-    // Build compact payload from accounts data
+    // Use last sync time as the cutoff; fall back to 48 hours if never synced
+    const syncRes = await fetch('/api/connectors/last-sync')
+    const { last_synced_at } = await syncRes.json() as { last_synced_at: string | null }
     const now = Date.now()
-    const fourteenDays = 14 * 24 * 60 * 60 * 1000
+    const cutoff = last_synced_at ? new Date(last_synced_at).getTime() : now - 48 * 60 * 60 * 1000
+
     const payload = accounts.map(account => {
       const pendingItems: {
         id: string; type: 'task' | 'session' | 'dependency'; name: string
@@ -820,8 +823,8 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
 
       const recentInteractions = (account.interactions || [])
         .filter(i => {
-          const age = now - new Date(i.event_at ?? i.created_at).getTime()
-          if (age >= fourteenDays) return false
+          const ts = new Date(i.event_at ?? i.created_at).getTime()
+          if (ts < cutoff) return false
           // Skip inbound emails that have a more recent outbound reply
           if (i.type === 'email' && i.gmail_message_id) {
             const emailTime = new Date(i.event_at ?? i.created_at).getTime()
