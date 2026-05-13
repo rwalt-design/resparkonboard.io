@@ -1119,7 +1119,9 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
       insertPayload.session_status       = 'pending'
       if (selectedTrainingTemplateId)    insertPayload.training_template_id = selectedTrainingTemplateId
     } else if (itemType === 'report') {
-      insertPayload.report_legacy_name    = itemName.trim()
+      insertPayload.task_name             = itemName.trim() || 'Reporting Requirements'
+      insertPayload.task_done             = false
+      insertPayload.report_legacy_name    = ''
       insertPayload.report_date_range     = ''
       insertPayload.report_purpose        = ''
       insertPayload.report_converted_name = null
@@ -1279,6 +1281,7 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                   ) : group.item.type === 'report' ? (
                     <ReportItemRow
                       item={group.item}
+                      locked={stage.status === 'locked'}
                       onUpdate={handleItemUpdate}
                       onDelete={() => handleDeleteItem(group.item.id)}
                     />
@@ -1311,7 +1314,7 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                   { id: 'session',    label: 'Session',             color: '#10b981', tip: 'A scheduled meeting or call with the customer' },
                   { id: 'training',   label: 'Training',            color: '#06b6d4', tip: 'A training session — optionally linked to a training template' },
                   { id: 'log',        label: 'Log',                 color: '#6b7280', tip: 'Track recurring usage or check-in metrics' },
-                  { id: 'report',     label: 'Report',              color: '#06b6d4', tip: 'Report requirements to build' },
+                  { id: 'report',     label: 'Report',              color: '#7757F5', tip: 'Track legacy report requirements and their converted equivalents' },
                   { id: 'golive',     label: '🚀 Go Live',          color: '#10b981', tip: 'Mark the account as live and record the go-live date' },
                 ] as const).map(({ id, label, color, tip }) => (
                   <Tooltip key={id} content={tip} placement="top">
@@ -1385,7 +1388,7 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                     itemType === 'exchange'   ? 'Document name (e.g. Data Template)' :
                     itemType === 'session'    ? 'Session name (or pick template above)...' :
                     itemType === 'training'   ? 'Training name (or pick template above)...' :
-                    itemType === 'report'     ? 'Legacy report name...' :
+                    itemType === 'report'     ? 'Report group name (e.g. "Reporting Requirements")' :
                     itemType === 'golive'     ? 'Label (optional, defaults to "Go Live")' :
                     'Name...'
                   }
@@ -1486,68 +1489,6 @@ function useItemChecklist(item: Item, onUpdate: (i: Item) => void) {
   ) : null
 
   return { toggleBtn, panel }
-}
-
-function ReportItemCell({ value, placeholder, multiline, emptyItalic, onSave }: {
-  value: string; placeholder: string; multiline?: boolean; emptyItalic?: boolean; onSave: (v: string) => void
-}) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
-  useEffect(() => { setDraft(value) }, [value])
-  const commit = () => { setEditing(false); onSave(draft) }
-  const base: React.CSSProperties = { flex: 1, minWidth: 0, borderRight: '1px solid var(--border)', padding: '0 8px', display: 'flex', alignItems: 'center' }
-  const inputBase: React.CSSProperties = { width: '100%', background: 'none', border: 'none', outline: 'none', fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text)', resize: 'none', padding: '6px 0' }
-  if (editing) return (
-    <div style={base}>
-      {multiline
-        ? <textarea autoFocus rows={2} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Escape') { setDraft(value); setEditing(false) } }} style={inputBase} />
-        : <input autoFocus value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(value); setEditing(false) } }} style={inputBase} />
-      }
-    </div>
-  )
-  const empty = !value || value.trim() === ''
-  return (
-    <div style={{ ...base, cursor: 'text', padding: '6px 8px', minHeight: 32 }} onClick={() => setEditing(true)}>
-      <span style={{ fontSize: 11, color: empty ? 'var(--text-3)' : 'var(--text)', fontStyle: empty && emptyItalic ? 'italic' : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: multiline ? 3 : 1, WebkitBoxOrient: 'vertical' }}>
-        {empty ? placeholder : value}
-      </span>
-    </div>
-  )
-}
-
-function ReportItemRow({ item, onUpdate, onDelete }: {
-  item: Item; onUpdate: (i: Item) => void; onDelete?: () => void
-}) {
-  const supabase = createClient()
-  const [hovered, setHovered] = useState(false)
-  const save = async (field: string, value: string) => {
-    await supabase.from('items').update({ [field]: value }).eq('id', item.id)
-    onUpdate({ ...item, [field]: value })
-  }
-  return (
-    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      <div style={{ display: 'flex', background: 'var(--bg-surface2)', borderBottom: '1px solid var(--border)', fontSize: 9, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {(['Legacy Report Name', 'Date Range', 'Purpose', 'Converted Report Name'] as const).map((label, i) => (
-          <div key={i} style={{ flex: 1, padding: '3px 8px', borderRight: '1px solid var(--border)' }}>{label}</div>
-        ))}
-        <div style={{ width: 28 }} />
-      </div>
-      <div style={{ display: 'flex', background: hovered ? 'var(--bg-hover)' : 'var(--bg-surface)', minHeight: 34 }}>
-        <ReportItemCell value={item.report_legacy_name || ''} placeholder="Legacy report name" onSave={v => save('report_legacy_name', v)} />
-        <ReportItemCell value={item.report_date_range || ''} placeholder="e.g. Last 90 days" onSave={v => save('report_date_range', v)} />
-        <ReportItemCell value={item.report_purpose || ''} placeholder="Purpose / notes" multiline onSave={v => save('report_purpose', v)} />
-        <ReportItemCell value={item.report_converted_name || ''} placeholder="Not yet converted" emptyItalic onSave={v => save('report_converted_name', v)} />
-        <div style={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          {onDelete && (
-            <button onClick={onDelete} title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 11, padding: 2, opacity: hovered ? 0.6 : 0, transition: 'opacity 0.1s' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ef4444'; (e.currentTarget as HTMLElement).style.opacity = '1' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'; (e.currentTarget as HTMLElement).style.opacity = hovered ? '0.6' : '0' }}
-            >×</button>
-          )}
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function ItemRow({ item, stageStatus, onUpdate, onOpenSession, onDelete, onGoLive }: {
@@ -1874,6 +1815,156 @@ function LogItem({ item, locked, onUpdate, onDelete, toggleBtn, panel }: {
         )}
       </div>
       {panel}
+    </div>
+  )
+}
+
+// ─── Report item ─────────────────────────────────────────────────────────────
+
+function ReportItemCell({ value, placeholder, multiline, emptyItalic, onSave }: {
+  value: string; placeholder: string; multiline?: boolean; emptyItalic?: boolean; onSave: (v: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  useEffect(() => { setDraft(value) }, [value])
+  const commit = () => { setEditing(false); onSave(draft) }
+  const base: React.CSSProperties = {
+    flex: 1, minWidth: 0, borderRight: '1px solid var(--border)', padding: '0 8px',
+    display: 'flex', alignItems: 'center',
+  }
+  const inputBase: React.CSSProperties = {
+    width: '100%', background: 'none', border: 'none', outline: 'none',
+    fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text)', resize: 'none', padding: '6px 0',
+  }
+  if (editing) return (
+    <div style={base}>
+      {multiline
+        ? <textarea autoFocus rows={2} value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === 'Escape') { setDraft(value); setEditing(false) } }}
+            style={inputBase} />
+        : <input autoFocus value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(value); setEditing(false) } }}
+            style={inputBase} />
+      }
+    </div>
+  )
+  const empty = !value || value.trim() === ''
+  return (
+    <div style={{ ...base, cursor: 'text', padding: '6px 8px', minHeight: 32 }} onClick={() => setEditing(true)}>
+      <span style={{
+        fontSize: 11, color: empty ? 'var(--text-3)' : 'var(--text)',
+        fontStyle: empty && emptyItalic ? 'italic' : 'normal',
+        overflow: 'hidden', textOverflow: 'ellipsis',
+        display: '-webkit-box', WebkitLineClamp: multiline ? 3 : 1, WebkitBoxOrient: 'vertical',
+      }}>
+        {empty ? placeholder : value}
+      </span>
+    </div>
+  )
+}
+
+function ReportItemRow({ item, locked, onUpdate, onDelete }: {
+  item: Item; locked: boolean; onUpdate: (i: Item) => void; onDelete?: () => void
+}) {
+  const supabase = createClient()
+  const [hovered, setHovered] = useState(false)
+
+  const saveField = async (field: string, value: string) => {
+    await supabase.from('items').update({ [field]: value }).eq('id', item.id)
+    onUpdate({ ...item, [field]: value })
+  }
+
+  const toggleDone = async () => {
+    if (locked) return
+    const newDone = !item.task_done
+    await supabase.from('items').update({ task_done: newDone }).eq('id', item.id)
+    onUpdate({ ...item, task_done: newDone })
+  }
+
+  const saveTitle = async (name: string) => {
+    await supabase.from('items').update({ task_name: name }).eq('id', item.id)
+    onUpdate({ ...item, task_name: name })
+  }
+
+  return (
+    <div style={{ opacity: locked ? 0.45 : 1 }}>
+      {/* Header row — checkbox + editable title + delete */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px 7px 44px' }}>
+        <div
+          onClick={toggleDone}
+          title={item.task_done ? 'Mark incomplete' : 'Mark complete'}
+          style={{
+            width: 15, height: 15, borderRadius: 3, flexShrink: 0,
+            border: item.task_done ? 'none' : '1.5px solid var(--text-3)',
+            background: item.task_done ? '#10b981' : 'transparent',
+            cursor: locked ? 'default' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          {item.task_done && <span style={{ fontSize: 8, color: '#fff', fontWeight: 700 }}>✓</span>}
+        </div>
+        <InlineEdit
+          value={item.task_name || 'Reporting Requirements'}
+          onSave={saveTitle}
+          style={{
+            fontSize: 13, flex: 1,
+            color: item.task_done ? 'var(--text-3)' : 'var(--text)',
+            textDecoration: item.task_done ? 'line-through' : 'none',
+          }}
+        />
+        {onDelete && <DeleteBtn onClick={onDelete} />}
+      </div>
+
+      {/* Column table */}
+      <div
+        style={{ margin: '0 16px 8px 44px', borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border)' }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {/* Column headers */}
+        <div style={{
+          display: 'flex', background: 'var(--bg-surface2)',
+          borderBottom: '1px solid var(--border)',
+          fontSize: 9, fontWeight: 700, color: 'var(--text-3)',
+          textTransform: 'uppercase', letterSpacing: '0.06em',
+        }}>
+          {(['Legacy Report Name', 'Date Range', 'Purpose', 'Converted Report Name'] as const).map((label, i, arr) => (
+            <div key={i} style={{ flex: 1, padding: '3px 8px', borderRight: i < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
+              {label}
+            </div>
+          ))}
+        </div>
+
+        {/* Data row */}
+        <div style={{ display: 'flex', background: hovered ? 'var(--bg-hover)' : 'var(--bg-surface)', minHeight: 34 }}>
+          <ReportItemCell
+            value={item.report_legacy_name || ''}
+            placeholder="Legacy report name"
+            onSave={v => saveField('report_legacy_name', v)}
+          />
+          <ReportItemCell
+            value={item.report_date_range || ''}
+            placeholder="e.g. Last 90 days"
+            onSave={v => saveField('report_date_range', v)}
+          />
+          <ReportItemCell
+            value={item.report_purpose || ''}
+            placeholder="Purpose / notes"
+            multiline
+            onSave={v => saveField('report_purpose', v)}
+          />
+          <ReportItemCell
+            value={item.report_converted_name || ''}
+            placeholder="Not yet converted"
+            emptyItalic
+            onSave={v => saveField('report_converted_name', v)}
+          />
+        </div>
+      </div>
     </div>
   )
 }
