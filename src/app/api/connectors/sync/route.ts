@@ -527,6 +527,23 @@ export async function POST() {
                 break
               }
             }
+
+            // Fallback: match by account name appearing in event title
+            if (!matchedAccountId) {
+              const titleLower = (event.summary || '').toLowerCase()
+              const CAL_STOP_WORDS = new Set(['the', 'and', 'inc', 'llc', 'ltd', 'co', 'corp', 'of', 'a', 'an'])
+              const titleMatch = (accounts || []).find(a => {
+                const words = a.name.toLowerCase().split(/\s+/).filter(
+                  (w: string) => w.length > 2 && !CAL_STOP_WORDS.has(w)
+                )
+                return words.some((w: string) => titleLower.includes(w))
+              })
+              if (titleMatch) {
+                matchedAccountId = titleMatch.id
+                matchedAccountName = titleMatch.name
+              }
+            }
+
             if (!matchedAccountId) continue
 
             const eventTitle = event.summary || 'Meeting'
