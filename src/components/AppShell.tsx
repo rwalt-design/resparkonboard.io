@@ -12,7 +12,7 @@ import { TimeToLaunchView } from './views/TimeToLaunchView'
 import { ResourcesView } from './views/ResourcesView'
 import { DemoWelcomeModal } from './DemoWelcomeModal'
 import { WelcomeModal } from './WelcomeModal'
-import { WhatsNewModal } from './WhatsNewModal'
+import { WhatsNewButton } from './WhatsNewButton'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
 
@@ -271,7 +271,6 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--bg-base)' }}>
       {(currentUser as any).is_anonymous ? <DemoWelcomeModal /> : <WelcomeModal />}
-      {!(currentUser as any).is_anonymous && <WhatsNewModal />}
       {/* Top nav */}
       <header style={{
         display: 'flex', alignItems: 'center',
@@ -359,6 +358,9 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
             </Tooltip>
           </div>
         )}
+
+        {/* What's New */}
+        {!(currentUser as any).is_anonymous && <WhatsNewButton />}
 
         {/* View filter */}
         <div ref={viewMenuRef} className="hide-mobile" style={{ position: 'relative', marginRight: 8 }}>
