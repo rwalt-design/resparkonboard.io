@@ -1088,7 +1088,7 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
   }
 
   const handleAddItem = async () => {
-    if (itemType !== 'golive' && !itemName.trim()) return
+    if (itemType !== 'golive' && itemType !== 'report' && !itemName.trim()) return
     const insertPayload: Record<string, unknown> = {
       stage_id: stage.id,
       type: itemType === 'exchange' ? 'task' : itemType === 'training' ? 'session' : itemType,
@@ -1376,7 +1376,7 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                 </select>
               )}
               <div style={{ display: 'flex', gap: 6 }}>
-                <input
+                {itemType !== 'report' && <input
                   autoFocus
                   name="item-name"
                   value={itemName}
@@ -1388,12 +1388,11 @@ function StageBlock({ stage, index: _index, account, milestone, sessionTemplates
                     itemType === 'exchange'   ? 'Document name (e.g. Data Template)' :
                     itemType === 'session'    ? 'Session name (or pick template above)...' :
                     itemType === 'training'   ? 'Training name (or pick template above)...' :
-                    itemType === 'report'     ? 'Report group name (e.g. "Reporting Requirements")' :
                     itemType === 'golive'     ? 'Label (optional, defaults to "Go Live")' :
                     'Name...'
                   }
                   style={{ ...inputStyle, flex: 1, fontSize: 12 }}
-                />
+                />}
                 <button onClick={handleAddItem} style={{ ...primaryBtn, fontSize: 11, padding: '4px 12px' }}>Add</button>
                 <button onClick={() => { setAddingItem(false); setItemName(''); setSelectedSessionTemplateId(''); setSelectedTrainingTemplateId('') }} style={{ ...ghostBtn, fontSize: 11, padding: '4px 10px' }}>✕</button>
               </div>
