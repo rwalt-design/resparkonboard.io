@@ -14,7 +14,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Hover over KO or GL in the Timeline column to see the exact kickoff or go-live date',
       'The AI scan now only looks back to your last sync — no more re-surfacing old emails',
       'You can edit action item titles and notes inline — click any title or note to update it in place',
-      'More PDF export polish — milestone pills are now solid teal with white text, the Go-Live section shows the target date, internal Account Creation steps are hidden, and the AI intro no longer names individual contacts',
+      'More PDF export polish — milestone pills are now solid teal, the Go-Live section shows the target date, internal steps (Account Creation, Sub Topics) are hidden from the customer view, and the AI intro no longer names individual contacts',
       'Fixed the exported onboarding plan PDF — milestone timeline no longer overlaps, and content flows across pages without leaving blank pages at the end',
     ],
   },

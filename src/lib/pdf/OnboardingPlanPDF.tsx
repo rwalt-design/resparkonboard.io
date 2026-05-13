@@ -32,9 +32,15 @@ interface Props { account: Account; repName: string; companyName: string; intro?
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Generic placeholder item names that add no value in a customer-facing doc
+const HIDDEN_ITEM_NAMES = new Set(['Sub Topics', 'Sub-Topics', 'Subtopics'])
+
 // Items worth showing in the customer-facing plan
 function isVisibleItem(item: Item) {
-  return ['task', 'session', 'dependency'].includes(item.type)
+  if (!['task', 'session', 'dependency'].includes(item.type)) return false
+  const name = (item.session_name ?? item.task_name ?? '').trim()
+  if (HIDDEN_ITEM_NAMES.has(name)) return false
+  return true
 }
 
 // Items the customer is responsible for completing
