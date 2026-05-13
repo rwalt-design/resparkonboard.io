@@ -215,25 +215,38 @@ Return JSON only: an array of suggestion objects.`
       const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '')
       const suggestions = JSON.parse(clean) as Array<Record<string, unknown>>
 
+      // Before inserting next_action suggestions, wipe any existing pending ones for this
+      // account so we never accumulate duplicates across scans. Each scan is a fresh read.
+      await supabase
+        .from('ai_suggestions')
+        .delete()
+        .eq('account_id', account.id)
+        .eq('status', 'pending')
+        .eq('type', 'next_action')
+
       for (const s of suggestions) {
         if (s.suggestion_type === 'task_completion') {
           const title = (s.label as string) || `Mark complete: ${s.task_name}`
-          // Dedup by plan_item_id first (stable across title wording changes)
+          // Dedup by plan_item_id — skip if a non-dismissed suggestion already exists
           if (s.task_id) {
             const { data: existingById } = await supabase
               .from('ai_suggestions').select('id')
               .eq('account_id', account.id)
+              .in('status', ['pending', 'confirmed'])
               .filter('meta->>plan_item_id', 'eq', s.task_id as string)
               .limit(1).single()
             if (existingById) continue
           }
-          // Fall back to title dedup
-          const { data: existing } = await supabase
-            .from('ai_suggestions').select('id')
-            .eq('account_id', account.id)
-            .eq('title', title)
-            .limit(1).single()
-          if (existing) continue
+          // Also skip if dismissed for this same plan item (don't resurface)
+          if (s.task_id) {
+            const { data: dismissed } = await supabase
+              .from('ai_suggestions').select('id')
+              .eq('account_id', account.id)
+              .eq('status', 'dismissed')
+              .filter('meta->>plan_item_id', 'eq', s.task_id as string)
+              .limit(1).single()
+            if (dismissed) continue
+          }
           await supabase.from('ai_suggestions').insert({
             account_id: account.id,
             type:   'mark_complete',
@@ -256,12 +269,6 @@ Return JSON only: an array of suggestion objects.`
         } else if (s.suggestion_type === 'action_item') {
           const title = s.action as string
           if (!title) continue
-          const { data: existing } = await supabase
-            .from('ai_suggestions').select('id')
-            .eq('account_id', account.id)
-            .eq('title', title)
-            .limit(1).single()
-          if (existing) continue
           await supabase.from('ai_suggestions').insert({
             account_id: account.id,
             type:   'next_action',

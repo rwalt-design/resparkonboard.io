@@ -810,9 +810,29 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
           })
         })
       })
+      // Find the timestamp of the most recent outbound email (email_sent) for this account.
+      // Any inbound email older than that has already been replied to — exclude it from the scan
+      // so we don't keep generating "follow up" suggestions for emails we've responded to.
+      const latestOutbound = (account.interactions || [])
+        .filter(i => i.type === 'email_sent')
+        .map(i => new Date(i.event_at ?? i.created_at).getTime())
+        .reduce((max, t) => Math.max(max, t), 0)
+
       const recentInteractions = (account.interactions || [])
-        .filter(i => now - new Date(i.created_at).getTime() < fourteenDays)
-        .slice(0, 8)
+        .filter(i => {
+          const age = now - new Date(i.event_at ?? i.created_at).getTime()
+          if (age >= fourteenDays) return false
+          // Skip inbound emails that have a more recent outbound reply
+          if (i.type === 'email' && i.gmail_message_id) {
+            const emailTime = new Date(i.event_at ?? i.created_at).getTime()
+            if (latestOutbound > emailTime) return false
+          }
+          // Skip outbound emails and quick-log types — not useful for scan
+          if (['email_sent', 'called', 'texted', 'bumped_email', 'sent_follow_up', 'note', 'internal_note'].includes(i.type)) return false
+          return true
+        })
+        .sort((a, b) => new Date(b.event_at ?? b.created_at).getTime() - new Date(a.event_at ?? a.created_at).getTime())
+        .slice(0, 6)
         .map(i => ({ type: i.type, summary: i.summary }))
       return { id: account.id, name: account.name, sku: account.sku, pending_items: pendingItems, recent_interactions: recentInteractions }
     }).filter(a => a.recent_interactions.length > 0)
