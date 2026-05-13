@@ -227,6 +227,160 @@ function AddItemForm({ accounts, onAdded }: { accounts: Account[]; onAdded: (tas
   )
 }
 
+// ── Inline-editable task row ──────────────────────────────────────────────────
+
+function TaskRow({ task, borderBottom, groupBy, onUpdate, onMarkDone, onMarkReceived, onSelectAccount }: {
+  task: FlatTask
+  borderBottom: string
+  groupBy: 'account' | 'type' | 'none'
+  onUpdate: (id: string, patch: Partial<FlatTask>) => void
+  onMarkDone: (task: FlatTask, done: boolean) => void
+  onMarkReceived: (task: FlatTask) => void
+  onSelectAccount: (account: Account) => void
+}) {
+  const supabase = createClient()
+  const { item_type, item_status } = resolveItemMeta(task)
+  const isDep  = item_type === 'dependency'
+  const isDone = item_status === 'done' || item_status === 'cancelled'
+  const accentColor = isDone ? 'var(--border)' : isDep ? '#f59e0b' : '#1BB3BB'
+
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft]     = useState(task.name)
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notesDraft, setNotesDraft]   = useState(task.notes ?? '')
+
+  useEffect(() => { setNameDraft(task.name) }, [task.name])
+  useEffect(() => { setNotesDraft(task.notes ?? '') }, [task.notes])
+
+  const saveName = async () => {
+    setEditingName(false)
+    const trimmed = nameDraft.trim()
+    if (!trimmed || trimmed === task.name) return
+    if (task.fromPlan) {
+      await supabase.from('items').update({ task_name: trimmed }).eq('id', task.id)
+    } else {
+      await supabase.from('open_tasks').update({ name: trimmed }).eq('id', task.id)
+    }
+    onUpdate(task.id, { name: trimmed })
+  }
+
+  const saveNotes = async () => {
+    setEditingNotes(false)
+    const trimmed = notesDraft.trim()
+    if (trimmed === (task.notes ?? '').trim()) return
+    if (task.fromPlan) {
+      await supabase.from('items').update({ task_notes: trimmed || null }).eq('id', task.id)
+    } else {
+      await supabase.from('open_tasks').update({ notes: trimmed || null }).eq('id', task.id)
+    }
+    onUpdate(task.id, { notes: trimmed || undefined })
+  }
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 10,
+      padding: '10px 14px', borderBottom,
+      borderLeft: `3px solid ${accentColor}`,
+      background: isDone ? 'var(--bg-surface2)' : 'transparent',
+      transition: 'background 0.1s',
+    }}
+      onMouseEnter={e => !isDone && (e.currentTarget.style.background = 'var(--bg-hover)')}
+      onMouseLeave={e => { e.currentTarget.style.background = isDone ? 'var(--bg-surface2)' : 'transparent' }}
+    >
+      {isDep ? null : (
+        <div onClick={() => onMarkDone(task, !isDone)}
+          title={isDone ? 'Done' : 'Mark done'}
+          style={{ marginTop: 2, width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+            border: isDone ? 'none' : '1.5px solid #1BB3BB',
+            background: isDone ? '#10b981' : 'transparent', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>{isDone && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>✓</span>}</div>
+      )}
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Name */}
+        {editingName ? (
+          <input
+            autoFocus
+            value={nameDraft}
+            onChange={e => setNameDraft(e.target.value)}
+            onBlur={saveName}
+            onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') { setNameDraft(task.name); setEditingName(false) } }}
+            style={{
+              width: '100%', background: 'var(--bg-surface2)', border: '1px solid var(--border-b)',
+              borderRadius: 4, padding: '2px 6px', fontSize: 13, color: 'var(--text)',
+              fontFamily: 'var(--font-ui)', outline: 'none', marginBottom: 2,
+            }}
+          />
+        ) : (
+          <div
+            onClick={() => !isDone && setEditingName(true)}
+            style={{
+              fontSize: 13, color: isDone ? 'var(--text-3)' : 'var(--text)',
+              textDecoration: isDone ? 'line-through' : 'none',
+              lineHeight: 1.4, display: 'flex', alignItems: 'baseline', gap: 5,
+              cursor: isDone ? 'default' : 'text',
+            }}
+          >
+            <span>{task.name}</span>
+            {sourceEmoji(task.source) && (
+              <span style={{ fontSize: 12, flexShrink: 0, background: 'var(--border)', borderRadius: 4, padding: '1px 4px', lineHeight: 1.4 }} title={task.source}>{sourceEmoji(task.source)}</span>
+            )}
+          </div>
+        )}
+
+        {/* Notes */}
+        {!isDone && (editingNotes ? (
+          <textarea
+            autoFocus
+            value={notesDraft}
+            rows={2}
+            onChange={e => setNotesDraft(e.target.value)}
+            onBlur={saveNotes}
+            onKeyDown={e => { if (e.key === 'Escape') { setNotesDraft(task.notes ?? ''); setEditingNotes(false) } }}
+            placeholder="Add a note…"
+            style={{
+              display: 'block', width: '100%', marginTop: 4, resize: 'vertical',
+              background: 'var(--bg-surface2)', border: '1px solid var(--border-b)',
+              borderRadius: 4, padding: '4px 6px', fontSize: 11, color: 'var(--text)',
+              fontFamily: 'var(--font-ui)', outline: 'none', lineHeight: 1.4,
+            }}
+          />
+        ) : (
+          <div
+            onClick={() => setEditingNotes(true)}
+            style={{ marginTop: 3, fontSize: 11, lineHeight: 1.4, cursor: 'text' }}
+          >
+            {task.notes
+              ? <span style={{ color: 'var(--text-3)' }}>{task.notes}</span>
+              : <span style={{ color: 'var(--border-b)' }}>+ note</span>
+            }
+          </div>
+        ))}
+      </div>
+
+      {groupBy !== 'account' && (
+        <span onClick={() => onSelectAccount(task.account)}
+          style={{ fontSize: 11, color: '#1BB3BB', cursor: 'pointer', whiteSpace: 'nowrap',
+            background: '#1BB3BB14', border: '1px solid #1BB3BB30',
+            borderRadius: 4, padding: '1px 6px', fontWeight: 500, alignSelf: 'center',
+          }}>{task.account.name}</span>
+      )}
+      {isDep && !isDone && (
+        <button onClick={() => onMarkReceived(task)} style={{
+          alignSelf: 'center', background: 'none', border: 'none',
+          padding: 0, color: '#f59e0b',
+          fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap',
+          textDecoration: 'underline', textUnderlineOffset: 2,
+        }}>Mark received</button>
+      )}
+    </div>
+  )
+}
+
+// ── Action Items list ─────────────────────────────────────────────────────────
+
 function ActionItemsList({ accounts, onSelectAccount }: Props) {
   const supabase = createClient()
   const [showAddForm, setShowAddForm] = useState(false)
@@ -264,6 +418,10 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
       if (next.has(h)) { next.delete(h) } else { next.add(h) }
       return next
     })
+
+  const handleUpdate = (id: string, patch: Partial<FlatTask>) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t))
+  }
 
   const markTaskDone = async (task: FlatTask, done: boolean) => {
     if (done) setLastAction({ task, action: 'done' })
@@ -535,58 +693,17 @@ function ActionItemsList({ accounts, onSelectAccount }: Props) {
 
                 // ── Regular task row ──────────────────────────────────────────
                 const task = row as FlatTask
-                const { item_type, item_status } = resolveItemMeta(task)
-                const isDep  = item_type === 'dependency'
-                const isDone = item_status === 'done' || item_status === 'cancelled'
-                const accentColor = isDone ? 'var(--border)' : isDep ? '#f59e0b' : '#1BB3BB'
                 return (
-                  <div key={task.id} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 10,
-                    padding: '10px 14px', borderBottom,
-                    borderLeft: `3px solid ${accentColor}`,
-                    background: isDone ? 'var(--bg-surface2)' : 'transparent',
-                    transition: 'background 0.1s',
-                  }}
-                    onMouseEnter={e => !isDone && (e.currentTarget.style.background = 'var(--bg-hover)')}
-                    onMouseLeave={e => { e.currentTarget.style.background = isDone ? 'var(--bg-surface2)' : 'transparent' }}
-                  >
-                    {isDep ? null : (
-                      <div onClick={() => markTaskDone(task, !isDone)}
-                        title={isDone ? 'Done' : 'Mark done'}
-                        style={{ marginTop: 2, width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                          border: isDone ? 'none' : '1.5px solid #1BB3BB',
-                          background: isDone ? '#10b981' : 'transparent', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>{isDone && <span style={{ fontSize: 9, color: '#fff', fontWeight: 700 }}>✓</span>}</div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: isDone ? 'var(--text-3)' : 'var(--text)', textDecoration: isDone ? 'line-through' : 'none', lineHeight: 1.4, display: 'flex', alignItems: 'baseline', gap: 5 }}>
-                        <span>{task.name}</span>
-                        {sourceEmoji(task.source) && (
-                          <span style={{ fontSize: 12, flexShrink: 0, background: 'var(--border)', borderRadius: 4, padding: '1px 4px', lineHeight: 1.4 }} title={task.source}>{sourceEmoji(task.source)}</span>
-                        )}
-                      </div>
-                      {task.notes && !isDone && (
-                        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, lineHeight: 1.4 }}>{task.notes}</div>
-                      )}
-                    </div>
-                    {groupBy !== 'account' && (
-                      <span onClick={() => onSelectAccount(task.account)}
-                        style={{ fontSize: 11, color: '#1BB3BB', cursor: 'pointer', whiteSpace: 'nowrap',
-                          background: '#1BB3BB14', border: '1px solid #1BB3BB30',
-                          borderRadius: 4, padding: '1px 6px', fontWeight: 500, alignSelf: 'center',
-                        }}>{task.account.name}</span>
-                    )}
-                    {isDep && !isDone && (
-                      <button onClick={() => markDependencyReceived(task)} style={{
-                        alignSelf: 'center', background: 'none', border: 'none',
-                        padding: 0, color: '#f59e0b',
-                        fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                        fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap',
-                        textDecoration: 'underline', textUnderlineOffset: 2,
-                      }}>Mark received</button>
-                    )}
-                  </div>
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    borderBottom={borderBottom}
+                    groupBy={groupBy}
+                    onUpdate={handleUpdate}
+                    onMarkDone={markTaskDone}
+                    onMarkReceived={markDependencyReceived}
+                    onSelectAccount={onSelectAccount}
+                  />
                 )
               })}
             </div>
