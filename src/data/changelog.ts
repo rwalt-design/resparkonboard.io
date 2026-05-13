@@ -7,6 +7,16 @@ export interface ChangelogEntry {
 // Add new entries at the TOP. The date drives what users see vs. what they've dismissed.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-05-13',
+    title: 'Tooltips, smarter scan timing, and inline editing',
+    bullets: [
+      'Hover over the Last Outreach or Last Contact numbers on the dashboard to see what the interaction was and when',
+      'Hover over KO or GL in the Timeline column to see the exact kickoff or go-live date',
+      'The AI scan now only looks back to your last sync — no more re-surfacing old emails',
+      'You can edit action item titles and notes inline — click any title or note to update it in place',
+    ],
+  },
+  {
     date: '2026-05-12',
     title: 'Smarter syncing, cleaner suggestions',
     bullets: [
