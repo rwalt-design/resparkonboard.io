@@ -1948,8 +1948,8 @@ function ReportItemRow({ item, locked, onUpdate, onDelete }: {
     { key: 'legacy_name',    label: 'Legacy Report Name',  placeholder: 'Legacy report name' },
     { key: 'date_range',     label: 'Date Range',           placeholder: 'e.g. Last 90 days' },
     { key: 'purpose',        label: 'Purpose',              placeholder: 'Purpose / notes', multiline: true },
-    { key: 'converted_name', label: 'Converted Report Name', placeholder: 'Not yet converted', emptyItalic: true },
     { key: 'columns',        label: 'Columns',              placeholder: 'Key columns / fields' },
+    { key: 'converted_name', label: 'Converted Report Name', placeholder: 'Not yet converted', emptyItalic: true },
   ]
 
   return (
