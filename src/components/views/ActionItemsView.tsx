@@ -729,7 +729,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
     const data = await res.json()
     const list = Array.isArray(data) ? data : []
     setSuggestions(list)
-    onCountChange(list.filter((s: AiSuggestion) => s.status === 'pending').length)
+    onCountChange(list.filter((s: AiSuggestion) => s.status === 'pending' && s.type !== 'sync').length)
     setLoading(false)
   }, [onCountChange])
 
@@ -744,7 +744,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
       body: JSON.stringify({ id, action }),
     })
     setSuggestions(prev => prev.filter(s => s.id !== id))
-    onCountChange(suggestions.filter(s => s.id !== id && s.status === 'pending').length)
+    onCountChange(suggestions.filter(s => s.id !== id && s.status === 'pending' && s.type !== 'sync').length)
     setActing(null)
     if (target) setLastAction({ suggestion: target, action })
   }
@@ -758,7 +758,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
       body: JSON.stringify({ suggestionId: id, action }),
     })
     setSuggestions(prev => prev.filter(s => s.id !== id))
-    onCountChange(suggestions.filter(s => s.id !== id && s.status === 'pending').length)
+    onCountChange(suggestions.filter(s => s.id !== id && s.status === 'pending' && s.type !== 'sync').length)
     setActing(null)
     if (target) setLastAction({ suggestion: target, action })
   }
@@ -779,7 +779,7 @@ function SuggestionsPanel({ accounts, onSelectAccount, onCountChange }: Props & 
       body: JSON.stringify({ id: lastAction.suggestion.id, action: 'undo' }),
     })
     setSuggestions(prev => [{ ...lastAction.suggestion, status: 'pending' }, ...prev])
-    onCountChange(suggestions.length + 1)
+    onCountChange(suggestions.filter(s => s.status === 'pending' && s.type !== 'sync').length + 1)
     setLastAction(null)
   }
 

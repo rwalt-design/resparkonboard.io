@@ -17,6 +17,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'More PDF export polish — milestone pills are now solid teal, the Go-Live section shows the target date, internal steps (Account Creation, Sub Topics) are hidden from the customer view, and the AI intro no longer names individual contacts',
       'Fixed the exported onboarding plan PDF — milestone timeline no longer overlaps, and content flows across pages without leaving blank pages at the end',
       'Calendar sync now matches meetings by account name in the event title (not just by attendee email), logs them directly without a review step, and always looks back 14 days so meetings are never missed due to sync timing',
+      'Fixed the AI Suggestions badge showing a count when the list was empty — internal sync notifications were inflating the number',
     ],
   },
   {
