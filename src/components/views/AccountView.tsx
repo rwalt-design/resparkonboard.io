@@ -1820,13 +1820,14 @@ function LogItem({ item, locked, onUpdate, onDelete, toggleBtn, panel }: {
 
 // ─── Report item ─────────────────────────────────────────────────────────────
 
-function ReportItemCell({ value, placeholder, multiline, emptyItalic, onSave }: {
-  value: string; placeholder: string; multiline?: boolean; emptyItalic?: boolean; onSave: (v: string) => void
+function ReportItemCell({ value, placeholder, multiline, emptyItalic, isEditing, onStartEdit, onSave, onTab, onShiftTab }: {
+  value: string; placeholder: string; multiline?: boolean; emptyItalic?: boolean
+  isEditing: boolean; onStartEdit: () => void; onSave: (v: string) => void
+  onTab: () => void; onShiftTab: () => void
 }) {
-  const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
   useEffect(() => { setDraft(value) }, [value])
-  const commit = () => { setEditing(false); onSave(draft) }
+  const commit = () => { onSave(draft) }
   const base: React.CSSProperties = {
     flex: 1, minWidth: 0, borderRight: '1px solid var(--border)', padding: '0 8px',
     display: 'flex', alignItems: 'center',
@@ -1835,25 +1836,32 @@ function ReportItemCell({ value, placeholder, multiline, emptyItalic, onSave }: 
     width: '100%', background: 'none', border: 'none', outline: 'none',
     fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text)', resize: 'none', padding: '6px 0',
   }
-  if (editing) return (
+  if (isEditing) return (
     <div style={base}>
       {multiline
         ? <textarea autoFocus rows={2} value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
-            onKeyDown={e => { if (e.key === 'Escape') { setDraft(value); setEditing(false) } }}
+            onKeyDown={e => {
+              if (e.key === 'Tab') { e.preventDefault(); commit(); e.shiftKey ? onShiftTab() : onTab() }
+              if (e.key === 'Escape') { setDraft(value); onSave(value) }
+            }}
             style={inputBase} />
         : <input autoFocus value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
-            onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(value); setEditing(false) } }}
+            onKeyDown={e => {
+              if (e.key === 'Tab') { e.preventDefault(); commit(); e.shiftKey ? onShiftTab() : onTab() }
+              if (e.key === 'Enter') commit()
+              if (e.key === 'Escape') { setDraft(value); onSave(value) }
+            }}
             style={inputBase} />
       }
     </div>
   )
   const empty = !value || value.trim() === ''
   return (
-    <div style={{ ...base, cursor: 'text', padding: '6px 8px', minHeight: 32 }} onClick={() => setEditing(true)}>
+    <div style={{ ...base, cursor: 'text', padding: '6px 8px', minHeight: 32 }} onClick={onStartEdit}>
       <span style={{
         fontSize: 11, color: empty ? 'var(--text-3)' : 'var(--text)',
         fontStyle: empty && emptyItalic ? 'italic' : 'normal',
@@ -1871,6 +1879,13 @@ function ReportItemRow({ item, locked, onUpdate, onDelete }: {
 }) {
   const supabase = createClient()
   const [hovered, setHovered] = useState(false)
+  const [activeCell, setActiveCell] = useState<number | null>(null)
+
+  const CELLS = 4
+  const openCell = (i: number) => setActiveCell(i)
+  const closeCell = () => setActiveCell(null)
+  const nextCell = (i: number) => setActiveCell(i < CELLS - 1 ? i + 1 : null)
+  const prevCell = (i: number) => setActiveCell(i > 0 ? i - 1 : null)
 
   const saveField = async (field: string, value: string) => {
     await supabase.from('items').update({ [field]: value }).eq('id', item.id)
@@ -1943,24 +1958,40 @@ function ReportItemRow({ item, locked, onUpdate, onDelete }: {
           <ReportItemCell
             value={item.report_legacy_name || ''}
             placeholder="Legacy report name"
+            isEditing={activeCell === 0}
+            onStartEdit={() => openCell(0)}
             onSave={v => saveField('report_legacy_name', v)}
+            onTab={() => nextCell(0)}
+            onShiftTab={() => prevCell(0)}
           />
           <ReportItemCell
             value={item.report_date_range || ''}
             placeholder="e.g. Last 90 days"
+            isEditing={activeCell === 1}
+            onStartEdit={() => openCell(1)}
             onSave={v => saveField('report_date_range', v)}
+            onTab={() => nextCell(1)}
+            onShiftTab={() => prevCell(1)}
           />
           <ReportItemCell
             value={item.report_purpose || ''}
             placeholder="Purpose / notes"
             multiline
+            isEditing={activeCell === 2}
+            onStartEdit={() => openCell(2)}
             onSave={v => saveField('report_purpose', v)}
+            onTab={() => nextCell(2)}
+            onShiftTab={() => prevCell(2)}
           />
           <ReportItemCell
             value={item.report_converted_name || ''}
             placeholder="Not yet converted"
             emptyItalic
+            isEditing={activeCell === 3}
+            onStartEdit={() => openCell(3)}
             onSave={v => saveField('report_converted_name', v)}
+            onTab={() => nextCell(3)}
+            onShiftTab={() => prevCell(3)}
           />
         </div>
       </div>
