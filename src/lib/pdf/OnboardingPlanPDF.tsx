@@ -404,74 +404,89 @@ export function OnboardingPlanPDF({ account, repName, companyName, intro }: Prop
 
           {planMilestones.map((milestone, mi) => (
             <View key={milestone.id}>
-              <View style={s.milestoneHeader}>
-                <View style={s.milestoneNum}>
-                  <Text style={s.milestoneNumText}>{mi + 1}</Text>
-                </View>
-                <Text style={s.milestoneName}>{milestone.name}</Text>
-              </View>
+              {milestone.stages.map((stage, si) => {
+                // Render the items for this stage
+                const stageItems = stage.visibleItems.map((item, idx) => {
+                  const isLast = idx === stage.visibleItems.length - 1
+                  const isDone = itemDone(item)
+                  const isCustomer = isCustomerItem(item)
+                  const name = itemName(item)
+                  const goals = item.session_goals?.length
+                    ? item.session_goals.slice(0, 3).join(' · ')
+                    : null
+                  const detail = (!isDone && (goals || item.task_notes)) || null
+                  const rowBg = isCustomer && !isDone ? { backgroundColor: '#f0fafa' } : {}
 
-              {milestone.stages.map(stage => (
-                <View key={stage.id} style={s.stageBlock} wrap={false}>
-                  <View style={s.stageHeader}>
-                    <View style={s.stageLine} />
-                    <Text style={s.stageName}>{stage.name}</Text>
-                  </View>
-
-                  {stage.visibleItems.map((item, idx) => {
-                    const isLast = idx === stage.visibleItems.length - 1
-                    const isDone = itemDone(item)
-                    const isCustomer = isCustomerItem(item)
-                    const name = itemName(item)
-
-                    // Detail line: session goals take priority, then task notes
-                    const goals = item.session_goals?.length
-                      ? item.session_goals.slice(0, 3).join(' · ')
-                      : null
-                    const detail = goals || item.task_notes || null
-
-                    return (
-                      <View key={item.id} style={[
+                  return (
+                    <View key={item.id}>
+                      {/* Main item row — flat, no nested View for name so text never overlaps */}
+                      <View style={[
                         s.itemRow,
-                        isLast ? { borderBottomWidth: 0 } : {},
-                        isCustomer && !isDone ? { backgroundColor: '#f0fafa' } : {},
+                        detail ? { borderBottomWidth: 0, paddingBottom: 2 } : {},
+                        isLast && !detail ? { borderBottomWidth: 0 } : {},
+                        rowBg,
                       ]}>
-                        {/* Bullet / checkbox */}
                         <View style={[
                           s.itemBullet,
                           isDone ? s.itemBulletDone : isCustomer ? s.itemBulletCustomer : s.itemBulletRespark,
-                          detail ? { marginTop: 3 } : {},
                         ]}>
                           {isDone && <Text style={s.itemBulletCheck}>✓</Text>}
                         </View>
-
-                        {/* Name + optional detail */}
-                        <View style={{ flex: 1 }}>
-                          <Text style={[
-                            isCustomer ? s.itemName : s.itemNameRespark,
-                            isDone ? s.itemNameDone : {},
-                            isCustomer && !isDone ? { fontFamily: 'Helvetica-Bold' } : {},
-                          ]}>
-                            {name}
-                          </Text>
-                          {detail && !isDone && (
-                            <Text style={s.itemDetail}>{detail}</Text>
-                          )}
-                        </View>
-
-                        {/* Ownership badge + due — aligned to top */}
-                        <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 6 }}>
-                          {isCustomer
-                            ? <Text style={[s.itemTypeBadge, s.badgeYours]}>Yours</Text>
-                            : <Text style={[s.itemTypeBadge, s.badgeRespark]}>Respark</Text>
-                          }
-                          <Text style={s.itemDue}>{isDone ? 'Done' : 'TBD'}</Text>
-                        </View>
+                        <Text style={[
+                          isCustomer ? s.itemName : s.itemNameRespark,
+                          isDone ? s.itemNameDone : {},
+                          isCustomer && !isDone ? { fontFamily: 'Helvetica-Bold' } : {},
+                        ]}>
+                          {name}
+                        </Text>
+                        {isCustomer
+                          ? <Text style={[s.itemTypeBadge, s.badgeYours]}>Yours</Text>
+                          : <Text style={[s.itemTypeBadge, s.badgeRespark]}>Respark</Text>
+                        }
+                        <Text style={s.itemDue}>{isDone ? 'Done' : 'TBD'}</Text>
                       </View>
-                    )
-                  })}
-                </View>
-              ))}
+                      {/* Detail rendered as its own row — never overlaps the name */}
+                      {detail && (
+                        <View style={[
+                          { paddingLeft: 31, paddingRight: 8, paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+                          isLast ? { borderBottomWidth: 0 } : {},
+                          rowBg,
+                        ]}>
+                          <Text style={s.itemDetail}>{detail}</Text>
+                        </View>
+                      )}
+                    </View>
+                  )
+                })
+
+                const stageBlock = (
+                  <View style={s.stageBlock}>
+                    <View style={s.stageHeader}>
+                      <View style={s.stageLine} />
+                      <Text style={s.stageName}>{stage.name}</Text>
+                    </View>
+                    {stageItems}
+                  </View>
+                )
+
+                // Keep milestone header glued to first stage so the header
+                // is never stranded alone at the bottom of a page
+                if (si === 0) {
+                  return (
+                    <View key={stage.id} wrap={false}>
+                      <View style={s.milestoneHeader}>
+                        <View style={s.milestoneNum}>
+                          <Text style={s.milestoneNumText}>{mi + 1}</Text>
+                        </View>
+                        <Text style={s.milestoneName}>{milestone.name}</Text>
+                      </View>
+                      {stageBlock}
+                    </View>
+                  )
+                }
+
+                return <View key={stage.id} wrap={false}>{stageBlock}</View>
+              })}
             </View>
           ))}
 

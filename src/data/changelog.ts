@@ -14,7 +14,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Hover over KO or GL in the Timeline column to see the exact kickoff or go-live date',
       'The AI scan now only looks back to your last sync — no more re-surfacing old emails',
       'You can edit action item titles and notes inline — click any title or note to update it in place',
-      'The exported onboarding plan is now personalized per account — it includes a custom AI-written intro paragraph, the kickoff and go-live dates, the product they\'re onboarding, and session goals shown directly on each training step',
+      'Fixed session goal text overlapping item names in the exported PDF — goals now appear cleanly below each item',
       'Fixed the exported onboarding plan PDF — milestone timeline no longer overlaps, and content flows across pages without leaving blank pages at the end',
     ],
   },
