@@ -138,6 +138,7 @@ export interface Item {
   report_date_range?: string
   report_purpose?: string
   report_converted_name?: string | null
+  report_rows?: ReportRow[]
   // sub-checklist
   checklist?: ChecklistItem[]
   // log
@@ -146,6 +147,15 @@ export interface Item {
   action_items?: ActionItem[]
   created_at?: string
   updated_at?: string
+}
+
+export interface ReportRow {
+  id: string
+  legacy_name: string
+  date_range: string
+  purpose: string
+  converted_name: string
+  columns: string
 }
 
 export interface SessionActionItem {

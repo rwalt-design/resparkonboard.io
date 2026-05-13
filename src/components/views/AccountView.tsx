@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useContext, createContext } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Account, Milestone, Stage, Item, Interaction, OrgMember, Contact, Request, ChecklistItem, LogEntry, Sku, Addon, SessionActionItem, PlanTemplate, TrainingTemplate, SessionTemplate, QuickLogType, QuickLogOutcome, Resource } from '@/types'
+import type { Account, Milestone, Stage, Item, Interaction, OrgMember, Contact, Request, ChecklistItem, LogEntry, Sku, Addon, SessionActionItem, PlanTemplate, TrainingTemplate, SessionTemplate, QuickLogType, QuickLogOutcome, Resource, ReportRow } from '@/types'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -1878,18 +1878,58 @@ function ReportItemRow({ item, locked, onUpdate, onDelete }: {
   item: Item; locked: boolean; onUpdate: (i: Item) => void; onDelete?: () => void
 }) {
   const supabase = createClient()
-  const [hovered, setHovered] = useState(false)
-  const [activeCell, setActiveCell] = useState<number | null>(null)
+  const COLS = 5 // cells per row
 
-  const CELLS = 4
-  const openCell = (i: number) => setActiveCell(i)
-  const closeCell = () => setActiveCell(null)
-  const nextCell = (i: number) => setActiveCell(i < CELLS - 1 ? i + 1 : null)
-  const prevCell = (i: number) => setActiveCell(i > 0 ? i - 1 : null)
+  // Seed from legacy flat fields if report_rows not yet set
+  const initRows = (): ReportRow[] => {
+    if (item.report_rows?.length) return item.report_rows
+    return [{
+      id: crypto.randomUUID(),
+      legacy_name: item.report_legacy_name || '',
+      date_range: item.report_date_range || '',
+      purpose: item.report_purpose || '',
+      converted_name: item.report_converted_name || '',
+      columns: '',
+    }]
+  }
 
-  const saveField = async (field: string, value: string) => {
-    await supabase.from('items').update({ [field]: value }).eq('id', item.id)
-    onUpdate({ ...item, [field]: value })
+  const [rows, setRows] = useState<ReportRow[]>(initRows)
+  // activeCell: [rowIndex, colIndex] | null
+  const [activeCell, setActiveCell] = useState<[number, number] | null>(null)
+
+  const saveRows = async (next: ReportRow[]) => {
+    setRows(next)
+    await supabase.from('items').update({ report_rows: next }).eq('id', item.id)
+    onUpdate({ ...item, report_rows: next })
+  }
+
+  const updateCell = (rowIdx: number, field: keyof ReportRow, value: string) => {
+    const next = rows.map((r, i) => i === rowIdx ? { ...r, [field]: value } : r)
+    saveRows(next)
+  }
+
+  const addRow = () => {
+    const next = [...rows, { id: crypto.randomUUID(), legacy_name: '', date_range: '', purpose: '', converted_name: '', columns: '' }]
+    saveRows(next)
+    // Focus first cell of new row
+    setActiveCell([next.length - 1, 0])
+  }
+
+  const deleteRow = (rowIdx: number) => {
+    const next = rows.filter((_, i) => i !== rowIdx)
+    saveRows(next.length ? next : [{ id: crypto.randomUUID(), legacy_name: '', date_range: '', purpose: '', converted_name: '', columns: '' }])
+  }
+
+  const openCell = (r: number, c: number) => setActiveCell([r, c])
+  const nextCell = (r: number, c: number) => {
+    if (c < COLS - 1) setActiveCell([r, c + 1])
+    else if (r < rows.length - 1) setActiveCell([r + 1, 0])
+    else setActiveCell(null)
+  }
+  const prevCell = (r: number, c: number) => {
+    if (c > 0) setActiveCell([r, c - 1])
+    else if (r > 0) setActiveCell([r - 1, COLS - 1])
+    else setActiveCell(null)
   }
 
   const toggleDone = async () => {
@@ -1903,6 +1943,14 @@ function ReportItemRow({ item, locked, onUpdate, onDelete }: {
     await supabase.from('items').update({ task_name: name }).eq('id', item.id)
     onUpdate({ ...item, task_name: name })
   }
+
+  const FIELDS: { key: keyof ReportRow; label: string; placeholder: string; multiline?: boolean; emptyItalic?: boolean }[] = [
+    { key: 'legacy_name',    label: 'Legacy Report Name',  placeholder: 'Legacy report name' },
+    { key: 'date_range',     label: 'Date Range',           placeholder: 'e.g. Last 90 days' },
+    { key: 'purpose',        label: 'Purpose',              placeholder: 'Purpose / notes', multiline: true },
+    { key: 'converted_name', label: 'Converted Report Name', placeholder: 'Not yet converted', emptyItalic: true },
+    { key: 'columns',        label: 'Columns',              placeholder: 'Key columns / fields' },
+  ]
 
   return (
     <div style={{ opacity: locked ? 0.45 : 1 }}>
@@ -1933,12 +1981,8 @@ function ReportItemRow({ item, locked, onUpdate, onDelete }: {
         {onDelete && <DeleteBtn onClick={onDelete} />}
       </div>
 
-      {/* Column table */}
-      <div
-        style={{ margin: '0 16px 8px 44px', borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border)' }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
+      {/* Table */}
+      <div style={{ margin: '0 16px 8px 44px', borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border)' }}>
         {/* Column headers */}
         <div style={{
           display: 'flex', background: 'var(--bg-surface2)',
@@ -1946,54 +1990,60 @@ function ReportItemRow({ item, locked, onUpdate, onDelete }: {
           fontSize: 9, fontWeight: 700, color: 'var(--text-3)',
           textTransform: 'uppercase', letterSpacing: '0.06em',
         }}>
-          {(['Legacy Report Name', 'Date Range', 'Purpose', 'Converted Report Name'] as const).map((label, i, arr) => (
-            <div key={i} style={{ flex: 1, padding: '3px 8px', borderRight: i < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
-              {label}
+          {FIELDS.map((f, i) => (
+            <div key={f.key} style={{ flex: 1, padding: '3px 8px', borderRight: i < FIELDS.length - 1 ? '1px solid var(--border)' : 'none' }}>
+              {f.label}
             </div>
           ))}
+          {/* delete col spacer */}
+          <div style={{ width: 24 }} />
         </div>
 
-        {/* Data row */}
-        <div style={{ display: 'flex', background: hovered ? 'var(--bg-hover)' : 'var(--bg-surface)', minHeight: 34 }}>
-          <ReportItemCell
-            value={item.report_legacy_name || ''}
-            placeholder="Legacy report name"
-            isEditing={activeCell === 0}
-            onStartEdit={() => openCell(0)}
-            onSave={v => saveField('report_legacy_name', v)}
-            onTab={() => nextCell(0)}
-            onShiftTab={() => prevCell(0)}
-          />
-          <ReportItemCell
-            value={item.report_date_range || ''}
-            placeholder="e.g. Last 90 days"
-            isEditing={activeCell === 1}
-            onStartEdit={() => openCell(1)}
-            onSave={v => saveField('report_date_range', v)}
-            onTab={() => nextCell(1)}
-            onShiftTab={() => prevCell(1)}
-          />
-          <ReportItemCell
-            value={item.report_purpose || ''}
-            placeholder="Purpose / notes"
-            multiline
-            isEditing={activeCell === 2}
-            onStartEdit={() => openCell(2)}
-            onSave={v => saveField('report_purpose', v)}
-            onTab={() => nextCell(2)}
-            onShiftTab={() => prevCell(2)}
-          />
-          <ReportItemCell
-            value={item.report_converted_name || ''}
-            placeholder="Not yet converted"
-            emptyItalic
-            isEditing={activeCell === 3}
-            onStartEdit={() => openCell(3)}
-            onSave={v => saveField('report_converted_name', v)}
-            onTab={() => nextCell(3)}
-            onShiftTab={() => prevCell(3)}
-          />
-        </div>
+        {/* Data rows */}
+        {rows.map((row, rowIdx) => (
+          <div key={row.id} style={{ display: 'flex', background: 'var(--bg-surface)', borderBottom: rowIdx < rows.length - 1 ? '1px solid var(--border)' : 'none', minHeight: 34 }}>
+            {FIELDS.map((f, colIdx) => (
+              <ReportItemCell
+                key={f.label}
+                value={row[f.key] as string}
+                placeholder={f.placeholder}
+                multiline={f.multiline}
+                emptyItalic={f.emptyItalic}
+                isEditing={activeCell?.[0] === rowIdx && activeCell?.[1] === colIdx}
+                onStartEdit={() => openCell(rowIdx, colIdx)}
+                onSave={v => updateCell(rowIdx, f.key, v)}
+                onTab={() => nextCell(rowIdx, colIdx)}
+                onShiftTab={() => prevCell(rowIdx, colIdx)}
+              />
+            ))}
+            {/* Row delete */}
+            <div style={{ width: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {!locked && rows.length > 1 && (
+                <button
+                  onClick={() => deleteRow(rowIdx)}
+                  title="Remove row"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 11, padding: 2, lineHeight: 1 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
+                >×</button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* Add row */}
+        {!locked && (
+          <button
+            onClick={addRow}
+            style={{
+              display: 'block', width: '100%', background: 'none', border: 'none',
+              borderTop: '1px solid var(--border)', padding: '5px 10px', textAlign: 'left',
+              color: 'var(--text-3)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-3)')}
+          >+ Add row</button>
+        )}
       </div>
     </div>
   )
