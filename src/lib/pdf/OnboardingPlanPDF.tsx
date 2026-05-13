@@ -16,16 +16,38 @@ interface Request { id: string; label: string; status: string }
 interface Account {
   name: string; sku: string; addons: string[]
   contacts: Contact[]; requests: Request[]; milestones: Milestone[]
+  go_live_date?: string | null
+  kickoff_date?: string | null
 }
 
 interface Props { account: Account; repName: string; companyName: string }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Items worth showing in the customer-facing plan
+function isVisibleItem(item: Item) {
+  return ['task', 'session', 'dependency'].includes(item.type)
+}
+
+// Items the customer is responsible for completing
 function isCustomerItem(item: Item) {
   if (item.type === 'task') return item.task_assignee === 'customer'
   if (item.type === 'session') return true
+  if (item.type === 'dependency') return true
   return false
+}
+
+function itemName(item: Item): string {
+  if (item.type === 'session') return item.session_name ?? ''
+  return item.task_name ?? ''
+}
+
+function itemDone(item: Item): boolean {
+  return !!(item.task_done || item.session_status === 'complete')
+}
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
 const MILESTONE_DESC: Record<string, string> = {
@@ -147,14 +169,18 @@ const s = StyleSheet.create({
   },
   itemBulletDone: { backgroundColor: c.green, borderColor: c.green },
   itemBulletCheck: { fontSize: 7, color: c.white, fontFamily: 'Helvetica-Bold' },
-  itemBulletSession: { backgroundColor: '#ede9fe', borderColor: '#7757F5' },
+  itemBulletCustomer: { borderColor: c.blue },
+  itemBulletRespark: { borderColor: '#cbd5e1' },
   itemName: { fontSize: 10, color: c.navy, flex: 1, lineHeight: 1.4 },
+  itemNameRespark: { fontSize: 10, color: c.muted, flex: 1, lineHeight: 1.4 },
   itemNameDone: { color: c.dim },
   itemDue: { fontSize: 9, color: c.muted, marginLeft: 8, flexShrink: 0 },
   itemTypeBadge: {
     fontSize: 8, fontFamily: 'Helvetica-Bold', paddingHorizontal: 5, paddingVertical: 1,
     borderRadius: 3, marginLeft: 6, flexShrink: 0,
   },
+  badgeYours: { backgroundColor: c.blueLight, color: '#007580' },
+  badgeRespark: { backgroundColor: '#f1f5f9', color: c.dim },
   badgeSession: { backgroundColor: '#ede9fe', color: '#5b21b6' },
   badgeRequest: { backgroundColor: c.amberLight, color: '#92400e' },
 
@@ -197,13 +223,13 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
   const date = generatedDate()
   const primaryContacts = account.contacts.slice(0, 3)
 
-  // Build customer-visible plan items
+  // Build plan milestones — show all visible items (task, session, dependency)
   const planMilestones = account.milestones.map(m => ({
     ...m,
     stages: m.stages.map(s => ({
       ...s,
-      customerItems: s.items.filter(isCustomerItem),
-    })).filter(s => s.customerItems.length > 0),
+      visibleItems: s.items.filter(isVisibleItem),
+    })).filter(s => s.visibleItems.length > 0),
   })).filter(m => m.stages.length > 0)
 
   // Customer-facing requests only (not 'complete' hidden)
@@ -239,6 +265,13 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
                   {c.name}{c.role ? ` · ${c.role}` : ''}
                 </Text>
               ))}
+            </View>
+          )}
+
+          {account.go_live_date && (
+            <View style={s.coverField}>
+              <Text style={s.coverLabel}>Go-Live Target</Text>
+              <Text style={s.coverValueSmall}>{formatDate(account.go_live_date)}</Text>
             </View>
           )}
 
@@ -332,19 +365,18 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
         <PageFooter repName={repName} company={companyName} date={date} pageNum={2} />
       </Page>
 
-      {/* ── Page 3+: What We Need From You ── */}
+      {/* ── Page 3+: Full Plan ── */}
       <Page size="A4" style={s.page}>
         <ContentPageHeader account={account} />
 
         <View style={s.content}>
-          <Text style={s.sectionTitle}>What We Need From You</Text>
+          <Text style={s.sectionTitle}>Your Onboarding Plan</Text>
           <Text style={s.sectionSubtitle}>
-            The items below are your responsibilities across the onboarding. Sessions are included so you can plan ahead.
+            {'Items marked "Yours" are your responsibility. Everything else is handled by Respark.'}
           </Text>
 
           {planMilestones.map((milestone, mi) => (
             <View key={milestone.id}>
-              {/* Milestone header — kept with first stage so it never strands alone */}
               <View style={s.milestoneHeader}>
                 <View style={s.milestoneNum}>
                   <Text style={s.milestoneNumText}>{mi + 1}</Text>
@@ -352,7 +384,6 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
                 <Text style={s.milestoneName}>{milestone.name}</Text>
               </View>
 
-              {/* Stages — wrap=false keeps each stage intact on a page */}
               {milestone.stages.map(stage => (
                 <View key={stage.id} style={s.stageBlock} wrap={false}>
                   <View style={s.stageHeader}>
@@ -360,34 +391,44 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
                     <Text style={s.stageName}>{stage.name}</Text>
                   </View>
 
-                  {stage.customerItems.map((item, idx) => {
-                    const isLast = idx === stage.customerItems.length - 1
-                    const isDone = item.task_done || item.session_status === 'complete'
-                    const isSession = item.type === 'session'
+                  {stage.visibleItems.map((item, idx) => {
+                    const isLast = idx === stage.visibleItems.length - 1
+                    const isDone = itemDone(item)
+                    const isCustomer = isCustomerItem(item)
+                    const name = itemName(item)
 
                     return (
-                      <View key={item.id} style={[s.itemRow, isLast ? { borderBottomWidth: 0 } : {}]}>
+                      <View key={item.id} style={[
+                        s.itemRow,
+                        isLast ? { borderBottomWidth: 0 } : {},
+                        isCustomer && !isDone ? { backgroundColor: '#f0fafa' } : {},
+                      ]}>
                         {/* Bullet / checkbox */}
                         <View style={[
                           s.itemBullet,
-                          isDone ? s.itemBulletDone : isSession ? s.itemBulletSession : {},
+                          isDone ? s.itemBulletDone : isCustomer ? s.itemBulletCustomer : s.itemBulletRespark,
                         ]}>
                           {isDone && <Text style={s.itemBulletCheck}>✓</Text>}
                         </View>
 
                         {/* Name */}
-                        <Text style={[s.itemName, isDone ? s.itemNameDone : {}]}>
-                          {item.type === 'task' ? item.task_name : item.session_name}
+                        <Text style={[
+                          isCustomer ? s.itemName : s.itemNameRespark,
+                          isDone ? s.itemNameDone : {},
+                          isCustomer && !isDone ? { fontFamily: 'Helvetica-Bold' } : {},
+                        ]}>
+                          {name}
                         </Text>
 
-                        {/* Type badge */}
-                        {isSession && (
-                          <Text style={[s.itemTypeBadge, s.badgeSession]}>session</Text>
-                        )}
+                        {/* Ownership badge */}
+                        {isCustomer
+                          ? <Text style={[s.itemTypeBadge, s.badgeYours]}>Yours</Text>
+                          : <Text style={[s.itemTypeBadge, s.badgeRespark]}>Respark</Text>
+                        }
 
                         {/* Due */}
                         <Text style={s.itemDue}>
-                          {isDone ? 'Done' : 'Due: TBD'}
+                          {isDone ? 'Done' : 'TBD'}
                         </Text>
                       </View>
                     )
@@ -399,7 +440,7 @@ export function OnboardingPlanPDF({ account, repName, companyName }: Props) {
 
           {planMilestones.length === 0 && (
             <Text style={{ fontSize: 12, color: c.muted, marginTop: 20 }}>
-              No customer-facing items in this plan yet.
+              No plan items yet.
             </Text>
           )}
         </View>
