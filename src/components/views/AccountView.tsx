@@ -1843,7 +1843,7 @@ function ReportItemCell({ value, placeholder, multiline, emptyItalic, isEditing,
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={e => {
-              if (e.key === 'Tab') { e.preventDefault(); commit(); e.shiftKey ? onShiftTab() : onTab() }
+              if (e.key === 'Tab') { e.preventDefault(); commit(); if (e.shiftKey) { onShiftTab() } else { onTab() } }
               if (e.key === 'Escape') { setDraft(value); onSave(value) }
             }}
             style={inputBase} />
@@ -1851,7 +1851,7 @@ function ReportItemCell({ value, placeholder, multiline, emptyItalic, isEditing,
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={e => {
-              if (e.key === 'Tab') { e.preventDefault(); commit(); e.shiftKey ? onShiftTab() : onTab() }
+              if (e.key === 'Tab') { e.preventDefault(); commit(); if (e.shiftKey) { onShiftTab() } else { onTab() } }
               if (e.key === 'Enter') commit()
               if (e.key === 'Escape') { setDraft(value); onSave(value) }
             }}
