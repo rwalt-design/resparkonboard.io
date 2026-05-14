@@ -62,8 +62,8 @@ function computeSummary(account: Account): AccountSummary {
     if (currentStage) break
   }
 
-  // Last Outreach: outbound emails + manually logged CSM-initiated actions
-  const OUTREACH_TYPES = new Set(['email_sent', 'called', 'texted', 'bumped_email', 'sent_follow_up', 'custom', 'no_show'])
+  // Last Outreach: outbound emails, manually logged CSM-initiated actions, and meetings
+  const OUTREACH_TYPES = new Set(['email_sent', 'called', 'texted', 'bumped_email', 'sent_follow_up', 'custom', 'no_show', 'meeting', 'call'])
   // Last Contact: inbound emails from Gmail (must have gmail_message_id) + confirmed calendar meetings
   // 'call' = legacy calendar type, 'meeting' = current calendar type
   const CONTACT_MEETING_TYPES = new Set(['call', 'meeting'])

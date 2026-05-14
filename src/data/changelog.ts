@@ -19,6 +19,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Calendar sync now matches meetings by account name in the event title (not just by attendee email), logs them directly without a review step, and always looks back 14 days so meetings are never missed due to sync timing',
       'Fixed the AI Suggestions badge showing a count when the list was empty — internal sync notifications were inflating the number',
       'Sub-item names are now editable — click any sub-item text to edit it in place',
+      'Meetings now count as Last Outreach too, not just Last Contact — a meeting is the strongest form of outreach',
     ],
   },
   {
