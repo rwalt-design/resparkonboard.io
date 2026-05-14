@@ -532,15 +532,24 @@ export async function POST() {
               }
             }
 
-            // Fallback: match by account name appearing in event title
+            // Fallback: match by account name appearing in event title.
+            // Industry-generic words are excluded so e.g. "recycling" in one
+            // account name doesn't match a different account's meeting title.
             if (!matchedAccountId) {
               const titleLower = (event.summary || '').toLowerCase()
-              const CAL_STOP_WORDS = new Set(['the', 'and', 'inc', 'llc', 'ltd', 'co', 'corp', 'of', 'a', 'an'])
+              const CAL_STOP_WORDS = new Set([
+                'the', 'and', 'inc', 'llc', 'ltd', 'co', 'corp', 'of', 'a', 'an',
+                'recycling', 'recycle', 'metals', 'metal', 'scrap', 'iron', 'steel',
+                'aluminum', 'industries', 'industry', 'enterprises', 'enterprise',
+                'group', 'services', 'service', 'company', 'center', 'transport',
+                'logistics', 'supply', 'resources',
+              ])
               const titleMatch = (accounts || []).find(a => {
                 const words = a.name.toLowerCase().split(/\s+/).filter(
                   (w: string) => w.length > 2 && !CAL_STOP_WORDS.has(w)
                 )
-                return words.some((w: string) => titleLower.includes(w))
+                // Require at least one distinctive word to match
+                return words.length > 0 && words.some((w: string) => titleLower.includes(w))
               })
               if (titleMatch) {
                 matchedAccountId = titleMatch.id

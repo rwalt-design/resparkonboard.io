@@ -21,6 +21,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Sub-item names are now editable — click any sub-item text to edit it in place',
       'Meetings now count as Last Outreach too, not just Last Contact — a meeting is the strongest form of outreach',
       'Last Contact and Last Outreach now follow precise rules: "Called — Reached" counts as contact, voicemail and no-answer count as outreach only, texts count as outreach only, and custom interactions have a Contact/Outreach toggle when logging',
+      'Fixed calendar sync incorrectly matching meetings to the wrong account — generic industry words like "Recycling", "Metals", "Industries" are no longer used as matching signals',
     ],
   },
   {
