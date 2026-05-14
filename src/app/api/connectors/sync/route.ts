@@ -225,6 +225,34 @@ export async function POST() {
   // Track account IDs that got new content so we can pull account names for AI
   const accountNameMap = new Map((accounts || []).map(a => [a.id, a.name]))
 
+  // ── Preload already-seen source IDs ───────────────────────────────────────────
+  // Load once at the start so we never query per-message and never re-process
+  // anything we've already logged — interactions OR AI extractions.
+  const { data: existingInteractions } = await supabase
+    .from('interactions')
+    .select('gmail_message_id, slack_ts, detail, account_id')
+    .or('gmail_message_id.not.is.null,slack_ts.not.is.null,detail.like.gcal:%')
+
+  const { data: existingSignals } = await supabase
+    .from('unmatched_signals')
+    .select('raw_text')
+    .like('raw_text', 'gmail:%')
+
+  const seenGmailIds   = new Set<string>()
+  const seenSlackKeys  = new Set<string>()  // `${account_id}:${slack_ts}`
+  const seenGcalIds    = new Set<string>()  // `gcal:${event_id}`
+
+  for (const row of existingInteractions || []) {
+    if (row.gmail_message_id) seenGmailIds.add(row.gmail_message_id)
+    if (row.slack_ts && row.account_id) seenSlackKeys.add(`${row.account_id}:${row.slack_ts}`)
+    if (row.detail?.startsWith('gcal:')) seenGcalIds.add(row.detail)
+  }
+  // Also treat previously-stored unmatched signals as seen
+  for (const row of existingSignals || []) {
+    const gmailId = row.raw_text?.replace('gmail:', '')
+    if (gmailId) seenGmailIds.add(gmailId)
+  }
+
   // Set of account IDs that received new interactions this sync run
   const touchedAccountIds = new Set<string>()
 
@@ -274,11 +302,7 @@ export async function POST() {
           if (!listData.messages?.length) continue
 
           for (const msg of listData.messages) {
-            // Dedup check
-            const { data: existing } = await supabase
-              .from('interactions').select('id')
-              .eq('account_id', contact.account_id).eq('gmail_message_id', msg.id).single()
-            if (existing) continue
+            if (seenGmailIds.has(msg.id)) continue
 
             // Fetch full message for body + subject
             const fullRes = await fetch(
@@ -304,6 +328,7 @@ export async function POST() {
               gmail_message_id: msg.id,
               event_at: emailDate,
             })
+            seenGmailIds.add(msg.id)
             emailCount++
             touchedAccountIds.add(contact.account_id)
 
@@ -327,10 +352,7 @@ export async function POST() {
           const sentData = await sentRes.json()
           if (sentData.messages?.length) {
             for (const msg of sentData.messages) {
-              const { data: existing } = await supabase
-                .from('interactions').select('id')
-                .eq('account_id', contact.account_id).eq('gmail_message_id', msg.id).single()
-              if (existing) continue
+              if (seenGmailIds.has(msg.id)) continue
 
               const fullRes = await fetch(
                 `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
@@ -351,6 +373,7 @@ export async function POST() {
                 gmail_message_id: msg.id,
                 event_at: emailDate,
               })
+              seenGmailIds.add(msg.id)
               emailCount++
               touchedAccountIds.add(contact.account_id)
             }
@@ -392,11 +415,8 @@ export async function POST() {
                 if (!fromEmail || contactEmailMap.has(fromEmail)) continue
                 // Skip no-reply addresses UNLESS they're from a known provider like Gong
                 if (!isKnownProvider && (fromEmail.includes('noreply') || fromEmail.includes('no-reply'))) continue
-
-                const { data: existingSignal } = await supabase
-                  .from('unmatched_signals').select('id')
-                  .eq('org_id', orgId).eq('raw_text', `gmail:${msg.id}`).single()
-                if (existingSignal) continue
+                // Skip if already processed (interaction or unmatched signal)
+                if (seenGmailIds.has(msg.id)) continue
 
                 const subjectLower = subject.toLowerCase()
                 const STOP_WORDS = ['the', 'and', 'inc', 'llc', 'ltd', 'co', 'corp', 'of', 'a', 'an']
@@ -410,10 +430,7 @@ export async function POST() {
                 const senderName = from.replace(/<[^>]+>/, '').trim() || fromEmail
 
                 if (matchedAccount) {
-                  const { data: existingInteraction } = await supabase
-                    .from('interactions').select('id')
-                    .eq('account_id', matchedAccount.id).eq('gmail_message_id', msg.id).single()
-                  if (!existingInteraction) {
+                  {
                     const autoEmailDate = msgData.internalDate
                       ? new Date(parseInt(msgData.internalDate)).toISOString()
                       : null
@@ -425,6 +442,7 @@ export async function POST() {
                       gmail_message_id: msg.id,
                       event_at: autoEmailDate,
                     })
+                    seenGmailIds.add(msg.id)
                     emailCount++
                     touchedAccountIds.add(matchedAccount.id)
 
@@ -449,37 +467,32 @@ export async function POST() {
                     }
                   }
                 } else if (isKnownProvider) {
-                  // Known provider but no account match — fetch body and save as unmatched
-                  // so user can link it, but still store the content
-                  const { data: existingSignal } = await supabase
-                    .from('unmatched_signals').select('id')
-                    .eq('org_id', orgId).eq('raw_text', `gmail:${msg.id}`).single()
-                  if (!existingSignal) {
-                    try {
-                      const fullRes = await fetch(
-                        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
-                        { headers: { Authorization: `Bearer ${token.access_token}` } }
-                      )
-                      const fullData = await fullRes.json()
-                      const body = extractEmailBody(fullData.payload)
-                      await supabase.from('unmatched_signals').insert({
-                        org_id: orgId,
-                        provider: 'gmail',
-                        raw_text: `gmail:${msg.id}`,
-                        detail: `From: ${senderName} <${fromEmail}>\nSubject: ${subject}\n\n${body.slice(0, 800)}`,
-                        signal_date: new Date().toISOString(),
-                      })
-                    } catch {
-                      await supabase.from('unmatched_signals').insert({
-                        org_id: orgId,
-                        provider: 'gmail',
-                        raw_text: `gmail:${msg.id}`,
-                        detail: `From: ${senderName} <${fromEmail}>\nSubject: ${subject}`,
-                        signal_date: new Date().toISOString(),
-                      })
-                    }
-                    unmatched++
+                  // Known provider but no account match — save as unmatched signal
+                  try {
+                    const fullRes = await fetch(
+                      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
+                      { headers: { Authorization: `Bearer ${token.access_token}` } }
+                    )
+                    const fullData = await fullRes.json()
+                    const body = extractEmailBody(fullData.payload)
+                    await supabase.from('unmatched_signals').insert({
+                      org_id: orgId,
+                      provider: 'gmail',
+                      raw_text: `gmail:${msg.id}`,
+                      detail: `From: ${senderName} <${fromEmail}>\nSubject: ${subject}\n\n${body.slice(0, 800)}`,
+                      signal_date: new Date().toISOString(),
+                    })
+                  } catch {
+                    await supabase.from('unmatched_signals').insert({
+                      org_id: orgId,
+                      provider: 'gmail',
+                      raw_text: `gmail:${msg.id}`,
+                      detail: `From: ${senderName} <${fromEmail}>\nSubject: ${subject}`,
+                      signal_date: new Date().toISOString(),
+                    })
                   }
+                  seenGmailIds.add(msg.id)
+                  unmatched++
                 } else {
                   await supabase.from('unmatched_signals').insert({
                     org_id: orgId,
@@ -488,6 +501,7 @@ export async function POST() {
                     detail: `From: ${senderName} <${fromEmail}>\nSubject: ${subject}`,
                     signal_date: new Date().toISOString(),
                   })
+                  seenGmailIds.add(msg.id)
                   unmatched++
                 }
               } catch { /* skip */ }
@@ -563,12 +577,8 @@ export async function POST() {
             const eventDesc = event.description || ''
             const startTime = event.start?.dateTime || event.start?.date || ''
 
-            // Dedup by gcal event ID stored in detail field
-            const { data: existingCal } = await supabase
-              .from('interactions').select('id')
-              .eq('account_id', matchedAccountId)
-              .eq('detail', `gcal:${event.id}`).single()
-            if (existingCal) continue
+            // Skip if already logged
+            if (seenGcalIds.has(`gcal:${event.id}`)) continue
 
             // Log the meeting directly as an interaction — updates Last Contact immediately
             await supabase.from('interactions').insert({
@@ -578,6 +588,7 @@ export async function POST() {
               detail: `gcal:${event.id}`,
               event_at: startTime || null,
             })
+            seenGcalIds.add(`gcal:${event.id}`)
             calCount++
             touchedAccountIds.add(matchedAccountId)
 
@@ -636,10 +647,8 @@ export async function POST() {
             // Also skip if channel ID starts with D (DM) or G (group DM)
             if (channelId.startsWith('D') || channelId.startsWith('G')) continue
 
-            const { data: existing } = await supabase
-              .from('interactions').select('id')
-              .eq('account_id', account.id).eq('slack_ts', match.ts).single()
-            if (existing) continue
+            const slackKey = `${account.id}:${match.ts}`
+            if (seenSlackKeys.has(slackKey)) continue
 
             const text = match.text?.slice(0, 500) || ''
 
@@ -654,6 +663,7 @@ export async function POST() {
               slack_ts: match.ts,
               event_at: slackDate,
             })
+            seenSlackKeys.add(slackKey)
             count++
             touchedAccountIds.add(account.id)
 

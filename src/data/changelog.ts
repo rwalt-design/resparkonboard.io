@@ -22,6 +22,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Meetings now count as Last Outreach too, not just Last Contact — a meeting is the strongest form of outreach',
       'Last Contact and Last Outreach now follow precise rules: "Called — Reached" counts as contact, voicemail and no-answer count as outreach only, texts count as outreach only, and custom interactions have a Contact/Outreach toggle when logging',
       'Fixed calendar sync incorrectly matching meetings to the wrong account — generic industry words like "Recycling", "Metals", "Industries" are no longer used as matching signals',
+      'Sync no longer re-processes emails, calendar events, or Slack messages it has already seen — all processed IDs are loaded once at the start of each sync, stopping duplicate AI suggestions at the source',
     ],
   },
   {
