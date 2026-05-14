@@ -2120,6 +2120,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
 }) {
   const [activeChip, setActiveChip] = useState<QuickLogType | null>(null)
   const [calledOutcome, setCalledOutcome] = useState<QuickLogOutcome | null>(null)
+  const [customDirection, setCustomDirection] = useState<'contact' | 'outreach'>('outreach')
   const [note, setNote] = useState('')
   const [customLabel, setCustomLabel] = useState('')
   // datetime-local input value, defaults to now
@@ -2154,6 +2155,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
 
   const resetForm = () => {
     setCalledOutcome(null)
+    setCustomDirection('outreach')
     setNote('')
     setCustomLabel('')
     const d = new Date(); d.setSeconds(0, 0)
@@ -2226,7 +2228,10 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
     const { data: { user } } = await supabase.auth.getUser()
     const summary = buildQuickLogSummary(activeChip, calledOutcome, customLabel)
     const logTime = new Date(loggedAt).toISOString()
-    const noteValue = showNoteField() ? (note.trim() || null) : null
+    const rawNote = showNoteField() ? (note.trim() || null) : null
+    const noteValue = activeChip === 'custom'
+      ? `[${customDirection}]${rawNote ? '\n' + rawNote : ''}`
+      : rawNote
 
     const { data } = await supabase.from('interactions').insert({
       account_id: account.id,
@@ -2332,15 +2337,32 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
               </div>
             )}
 
-            {/* Custom label input */}
+            {/* Custom label + direction */}
             {activeChip === 'custom' && (
-              <input
-                name="interaction-label"
-                value={customLabel}
-                onChange={e => setCustomLabel(e.target.value)}
-                placeholder="Label (e.g. Dropped off swag)"
-                style={{ ...inputStyle }}
-              />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  name="interaction-label"
+                  value={customLabel}
+                  onChange={e => setCustomLabel(e.target.value)}
+                  placeholder="Label (e.g. Dropped off swag)"
+                  style={{ ...inputStyle, flex: 1, margin: 0 }}
+                />
+                {(['contact', 'outreach'] as const).map(d => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setCustomDirection(d)}
+                    style={{
+                      background: customDirection === d ? (d === 'contact' ? '#10b98120' : '#1BB3BB18') : 'var(--bg-surface2)',
+                      border: `1px solid ${customDirection === d ? (d === 'contact' ? '#10b98160' : '#1BB3BB50') : 'var(--border)'}`,
+                      borderRadius: 6, padding: '5px 12px',
+                      color: customDirection === d ? (d === 'contact' ? '#10b981' : '#1BB3BB') : 'var(--text-3)',
+                      fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                      whiteSpace: 'nowrap', transition: 'all 0.15s',
+                    }}
+                  >{d === 'contact' ? 'Contact' : 'Outreach'}</button>
+                ))}
+              </div>
             )}
 
             {/* Note field */}

@@ -20,7 +20,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fixed the AI Suggestions badge showing a count when the list was empty — internal sync notifications were inflating the number',
       'Sub-item names are now editable — click any sub-item text to edit it in place',
       'Meetings now count as Last Outreach too, not just Last Contact — a meeting is the strongest form of outreach',
-      'Last Contact now updates when you log a call, text, or custom interaction — not just inbound emails and calendar meetings',
+      'Last Contact and Last Outreach now follow precise rules: "Called — Reached" counts as contact, voicemail and no-answer count as outreach only, texts count as outreach only, and custom interactions have a Contact/Outreach toggle when logging',
     ],
   },
   {

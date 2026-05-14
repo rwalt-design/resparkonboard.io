@@ -62,11 +62,6 @@ function computeSummary(account: Account): AccountSummary {
     if (currentStage) break
   }
 
-  // Last Outreach: outbound emails, manually logged CSM-initiated actions, and meetings
-  const OUTREACH_TYPES = new Set(['email_sent', 'called', 'texted', 'bumped_email', 'sent_follow_up', 'custom', 'no_show', 'meeting', 'call'])
-  // Last Contact: inbound emails, calendar meetings, and direct interactions (calls, texts, custom logs)
-  const CONTACT_MEETING_TYPES = new Set(['call', 'meeting', 'called', 'texted', 'custom'])
-
   // Use calendar-day diff so "yesterday at 11pm" = 1d ago, not 0d ago
   const calendarDaysAgo = (dateStr: string) => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -78,10 +73,25 @@ function computeSummary(account: Account): AccountSummary {
   const effectiveDate = (i: { event_at?: string | null; created_at: string }) =>
     i.event_at ?? i.created_at
 
-  // Last Contact = inbound emails (must have gmail_message_id = real Gmail) + confirmed meetings
-  const contactInteractions = (account.interactions || []).filter(i =>
-    (i.type === 'email' && i.gmail_message_id) || CONTACT_MEETING_TYPES.has(i.type)
-  )
+  // Contact = actual two-way interaction
+  //   inbound email, calendar meeting, call where they picked up,
+  //   or custom interaction explicitly marked [contact]
+  const isContact = (i: { type: string; summary?: string; detail?: string; gmail_message_id?: string | null }) => {
+    if (i.type === 'email' && i.gmail_message_id) return true
+    if (i.type === 'meeting' || i.type === 'call') return true
+    if (i.type === 'called') return !!(i.summary?.includes('Reached'))
+    if (i.type === 'custom') return !!(i.detail?.startsWith('[contact]'))
+    return false
+  }
+
+  // Outreach = CSM-initiated action (includes meetings and all call outcomes)
+  const isOutreach = (i: { type: string; detail?: string }) => {
+    if (['email_sent', 'texted', 'bumped_email', 'sent_follow_up', 'no_show', 'meeting', 'call', 'called'].includes(i.type)) return true
+    if (i.type === 'custom') return !(i.detail?.startsWith('[contact]'))
+    return false
+  }
+
+  const contactInteractions = (account.interactions || []).filter(isContact)
   let daysSinceContact = 999
   let lastContactDate: string | undefined
   let lastContactSummary: string | undefined
@@ -96,8 +106,8 @@ function computeSummary(account: Account): AccountSummary {
     daysSinceContact = calendarDaysAgo(lastContactDate)
   }
 
-  // Last Outreach = last time the CSM reached out (manually logged, CSM-initiated)
-  const outreachInteractions = (account.interactions || []).filter(i => OUTREACH_TYPES.has(i.type))
+  // Last Outreach = last time the CSM reached out
+  const outreachInteractions = (account.interactions || []).filter(isOutreach)
   let daysSinceOutreach = 999
   let lastOutreachDate: string | undefined
   let lastOutreachSummary: string | undefined
