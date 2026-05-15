@@ -22,7 +22,6 @@ const ADDON_LABELS: Record<string, string> = {
   dispatch:        'Dispatch',
   rail:            'Rail',
   exports:         'Exports',
-  positive_pay:    'Positive Pay',
 }
 const STATUS_COLORS: Record<string, string> = {
   pending: '#94a3b8',

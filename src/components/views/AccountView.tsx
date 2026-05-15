@@ -2847,7 +2847,6 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
     // Logistics add-ons
     ['dispatch', 'Dispatch'], ['rail', 'Rail'], ['exports', 'Exports'],
     // Services
-    ['positive_pay', 'Positive Pay'],
   ] as const
   const SKU_COLORS_MAP: Record<string, string> = { essentials: '#10b981', pro: '#1BB3BB', dispatch: '#f59e0b', rail: '#6b7280', exports: '#3b82f6', uptimepm_core: '#7757F5', uptimepm_pro: '#6366f1', uptimepm_enterprise: '#4f46e5' }
 

@@ -6,8 +6,6 @@ export type Addon =
   | 'supplier_portal' | 'integrated_gl' | 'brokerage' | 'crv_processing'
   // Logistics (when added to a core platform SKU)
   | 'dispatch' | 'rail' | 'exports'
-  // Services
-  | 'positive_pay'
 export type StageStatus = 'locked' | 'active' | 'unlocked' | 'complete'
 export type ItemType = 'task' | 'session' | 'record' | 'handoff' | 'log' | 'dependency' | 'golive' | 'report'
 

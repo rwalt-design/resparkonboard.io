@@ -20,7 +20,6 @@ const ADDON_OPTIONS = [
   ['supplier_portal', 'Supplier Portal'], ['integrated_gl', 'Integrated GL'],
   ['brokerage', 'Brokerage'], ['crv_processing', 'CRV Processing'],
   ['dispatch', 'Dispatch'], ['rail', 'Rail'], ['exports', 'Exports'],
-  ['positive_pay', 'Positive Pay'],
 ]
 
 interface ConnectorToken {

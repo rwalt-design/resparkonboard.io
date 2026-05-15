@@ -50,7 +50,6 @@ const ADDON_LABELS: Record<string, string> = {
   dispatch:       'Dispatch',
   rail:           'Rail',
   exports:        'Exports',
-  positive_pay:   'Positive Pay',
 }
 const HEALTH_OPTIONS: { value: HealthStatus; label: string; color: string }[] = [
   { value: 'active',       label: 'Active',       color: '#10b981' },
