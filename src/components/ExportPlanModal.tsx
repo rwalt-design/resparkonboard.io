@@ -79,8 +79,8 @@ function loadSaved(accountId: string): Saved | null {
 function saveSel(accountId: string, checked: Set<string>, unchecked: Set<string>) {
   try {
     localStorage.setItem(`respark-export-sel-${accountId}`, JSON.stringify({
-      checked: [...checked],
-      unchecked: [...unchecked],
+      checked: Array.from(checked),
+      unchecked: Array.from(unchecked),
     }))
   } catch { /* ignore */ }
 }
