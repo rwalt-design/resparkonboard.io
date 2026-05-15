@@ -208,16 +208,9 @@ export function PlanExportClient({
           padding: '60px 56px',
         }}>
           {/* Top bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 'auto' }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: 'linear-gradient(135deg, #1BB3BB, #007580)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 800, color: '#fff', fontFamily: '"DM Mono", monospace',
-            }}>ob</div>
-            <span style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', letterSpacing: '-0.02em' }}>
-              onboard<span style={{ color: '#1BB3BB' }}>.io</span>
-            </span>
+          <div style={{ marginBottom: 'auto' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-respark-light.svg" alt="ReSpark" style={{ height: 28, display: 'block' }} />
           </div>
 
           {/* Center content */}
