@@ -5,7 +5,7 @@ import { PlanExportClient } from './PlanExportClient'
 export default async function PlanExportPage({
   searchParams,
 }: {
-  searchParams: { account?: string; print?: string }
+  searchParams: { account?: string }
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -75,7 +75,6 @@ export default async function PlanExportPage({
       reportTasks={reportTasks || []}
       complianceTasks={complianceTasks || []}
       rep={rep}
-      autoprint={searchParams.print === '1'}
     />
   )
 }

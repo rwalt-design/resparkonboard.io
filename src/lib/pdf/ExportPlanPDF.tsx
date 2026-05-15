@@ -58,9 +58,16 @@ const EXCLUDED_TASK_NAMES = new Set([
   'build handoff doc', 'handoff to csm', 'sub topics',
   'set up sandbox environment', 'add users',
   'log daily job/ticket usage', 'usage review',
+  'update ob plan', 'update onboarding plan',
+  'review pre-launch checklist', 'outstanding item cleanup',
+  'outstanding items cleanup',
 ])
-const TEXTAREA_STAGES = new Set(['user testing', 'uat', 'launch', 'post launch'])
-const PREPEND_QNA_STAGES = new Set(['readiness review', 'sign-off'])
+
+const CUSTOMER_STAGES       = new Set(['user testing', 'uat', 'post launch', 'post launch check-in'])
+const CUSTOMER_TASK_PREFIXES = ['return ', 'submit ']
+const NOTE_STAGES           = new Set(['user testing', 'uat', 'launch', 'post launch'])
+const PREPEND_QNA_STAGES    = new Set(['readiness review', 'sign-off'])
+const GO_LIVE_BEFORE_STAGES = new Set(['post launch', 'post launch check-in'])
 
 function isVisible(item: Item): boolean {
   if (EXCLUDED_ITEM_TYPES.has(item.type)) return false
@@ -70,6 +77,15 @@ function isVisible(item: Item): boolean {
     if (name.startsWith('send ')) return false
   }
   return true
+}
+
+function isCustomerOwned(item: Item, stageLower: string): boolean {
+  if (CUSTOMER_STAGES.has(stageLower)) return true
+  if (item.type === 'task') {
+    const name = (item.task_name || '').toLowerCase()
+    if (CUSTOMER_TASK_PREFIXES.some(p => name.startsWith(p))) return true
+  }
+  return false
 }
 
 // ─── Labels ────────────────────────────────────────────────────────────────────
@@ -113,11 +129,11 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
-const TEAL  = '#1BB3BB'
-const DARK  = '#1e293b'
-const GRAY  = '#64748b'
-const LIGHT = '#94a3b8'
-const BGALT = '#f8fafc'
+const TEAL   = '#1BB3BB'
+const DARK   = '#1e293b'
+const GRAY   = '#64748b'
+const LIGHT  = '#94a3b8'
+const BGALT  = '#f8fafc'
 const BORDER = '#e2e8f0'
 
 const s = StyleSheet.create({
@@ -128,8 +144,6 @@ const s = StyleSheet.create({
     paddingBottom: 40,
     paddingHorizontal: 48,
   },
-
-  // Cover page
   coverPage: {
     fontFamily: 'Helvetica',
     backgroundColor: '#ffffff',
@@ -140,8 +154,9 @@ const s = StyleSheet.create({
     flexDirection: 'column',
   },
   logo: { width: 100, height: 28, objectFit: 'contain', objectPositionX: 0 },
-  coverTitle: { fontSize: 34, fontFamily: 'Helvetica-Bold', color: DARK, letterSpacing: -0.5, marginBottom: 8 },
+
   coverLabel: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: TEAL, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 16, marginTop: 48 },
+  coverTitle: { fontSize: 34, fontFamily: 'Helvetica-Bold', color: DARK, letterSpacing: -0.5, marginBottom: 8 },
   coverSubtitle: { fontSize: 14, color: GRAY, marginBottom: 32 },
   coverGoLiveBox: { backgroundColor: '#E0F7F8', borderRadius: 8, padding: 12, alignSelf: 'flex-start', marginBottom: 24, flexDirection: 'row', alignItems: 'center' },
   coverGoLiveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: TEAL, marginRight: 10 },
@@ -155,51 +170,47 @@ const s = StyleSheet.create({
   coverRepEmail: { fontSize: 9, color: TEAL },
   coverGenDate: { fontSize: 8, color: LIGHT },
 
-  // Page header
   pageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, paddingBottom: 12, borderBottomWidth: 2, borderBottomColor: TEAL, borderBottomStyle: 'solid' },
-  headerLeft: { flexDirection: 'column' },
   headerLogo: { width: 70, height: 20, objectFit: 'contain', objectPositionX: 0, marginBottom: 8 },
   headerAccountName: { fontSize: 15, fontFamily: 'Helvetica-Bold', color: DARK, marginBottom: 3 },
   headerSku: { fontSize: 8, color: GRAY },
   headerSection: { fontSize: 8, color: LIGHT, textAlign: 'right', fontFamily: 'Helvetica-Oblique' },
 
-  // Footer
   footer: { borderTopWidth: 1, borderTopColor: BORDER, borderTopStyle: 'solid', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between', marginTop: 24 },
   footerText: { fontSize: 8, color: LIGHT },
 
-  // Milestone block
-  milestoneBlock: { marginBottom: 16, borderWidth: 1, borderColor: BORDER, borderStyle: 'solid', borderRadius: 6, overflow: 'hidden' },
+  milestoneBlock: { marginBottom: 14, borderWidth: 1, borderColor: BORDER, borderStyle: 'solid', borderRadius: 5, overflow: 'hidden' },
   milestoneHeader: { padding: 8, backgroundColor: '#f1f5f9', borderBottomWidth: 1, borderBottomColor: BORDER, borderBottomStyle: 'solid' },
   milestoneTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: DARK },
 
-  // Stage block
-  stageHeader: { paddingHorizontal: 12, paddingVertical: 5, backgroundColor: BGALT, borderBottomWidth: 1, borderBottomColor: '#f1f5f9', borderBottomStyle: 'solid' },
+  stageHeader: { paddingHorizontal: 12, paddingVertical: 5, backgroundColor: BGALT, borderBottomWidth: 1, borderBottomColor: '#f1f5f9', borderBottomStyle: 'solid', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   stageName: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: GRAY, textTransform: 'uppercase' },
+  customerStageBadge: { fontSize: 6, fontFamily: 'Helvetica-Bold', color: '#1d4ed8', backgroundColor: '#dbeafe', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3 },
 
-  // Item row
-  itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 12, paddingLeft: 20, borderBottomWidth: 1, borderBottomColor: '#f8fafc', borderBottomStyle: 'solid', gap: 8 },
-  checkboxUnchecked: { width: 10, height: 10, borderRadius: 2, borderWidth: 1, borderColor: '#cbd5e1', borderStyle: 'solid', flexShrink: 0 },
-  checkboxChecked: { width: 10, height: 10, borderRadius: 2, backgroundColor: '#10b981', flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
-  checkmark: { fontSize: 6, color: 'white', fontFamily: 'Helvetica-Bold' },
+  itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: 10, paddingLeft: 18, borderBottomWidth: 1, borderBottomColor: '#f8fafc', borderBottomStyle: 'solid' },
+  checkboxUnchecked: { width: 9, height: 9, borderRadius: 2, borderWidth: 1, borderColor: '#cbd5e1', borderStyle: 'solid', flexShrink: 0, marginRight: 7 },
+  checkboxChecked: { width: 9, height: 9, borderRadius: 2, backgroundColor: '#10b981', flexShrink: 0, marginRight: 7, alignItems: 'center', justifyContent: 'center' },
+  checkmark: { fontSize: 5, color: 'white', fontFamily: 'Helvetica-Bold' },
   itemLabel: { fontSize: 9, color: DARK, flex: 1 },
   itemLabelDone: { fontSize: 9, color: LIGHT, flex: 1 },
-  sessionBadge: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#007580', backgroundColor: '#E0F7F8', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3 },
-  optionalLabel: { fontSize: 7, color: LIGHT },
+  sessionBadge: { fontSize: 6, fontFamily: 'Helvetica-Bold', color: '#007580', backgroundColor: '#E0F7F8', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3, marginLeft: 4 },
+  customerBadge: { fontSize: 6, fontFamily: 'Helvetica-Bold', color: '#1d4ed8', backgroundColor: '#dbeafe', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3, marginLeft: 4 },
+  optionalLabel: { fontSize: 7, color: LIGHT, marginLeft: 4 },
 
-  // Textarea placeholder (PDF can't have interactive textareas)
-  textareaBlock: { margin: 10, borderWidth: 1, borderColor: BORDER, borderStyle: 'solid', borderRadius: 5, padding: 10, backgroundColor: '#fafafa', minHeight: 56 },
-  textareaLabel: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: LIGHT, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
-  textareaHint: { fontSize: 8, color: '#cbd5e1' },
+  noteRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 10, paddingLeft: 18, paddingVertical: 7, borderTopWidth: 1, borderTopColor: '#f1f5f9', borderTopStyle: 'solid' },
+  noteText: { fontSize: 8, color: LIGHT, fontFamily: 'Helvetica-Oblique', flex: 1 },
 
-  // Table
-  tableHeader: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 7, backgroundColor: BGALT, borderBottomWidth: 1, borderBottomColor: BORDER, borderBottomStyle: 'solid' },
+  goLiveMarker: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12, backgroundColor: '#E0F7F8', borderTopWidth: 2, borderTopColor: TEAL, borderTopStyle: 'solid', borderBottomWidth: 2, borderBottomColor: TEAL, borderBottomStyle: 'solid' },
+  goLiveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: TEAL, marginRight: 12, flexShrink: 0 },
+  goLiveLabel: { fontSize: 6, fontFamily: 'Helvetica-Bold', color: '#007580', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 },
+  goLiveDate: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: DARK },
+
+  tableHeader: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 6, backgroundColor: BGALT, borderBottomWidth: 1, borderBottomColor: BORDER, borderBottomStyle: 'solid' },
   tableColHeader: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: LIGHT, textTransform: 'uppercase' },
-  tableRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#f1f5f9', borderBottomStyle: 'solid', alignItems: 'center' },
+  tableRow: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f1f5f9', borderBottomStyle: 'solid', alignItems: 'center' },
   tableCell: { fontSize: 8, color: GRAY },
   tableCellDark: { fontSize: 8, color: DARK },
-  tableWrapper: { borderWidth: 1, borderColor: BORDER, borderStyle: 'solid', borderRadius: 6, overflow: 'hidden' },
-
-  // Section label
+  tableWrapper: { borderWidth: 1, borderColor: BORDER, borderStyle: 'solid', borderRadius: 5, overflow: 'hidden' },
   sectionLabel: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: LIGHT, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: BORDER, borderBottomStyle: 'solid' },
 })
 
@@ -220,12 +231,10 @@ function PageHeader({ account, section, logoSrc }: { account: Account; section: 
   const addonLabels = (account.addons || []).map(a => ADDON_LABELS[a] || a).join(', ')
   return (
     <View style={s.pageHeader}>
-      <View style={s.headerLeft}>
+      <View>
         <Image src={logoSrc} style={s.headerLogo} />
         <Text style={s.headerAccountName}>{account.name}</Text>
-        <Text style={s.headerSku}>
-          {skuLabel}{addonLabels ? ` + ${addonLabels}` : ''}
-        </Text>
+        <Text style={s.headerSku}>{skuLabel}{addonLabels ? ` + ${addonLabels}` : ''}</Text>
       </View>
       <Text style={s.headerSection}>{section}</Text>
     </View>
@@ -235,7 +244,7 @@ function PageHeader({ account, section, logoSrc }: { account: Account; section: 
 function Footer({ accountName, today }: { accountName: string; today: string }) {
   return (
     <View style={s.footer}>
-      <Text style={s.footerText}>Generated by ReSpark Onboard</Text>
+      <Text style={s.footerText}>Generated by ReSpark</Text>
       <Text style={s.footerText}>{accountName} · {today}</Text>
     </View>
   )
@@ -266,7 +275,9 @@ export function ExportPlanPDF({
 
   const goLiveLabel = account.go_live_date
     ? new Date(account.go_live_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    : null
+    : 'Target Go-Live'
+
+  let goLiveInserted = false
 
   return (
     <Document>
@@ -278,7 +289,7 @@ export function ExportPlanPDF({
         <Text style={s.coverTitle}>{account.name}</Text>
         <Text style={s.coverSubtitle}>ReSpark Transition</Text>
 
-        {goLiveLabel && (
+        {account.go_live_date && (
           <View style={s.coverGoLiveBox}>
             <View style={s.coverGoLiveDot} />
             <View>
@@ -315,48 +326,61 @@ export function ExportPlanPDF({
           milestone.stages.forEach(stage => {
             const stageLower = stage.name.toLowerCase().trim()
             if (EXCLUDED_STAGES.has(stageLower)) return
+
             const items = stage.items.filter(isVisible)
-            const showTextarea = TEXTAREA_STAGES.has(stageLower)
+            const showNote = NOTE_STAGES.has(stageLower)
             const showQnA = PREPEND_QNA_STAGES.has(stageLower)
-            if (items.length === 0 && !showTextarea && !showQnA) return
+            const stageIsCustomer = CUSTOMER_STAGES.has(stageLower)
+
+            // Inject Go-Live marker before post-launch stage
+            if (GO_LIVE_BEFORE_STAGES.has(stageLower) && !goLiveInserted) {
+              goLiveInserted = true
+              stageBlocks.push(
+                <View key={`golive-${stage.id}`} style={s.goLiveMarker}>
+                  <View style={s.goLiveDot} />
+                  <View>
+                    <Text style={s.goLiveLabel}>Go Live</Text>
+                    <Text style={s.goLiveDate}>{goLiveLabel}</Text>
+                  </View>
+                </View>
+              )
+            }
+
+            if (items.length === 0 && !showNote && !showQnA) return
 
             stageBlocks.push(
               <View key={stage.id}>
                 <View style={s.stageHeader}>
-                  <Text style={s.stageName}>{stage.name}</Text>
+                  <Text style={s.stageName}>{stage.name.toUpperCase()}</Text>
+                  {stageIsCustomer && <Text style={s.customerStageBadge}>CUSTOMER</Text>}
                 </View>
 
                 {showQnA && (
                   <View style={s.itemRow}>
                     <Checkbox done={false} />
                     <Text style={s.itemLabel}>Pre-Launch Checklist Q&A</Text>
-                    <Text style={s.sessionBadge}>session</Text>
+                    <Text style={s.customerBadge}>customer</Text>
                   </View>
                 )}
 
                 {items.map(item => {
                   const done = item.type === 'task' ? !!item.task_done : item.session_status === 'complete'
                   const label = item.type === 'session' ? item.session_name : item.task_name
+                  const customer = isCustomerOwned(item, stageLower)
                   return (
                     <View key={item.id} style={s.itemRow}>
                       <Checkbox done={done} />
                       <Text style={done ? s.itemLabelDone : s.itemLabel}>{label}</Text>
                       {item.type === 'session' && <Text style={s.sessionBadge}>session</Text>}
-                      {!item.required && item.type !== 'session' && <Text style={s.optionalLabel}>optional</Text>}
+                      {customer && item.type !== 'session' && <Text style={s.customerBadge}>customer</Text>}
+                      {!item.required && !customer && item.type !== 'session' && <Text style={s.optionalLabel}>optional</Text>}
                     </View>
                   )
                 })}
 
-                {showTextarea && (
-                  <View style={s.textareaBlock}>
-                    <Text style={s.textareaLabel}>
-                      {stageLower === 'user testing' || stageLower === 'uat'
-                        ? 'Question Bank & Readiness Review'
-                        : stageLower === 'launch'
-                        ? 'Go-Live Notes'
-                        : 'Post-Launch Check-In Notes'}
-                    </Text>
-                    <Text style={s.textareaHint}>Notes and questions go here…</Text>
+                {showNote && (
+                  <View style={s.noteRow}>
+                    <Text style={s.noteText}>Write down your questions to bring to the upcoming session.</Text>
                   </View>
                 )}
               </View>
@@ -383,13 +407,13 @@ export function ExportPlanPDF({
         <PageHeader account={account} section="Hardware" logoSrc={logoSrc} />
 
         {hardwareTasks.length === 0 ? (
-          <View style={{ borderWidth: 1, borderColor: BORDER, borderStyle: 'dashed', borderRadius: 6, padding: 24, alignItems: 'center' }}>
+          <View style={{ borderWidth: 1, borderColor: BORDER, borderStyle: 'dashed', borderRadius: 5, padding: 20, alignItems: 'center' }}>
             <Text style={{ fontSize: 10, color: LIGHT }}>No hardware items on record.</Text>
           </View>
         ) : (
           <View style={s.tableWrapper}>
             <View style={s.tableHeader}>
-              <View style={{ width: 16, marginRight: 8 }} />
+              <View style={{ width: 20, marginRight: 6 }} />
               <Text style={[s.tableColHeader, { flex: 2 }]}>Name</Text>
               <Text style={[s.tableColHeader, { flex: 1.2 }]}>Type</Text>
               <Text style={[s.tableColHeader, { flex: 1.5 }]}>Make / Model</Text>
@@ -397,7 +421,7 @@ export function ExportPlanPDF({
             </View>
             {hardwareTasks.map((task, idx) => (
               <View key={task.id} style={[s.tableRow, idx === hardwareTasks.length - 1 ? { borderBottomWidth: 0 } : {}]}>
-                <View style={{ width: 16, marginRight: 8 }}>
+                <View style={{ width: 20, marginRight: 6 }}>
                   <Checkbox done={task.completed} />
                 </View>
                 <Text style={[s.tableCellDark, { flex: 2 }]}>{task.name}</Text>
@@ -416,24 +440,23 @@ export function ExportPlanPDF({
       <Page size="LETTER" style={s.page}>
         <PageHeader account={account} section="Reporting & Compliance" logoSrc={logoSrc} />
 
-        {/* Reports */}
-        <View style={{ marginBottom: 24 }}>
+        <View style={{ marginBottom: 22 }}>
           <Text style={s.sectionLabel}>Reports</Text>
           {reportTasks.length === 0 ? (
-            <View style={{ borderWidth: 1, borderColor: BORDER, borderStyle: 'dashed', borderRadius: 6, padding: 20, alignItems: 'center' }}>
-              <Text style={{ fontSize: 10, color: LIGHT }}>No reports on record.</Text>
+            <View style={{ borderWidth: 1, borderColor: BORDER, borderStyle: 'dashed', borderRadius: 5, padding: 16, alignItems: 'center' }}>
+              <Text style={{ fontSize: 9, color: LIGHT }}>No reports on record.</Text>
             </View>
           ) : (
             <View style={s.tableWrapper}>
               <View style={s.tableHeader}>
-                <View style={{ width: 16, marginRight: 8 }} />
+                <View style={{ width: 20, marginRight: 6 }} />
                 <Text style={[s.tableColHeader, { flex: 2 }]}>Legacy Report Name</Text>
                 <Text style={[s.tableColHeader, { flex: 1 }]}>Date Range</Text>
                 <Text style={[s.tableColHeader, { flex: 1.5 }]}>Purpose</Text>
               </View>
               {reportTasks.map((task, idx) => (
                 <View key={task.id} style={[s.tableRow, idx === reportTasks.length - 1 ? { borderBottomWidth: 0 } : {}]}>
-                  <View style={{ width: 16, marginRight: 8 }}>
+                  <View style={{ width: 20, marginRight: 6 }}>
                     <Checkbox done={false} />
                   </View>
                   <Text style={[s.tableCellDark, { flex: 2 }]}>{task.legacy_name}</Text>
@@ -445,23 +468,22 @@ export function ExportPlanPDF({
           )}
         </View>
 
-        {/* Compliance */}
         <View>
           <Text style={s.sectionLabel}>Compliance</Text>
           {complianceTasks.length === 0 ? (
-            <View style={{ borderWidth: 1, borderColor: BORDER, borderStyle: 'dashed', borderRadius: 6, padding: 20, alignItems: 'center' }}>
-              <Text style={{ fontSize: 10, color: LIGHT }}>No compliance items on record.</Text>
+            <View style={{ borderWidth: 1, borderColor: BORDER, borderStyle: 'dashed', borderRadius: 5, padding: 16, alignItems: 'center' }}>
+              <Text style={{ fontSize: 9, color: LIGHT }}>No compliance items on record.</Text>
             </View>
           ) : (
             <View style={s.tableWrapper}>
               <View style={s.tableHeader}>
-                <View style={{ width: 16, marginRight: 8 }} />
+                <View style={{ width: 20, marginRight: 6 }} />
                 <Text style={[s.tableColHeader, { flex: 2 }]}>Item</Text>
                 <Text style={[s.tableColHeader, { flex: 1 }]}>Category</Text>
               </View>
               {complianceTasks.map((task, idx) => (
                 <View key={task.id} style={[s.tableRow, idx === complianceTasks.length - 1 ? { borderBottomWidth: 0 } : {}]}>
-                  <View style={{ width: 16, marginRight: 8 }}>
+                  <View style={{ width: 20, marginRight: 6 }}>
                     <Checkbox done={task.completed} />
                   </View>
                   <Text style={[s.tableCellDark, { flex: 2 }]}>{task.name}</Text>
