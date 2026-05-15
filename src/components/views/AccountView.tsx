@@ -111,12 +111,7 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
   const openTaskCount = (localAccount.open_tasks || []).filter(t => !t.done).length
 
   const exportPlan = () => {
-    const a = document.createElement('a')
-    a.href = `/api/export-plan?account=${localAccount.id}`
-    a.download = ''
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    window.open(`/plan-export?account=${localAccount.id}`, '_blank')
   }
 
   const handleDelete = async () => {
