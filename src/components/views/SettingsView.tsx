@@ -3,6 +3,14 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { TrainingTemplate, SessionTemplate, Connector, PlanTemplate, PlanTemplateMilestone, PlanTemplateStage, PlanTemplateItem } from '@/types'
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 const SKU_OPTIONS = ['dispatch', 'facility_management', 'full_suite']
 const SKU_LABELS: Record<string, string> = { dispatch: 'Dispatch', facility_management: 'Facility Mgmt', full_suite: 'Full Suite' }
@@ -1083,6 +1091,28 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
     }
   }
 
+  // ─── reorder helpers ────────────────────────────────────────────────────────
+
+  const reorderMilestones = (oldIndex: number, newIndex: number) => {
+    setStructure(s => ({ milestones: arrayMove(s.milestones, oldIndex, newIndex) }))
+  }
+  const reorderStages = (mi: number, oldIndex: number, newIndex: number) => {
+    setStructure(s => ({
+      milestones: s.milestones.map((m, i) => i === mi
+        ? { ...m, stages: arrayMove(m.stages, oldIndex, newIndex) }
+        : m)
+    }))
+  }
+  const reorderItems = (mi: number, si: number, oldIndex: number, newIndex: number) => {
+    setStructure(s => ({
+      milestones: s.milestones.map((m, i) => i === mi
+        ? { ...m, stages: m.stages.map((st, j) => j === si
+            ? { ...st, items: arrayMove(st.items, oldIndex, newIndex) }
+            : st) }
+        : m)
+    }))
+  }
+
   const addMilestone = () => {
     setStructure(s => ({ milestones: [...s.milestones, { name: 'New Milestone', stages: [] }] }))
   }
@@ -1146,139 +1176,58 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
   const ASSIGNEE_COLORS: Record<string, string> = { personal: '#1BB3BB', customer: '#f59e0b', internal: '#6b7280' }
   const TYPE_COLORS: Record<string, string> = { task: '#1BB3BB', session: '#7757F5', training: '#06b6d4', handoff: '#475569', log: '#10b981', exchange: '#f59e0b', report: '#06b6d4' }
 
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+
+  // Stable string IDs for dnd-kit (index-based keys aren't stable across reorders)
+  // We use a WeakMap-style approach: tag each object with a stable __id on first render.
+  // Since structure is cloned from JSON, we use a module-level counter.
+  const milestoneIds = structure.milestones.map((_, i) => `m-${template.id}-${i}`)
+
   return (
     <div style={{ borderTop: '1px solid var(--border)', padding: '16px 16px 12px' }}>
-      {structure.milestones.map((milestone, mi) => (
-        <div key={mi} style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 7, overflow: 'hidden' }}>
-          {/* Milestone header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg-stage)' }}>
-            <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', width: 20 }}>{mi + 1}</span>
-            <input
-              name={`milestone-name-${mi}`}
-              value={milestone.name}
-              onChange={e => updateMilestoneName(mi, e.target.value)}
-              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-h)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)' }}
-            />
-            <button onClick={() => removeMilestone(mi)} style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
-          </div>
-
-          {(
-            <div style={{ padding: '4px 0' }}>
-              {milestone.stages.map((stage, si) => (
-                <div key={si} style={{ borderTop: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px 6px 28px' }}>
-                    <input
-                      name={`stage-name-${mi}-${si}`}
-                      value={stage.name}
-                      onChange={e => updateStageName(mi, si, e.target.value)}
-                      style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-ui)' }}
-                    />
-                    <button onClick={() => removeStage(mi, si)} style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 13, cursor: 'pointer' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
-                  </div>
-
-                  {stage.items.map((item, ii) => (
-                    <div key={ii} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px 4px 44px', flexWrap: 'wrap' }}>
-                      <select name={`item-type-${mi}-${si}-${ii}`} value={item.type} onChange={e => updateItem(mi, si, ii, { type: e.target.value as PlanTemplateItem['type'], session_template_id: undefined, training_template_id: undefined })}
-                        style={{ background: 'var(--bg-surface2)', border: `1px solid ${TYPE_COLORS[item.type] || 'var(--border-b)'}44`, borderRadius: 4,
-                          color: TYPE_COLORS[item.type] || 'var(--text-2)', fontSize: 9, fontWeight: 700, padding: '1px 4px',
-                          cursor: 'pointer', fontFamily: 'var(--font-ui)', textTransform: 'uppercase' }}>
-                        <option value="task">task</option>
-                        <option value="session">session</option>
-                        <option value="training">training</option>
-                        <option value="exchange">exchange</option>
-                        <option value="log">log</option>
-                        <option value="report">report</option>
-                      </select>
-                      {/* Session template picker */}
-                      {item.type === 'session' && sessionTemplates.length > 0 && (
-                        <select
-                          name={`item-session-tmpl-${mi}-${si}-${ii}`}
-                          value={item.session_template_id || ''}
-                          onChange={e => {
-                            const tmpl = sessionTemplates.find(s => s.id === e.target.value)
-                            updateItem(mi, si, ii, {
-                              session_template_id: e.target.value || undefined,
-                              name: tmpl ? tmpl.name : item.name,
-                            })
-                          }}
-                          style={{ background: '#7757F518', border: '1px solid #7757F544', borderRadius: 4,
-                            color: '#7757F5', fontSize: 9, fontWeight: 700, padding: '1px 4px',
-                            cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
-                        >
-                          <option value="">custom session</option>
-                          {sessionTemplates.map(st => (
-                            <option key={st.id} value={st.id}>{st.name}</option>
-                          ))}
-                        </select>
-                      )}
-                      {/* Training template picker */}
-                      {item.type === 'training' && trainingTemplates.length > 0 && (
-                        <select
-                          name={`item-training-tmpl-${mi}-${si}-${ii}`}
-                          value={item.training_template_id || ''}
-                          onChange={e => {
-                            const tmpl = trainingTemplates.find(t => t.id === e.target.value)
-                            updateItem(mi, si, ii, {
-                              training_template_id: e.target.value || undefined,
-                              name: tmpl ? tmpl.name : item.name,
-                            })
-                          }}
-                          style={{ background: '#06b6d418', border: '1px solid #06b6d444', borderRadius: 4,
-                            color: '#06b6d4', fontSize: 9, fontWeight: 700, padding: '1px 4px',
-                            cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
-                        >
-                          <option value="">custom training</option>
-                          {trainingTemplates.map(tt => (
-                            <option key={tt.id} value={tt.id}>{tt.name}</option>
-                          ))}
-                        </select>
-                      )}
-                      <input name={`item-name-${mi}-${si}-${ii}`} value={item.name} onChange={e => updateItem(mi, si, ii, { name: e.target.value })}
-                        style={{ flex: 1, minWidth: 80, background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 12, fontFamily: 'var(--font-ui)' }} />
-                      {item.type === 'task' && (
-                        <select name={`item-assignee-${mi}-${si}-${ii}`} value={item.assignee || 'personal'} onChange={e => updateItem(mi, si, ii, { assignee: e.target.value })}
-                          style={{ background: 'var(--bg-surface2)', border: `1px solid ${ASSIGNEE_COLORS[item.assignee || 'personal'] || 'var(--border-b)'}44`,
-                            borderRadius: 4, color: ASSIGNEE_COLORS[item.assignee || 'personal'] || 'var(--text-2)',
-                            fontSize: 9, fontWeight: 700, padding: '1px 4px', cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>
-                          <option value="personal">personal</option>
-                          <option value="customer">customer</option>
-                          <option value="internal">internal</option>
-                        </select>
-                      )}
-                      <button onClick={() => updateItem(mi, si, ii, { required: !item.required })}
-                        style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, cursor: 'pointer',
-                          fontFamily: 'var(--font-ui)', border: `1px solid ${item.required ? '#10b98144' : 'var(--border-b)'}`,
-                          background: item.required ? '#10b98110' : 'none', color: item.required ? '#10b981' : 'var(--text-3)' }}>
-                        {item.required ? 'req' : 'opt'}
-                      </button>
-                      <button onClick={() => removeItem(mi, si, ii)}
-                        style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 12, cursor: 'pointer' }}
-                        onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                        onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
-                    </div>
-                  ))}
-
-                  <button onClick={() => addItem(mi, si)}
-                    style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: '3px 12px 5px 44px',
-                      textAlign: 'left', color: 'var(--text-4)', fontSize: 10, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
-                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-4)')}>+ item</button>
-                </div>
-              ))}
-              <button onClick={() => addStage(mi)}
-                style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: '5px 12px 6px 28px',
-                  textAlign: 'left', color: 'var(--text-4)', fontSize: 10, cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                  borderTop: '1px solid var(--border)' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-4)')}>+ stage</button>
-            </div>
-          )}
-        </div>
-      ))}
+      {/* ── Milestones ── */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={(e: DragEndEvent) => {
+          const { active, over } = e
+          if (!over || active.id === over.id) return
+          const oi = milestoneIds.indexOf(active.id as string)
+          const ni = milestoneIds.indexOf(over.id as string)
+          if (oi !== -1 && ni !== -1) reorderMilestones(oi, ni)
+        }}
+      >
+        <SortableContext items={milestoneIds} strategy={verticalListSortingStrategy}>
+          {structure.milestones.map((milestone, mi) => {
+            const stageIds = milestone.stages.map((_, si) => `s-${template.id}-${mi}-${si}`)
+            return (
+              <SortableMilestone
+                key={milestoneIds[mi]}
+                id={milestoneIds[mi]}
+                milestone={milestone}
+                mi={mi}
+                stageIds={stageIds}
+                sensors={sensors}
+                template={template}
+                sessionTemplates={sessionTemplates}
+                trainingTemplates={trainingTemplates}
+                ASSIGNEE_COLORS={ASSIGNEE_COLORS}
+                TYPE_COLORS={TYPE_COLORS}
+                onUpdateName={updateMilestoneName}
+                onRemove={removeMilestone}
+                onAddStage={addStage}
+                onRemoveStage={removeStage}
+                onUpdateStageName={updateStageName}
+                onReorderStages={reorderStages}
+                onAddItem={addItem}
+                onRemoveItem={removeItem}
+                onUpdateItem={updateItem}
+                onReorderItems={reorderItems}
+              />
+            )
+          })}
+        </SortableContext>
+      </DndContext>
 
       <button onClick={addMilestone}
         style={{ display: 'block', width: '100%', background: 'none', border: '1px dashed var(--border)', borderRadius: 7,
@@ -1295,6 +1244,310 @@ function PlanStructureEditor({ template, sessionTemplates, trainingTemplates, on
           {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Changes'}
         </button>
       </div>
+    </div>
+  )
+}
+
+// ─── Drag handle icon ─────────────────────────────────────────────────────────
+function GripHandle(props: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      {...props}
+      title="Drag to reorder"
+      style={{
+        cursor: 'grab', padding: '0 4px', color: 'var(--text-4)',
+        fontSize: 13, lineHeight: 1, userSelect: 'none', touchAction: 'none',
+        display: 'flex', alignItems: 'center',
+        ...props.style,
+      }}
+    >⠿</div>
+  )
+}
+
+// ─── Sortable milestone ───────────────────────────────────────────────────────
+interface SortableMilestoneProps {
+  id: string
+  milestone: PlanTemplateMilestone
+  mi: number
+  stageIds: string[]
+  sensors: ReturnType<typeof useSensors>
+  template: PlanTemplate
+  sessionTemplates: SessionTemplate[]
+  trainingTemplates: TrainingTemplate[]
+  ASSIGNEE_COLORS: Record<string, string>
+  TYPE_COLORS: Record<string, string>
+  onUpdateName: (mi: number, name: string) => void
+  onRemove: (mi: number) => void
+  onAddStage: (mi: number) => void
+  onRemoveStage: (mi: number, si: number) => void
+  onUpdateStageName: (mi: number, si: number, name: string) => void
+  onReorderStages: (mi: number, oi: number, ni: number) => void
+  onAddItem: (mi: number, si: number) => void
+  onRemoveItem: (mi: number, si: number, ii: number) => void
+  onUpdateItem: (mi: number, si: number, ii: number, patch: Partial<PlanTemplateItem>) => void
+  onReorderItems: (mi: number, si: number, oi: number, ni: number) => void
+}
+
+function SortableMilestone({ id, milestone, mi, stageIds, sensors, template, sessionTemplates, trainingTemplates, ASSIGNEE_COLORS, TYPE_COLORS, onUpdateName, onRemove, onAddStage, onRemoveStage, onUpdateStageName, onReorderStages, onAddItem, onRemoveItem, onUpdateItem, onReorderItems }: SortableMilestoneProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    marginBottom: 12,
+    border: '1px solid var(--border)',
+    borderRadius: 7,
+    overflow: 'hidden',
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {/* Milestone header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg-stage)' }}>
+        <GripHandle {...attributes} {...listeners} />
+        <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', width: 16 }}>{mi + 1}</span>
+        <input
+          name={`milestone-name-${mi}`}
+          value={milestone.name}
+          onChange={e => onUpdateName(mi, e.target.value)}
+          style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text-h)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)' }}
+        />
+        <button onClick={() => onRemove(mi)} style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 13, cursor: 'pointer', padding: '0 2px' }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
+      </div>
+
+      {/* ── Stages ── */}
+      <div style={{ padding: '4px 0' }}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(e: DragEndEvent) => {
+            const { active, over } = e
+            if (!over || active.id === over.id) return
+            const oi = stageIds.indexOf(active.id as string)
+            const ni = stageIds.indexOf(over.id as string)
+            if (oi !== -1 && ni !== -1) onReorderStages(mi, oi, ni)
+          }}
+        >
+          <SortableContext items={stageIds} strategy={verticalListSortingStrategy}>
+            {milestone.stages.map((stage, si) => {
+              const itemIds = stage.items.map((_, ii) => `i-${template.id}-${mi}-${si}-${ii}`)
+              return (
+                <SortableStage
+                  key={stageIds[si]}
+                  id={stageIds[si]}
+                  stage={stage}
+                  mi={mi}
+                  si={si}
+                  itemIds={itemIds}
+                  sensors={sensors}
+                  template={template}
+                  sessionTemplates={sessionTemplates}
+                  trainingTemplates={trainingTemplates}
+                  ASSIGNEE_COLORS={ASSIGNEE_COLORS}
+                  TYPE_COLORS={TYPE_COLORS}
+                  onRemove={onRemoveStage}
+                  onUpdateName={onUpdateStageName}
+                  onAddItem={onAddItem}
+                  onRemoveItem={onRemoveItem}
+                  onUpdateItem={onUpdateItem}
+                  onReorderItems={onReorderItems}
+                />
+              )
+            })}
+          </SortableContext>
+        </DndContext>
+
+        <button onClick={() => onAddStage(mi)}
+          style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: '5px 12px 6px 28px',
+            textAlign: 'left', color: 'var(--text-4)', fontSize: 10, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+            borderTop: '1px solid var(--border)' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-4)')}>+ stage</button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Sortable stage ───────────────────────────────────────────────────────────
+interface SortableStageProps {
+  id: string
+  stage: PlanTemplateStage
+  mi: number
+  si: number
+  itemIds: string[]
+  sensors: ReturnType<typeof useSensors>
+  template: PlanTemplate
+  sessionTemplates: SessionTemplate[]
+  trainingTemplates: TrainingTemplate[]
+  ASSIGNEE_COLORS: Record<string, string>
+  TYPE_COLORS: Record<string, string>
+  onRemove: (mi: number, si: number) => void
+  onUpdateName: (mi: number, si: number, name: string) => void
+  onAddItem: (mi: number, si: number) => void
+  onRemoveItem: (mi: number, si: number, ii: number) => void
+  onUpdateItem: (mi: number, si: number, ii: number, patch: Partial<PlanTemplateItem>) => void
+  onReorderItems: (mi: number, si: number, oi: number, ni: number) => void
+}
+
+function SortableStage({ id, stage, mi, si, itemIds, sensors, sessionTemplates, trainingTemplates, ASSIGNEE_COLORS, TYPE_COLORS, onRemove, onUpdateName, onAddItem, onRemoveItem, onUpdateItem, onReorderItems }: SortableStageProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    borderTop: '1px solid var(--border)',
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px 6px 12px' }}>
+        <GripHandle {...attributes} {...listeners} style={{ fontSize: 11 }} />
+        <input
+          name={`stage-name-${mi}-${si}`}
+          value={stage.name}
+          onChange={e => onUpdateName(mi, si, e.target.value)}
+          style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-ui)' }}
+        />
+        <button onClick={() => onRemove(mi, si)} style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 13, cursor: 'pointer' }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
+      </div>
+
+      {/* ── Items ── */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={(e: DragEndEvent) => {
+          const { active, over } = e
+          if (!over || active.id === over.id) return
+          const oi = itemIds.indexOf(active.id as string)
+          const ni = itemIds.indexOf(over.id as string)
+          if (oi !== -1 && ni !== -1) onReorderItems(mi, si, oi, ni)
+        }}
+      >
+        <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+          {stage.items.map((item, ii) => (
+            <SortableItem
+              key={itemIds[ii]}
+              id={itemIds[ii]}
+              item={item}
+              mi={mi} si={si} ii={ii}
+              sessionTemplates={sessionTemplates}
+              trainingTemplates={trainingTemplates}
+              ASSIGNEE_COLORS={ASSIGNEE_COLORS}
+              TYPE_COLORS={TYPE_COLORS}
+              onRemove={onRemoveItem}
+              onUpdate={onUpdateItem}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+
+      <button onClick={() => onAddItem(mi, si)}
+        style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: '3px 12px 5px 44px',
+          textAlign: 'left', color: 'var(--text-4)', fontSize: 10, cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-2)')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-4)')}>+ item</button>
+    </div>
+  )
+}
+
+// ─── Sortable item ────────────────────────────────────────────────────────────
+interface SortableItemProps {
+  id: string
+  item: PlanTemplateItem
+  mi: number; si: number; ii: number
+  sessionTemplates: SessionTemplate[]
+  trainingTemplates: TrainingTemplate[]
+  ASSIGNEE_COLORS: Record<string, string>
+  TYPE_COLORS: Record<string, string>
+  onRemove: (mi: number, si: number, ii: number) => void
+  onUpdate: (mi: number, si: number, ii: number, patch: Partial<PlanTemplateItem>) => void
+}
+
+function SortableItem({ id, item, mi, si, ii, sessionTemplates, trainingTemplates, ASSIGNEE_COLORS, TYPE_COLORS, onRemove, onUpdate }: SortableItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '4px 12px 4px 12px', flexWrap: 'wrap',
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <GripHandle {...attributes} {...listeners} style={{ fontSize: 10 }} />
+      <select name={`item-type-${mi}-${si}-${ii}`} value={item.type}
+        onChange={e => onUpdate(mi, si, ii, { type: e.target.value as PlanTemplateItem['type'], session_template_id: undefined, training_template_id: undefined })}
+        style={{ background: 'var(--bg-surface2)', border: `1px solid ${TYPE_COLORS[item.type] || 'var(--border-b)'}44`, borderRadius: 4,
+          color: TYPE_COLORS[item.type] || 'var(--text-2)', fontSize: 9, fontWeight: 700, padding: '1px 4px',
+          cursor: 'pointer', fontFamily: 'var(--font-ui)', textTransform: 'uppercase' }}>
+        <option value="task">task</option>
+        <option value="session">session</option>
+        <option value="training">training</option>
+        <option value="exchange">exchange</option>
+        <option value="log">log</option>
+        <option value="report">report</option>
+      </select>
+      {item.type === 'session' && sessionTemplates.length > 0 && (
+        <select
+          name={`item-session-tmpl-${mi}-${si}-${ii}`}
+          value={item.session_template_id || ''}
+          onChange={e => {
+            const tmpl = sessionTemplates.find(s => s.id === e.target.value)
+            onUpdate(mi, si, ii, { session_template_id: e.target.value || undefined, name: tmpl ? tmpl.name : item.name })
+          }}
+          style={{ background: '#7757F518', border: '1px solid #7757F544', borderRadius: 4,
+            color: '#7757F5', fontSize: 9, fontWeight: 700, padding: '1px 4px',
+            cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
+        >
+          <option value="">custom session</option>
+          {sessionTemplates.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+        </select>
+      )}
+      {item.type === 'training' && trainingTemplates.length > 0 && (
+        <select
+          name={`item-training-tmpl-${mi}-${si}-${ii}`}
+          value={item.training_template_id || ''}
+          onChange={e => {
+            const tmpl = trainingTemplates.find(t => t.id === e.target.value)
+            onUpdate(mi, si, ii, { training_template_id: e.target.value || undefined, name: tmpl ? tmpl.name : item.name })
+          }}
+          style={{ background: '#06b6d418', border: '1px solid #06b6d444', borderRadius: 4,
+            color: '#06b6d4', fontSize: 9, fontWeight: 700, padding: '1px 4px',
+            cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
+        >
+          <option value="">custom training</option>
+          {trainingTemplates.map(tt => <option key={tt.id} value={tt.id}>{tt.name}</option>)}
+        </select>
+      )}
+      <input name={`item-name-${mi}-${si}-${ii}`} value={item.name}
+        onChange={e => onUpdate(mi, si, ii, { name: e.target.value })}
+        style={{ flex: 1, minWidth: 80, background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 12, fontFamily: 'var(--font-ui)' }} />
+      {item.type === 'task' && (
+        <select name={`item-assignee-${mi}-${si}-${ii}`} value={item.assignee || 'personal'}
+          onChange={e => onUpdate(mi, si, ii, { assignee: e.target.value })}
+          style={{ background: 'var(--bg-surface2)', border: `1px solid ${ASSIGNEE_COLORS[item.assignee || 'personal'] || 'var(--border-b)'}44`,
+            borderRadius: 4, color: ASSIGNEE_COLORS[item.assignee || 'personal'] || 'var(--text-2)',
+            fontSize: 9, fontWeight: 700, padding: '1px 4px', cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>
+          <option value="personal">personal</option>
+          <option value="customer">customer</option>
+          <option value="internal">internal</option>
+        </select>
+      )}
+      <button onClick={() => onUpdate(mi, si, ii, { required: !item.required })}
+        style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, cursor: 'pointer',
+          fontFamily: 'var(--font-ui)', border: `1px solid ${item.required ? '#10b98144' : 'var(--border-b)'}`,
+          background: item.required ? '#10b98110' : 'none', color: item.required ? '#10b981' : 'var(--text-3)' }}>
+        {item.required ? 'req' : 'opt'}
+      </button>
+      <button onClick={() => onRemove(mi, si, ii)}
+        style={{ background: 'none', border: 'none', color: '#ef444488', fontSize: 12, cursor: 'pointer' }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#ef444488')}>×</button>
     </div>
   )
 }
