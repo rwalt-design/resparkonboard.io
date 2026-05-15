@@ -2942,10 +2942,10 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
 
         <div>
           <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 6 }}>SKU</div>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {SKU_OPTIONS.map(([val, label]) => (
               <button key={val} onClick={() => setSku(val)} style={{
-                flex: 1, padding: '6px 0', borderRadius: 6,
+                padding: '6px 10px', borderRadius: 6,
                 background: sku === val ? SKU_COLORS_MAP[val] + '22' : 'var(--bg-surface2)',
                 border: `1px solid ${sku === val ? SKU_COLORS_MAP[val] : 'var(--border-b)'}`,
                 color: sku === val ? SKU_COLORS_MAP[val] : 'var(--text-2)',
