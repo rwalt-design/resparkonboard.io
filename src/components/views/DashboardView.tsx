@@ -105,7 +105,7 @@ function computeSummary(account: Account): AccountSummary {
   // Outreach = CSM-initiated action (includes meetings and all call outcomes)
   const isOutreach = (i: { type: string; detail?: string }) => {
     if (['email_sent', 'texted', 'bumped_email', 'sent_follow_up', 'no_show', 'meeting', 'call', 'called'].includes(i.type)) return true
-    if (i.type === 'custom') return !(i.detail?.startsWith('[contact]'))
+    if (i.type === 'custom') return !(i.detail?.startsWith('[contact]') || i.detail?.startsWith('[internal]'))
     return false
   }
 

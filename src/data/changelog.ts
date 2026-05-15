@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-15',
+    title: 'Custom interactions: add Internal option',
+    bullets: [
+      'Custom interaction logging now has a third direction option — Internal — for notes that shouldn\'t count as customer contact or outreach (e.g. internal handoffs, team notes, CRM updates)',
+      'Internal logs appear in the timeline like any other interaction but are excluded from "last contact" and "last outreach" tracking',
+    ],
+  },
+  {
+    date: '2026-05-15',
     title: 'Export plan: show Return checklist items, trim question note placement',
     bullets: [
       '"Return" items (like Return Pre-Launch Checklist) now appear in the export — previously they were hidden because they share a type with exchange pairs',

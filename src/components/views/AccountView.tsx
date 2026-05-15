@@ -2154,7 +2154,7 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
 }) {
   const [activeChip, setActiveChip] = useState<QuickLogType | null>(null)
   const [calledOutcome, setCalledOutcome] = useState<QuickLogOutcome | null>(null)
-  const [customDirection, setCustomDirection] = useState<'contact' | 'outreach'>('outreach')
+  const [customDirection, setCustomDirection] = useState<'contact' | 'outreach' | 'internal'>('outreach')
   const [note, setNote] = useState('')
   const [customLabel, setCustomLabel] = useState('')
   // datetime-local input value, defaults to now
@@ -2381,20 +2381,24 @@ function TimelineTab({ account, onUpdate, orgMembers, currentMember }: {
                   placeholder="Label (e.g. Dropped off swag)"
                   style={{ ...inputStyle, flex: 1, margin: 0 }}
                 />
-                {(['contact', 'outreach'] as const).map(d => (
+                {([
+                  { val: 'contact',  label: 'Contact',  color: '#10b981' },
+                  { val: 'outreach', label: 'Outreach', color: '#1BB3BB' },
+                  { val: 'internal', label: 'Internal',  color: '#7757F5' },
+                ] as const).map(({ val, label, color }) => (
                   <button
-                    key={d}
+                    key={val}
                     type="button"
-                    onClick={() => setCustomDirection(d)}
+                    onClick={() => setCustomDirection(val)}
                     style={{
-                      background: customDirection === d ? (d === 'contact' ? '#10b98120' : '#1BB3BB18') : 'var(--bg-surface2)',
-                      border: `1px solid ${customDirection === d ? (d === 'contact' ? '#10b98160' : '#1BB3BB50') : 'var(--border)'}`,
+                      background: customDirection === val ? color + '20' : 'var(--bg-surface2)',
+                      border: `1px solid ${customDirection === val ? color + '60' : 'var(--border)'}`,
                       borderRadius: 6, padding: '5px 12px',
-                      color: customDirection === d ? (d === 'contact' ? '#10b981' : '#1BB3BB') : 'var(--text-3)',
+                      color: customDirection === val ? color : 'var(--text-3)',
                       fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)',
                       whiteSpace: 'nowrap', transition: 'all 0.15s',
                     }}
-                  >{d === 'contact' ? 'Contact' : 'Outreach'}</button>
+                  >{label}</button>
                 ))}
               </div>
             )}
