@@ -59,8 +59,9 @@ const EXCLUDED_TASK_NAMES = new Set([
   'set up sandbox environment', 'add users',
   'log daily job/ticket usage', 'usage review',
   'update ob plan', 'update onboarding plan',
-  'review pre-launch checklist', 'outstanding item cleanup',
-  'outstanding items cleanup',
+  'review pre-launch checklist',
+  'outstanding item cleanup', 'outstanding items cleanup',
+  'outstanding item clean up', 'outstanding items clean up',
 ])
 
 const CUSTOMER_STAGES        = new Set(['user testing', 'uat', 'readiness review', 'sign-off', 'post launch', 'post launch check-in'])
