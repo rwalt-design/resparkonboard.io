@@ -19,6 +19,7 @@ export default async function PlanExportPage({
     { data: hardwareTasks },
     { data: reportTasks },
     { data: complianceTasks },
+    { data: currentMember },
   ] = await Promise.all([
     supabase
       .from('accounts')
@@ -39,6 +40,7 @@ export default async function PlanExportPage({
     supabase.from('hardware_tasks').select('*').eq('account_id', accountId).order('sort_order'),
     supabase.from('report_tasks').select('*').eq('account_id', accountId).order('sort_order'),
     supabase.from('compliance_tasks').select('*').eq('account_id', accountId).order('sort_order'),
+    supabase.from('org_members').select('name, role').eq('user_id', user!.id).single(),
   ])
 
   if (!account) redirect('/')
@@ -60,12 +62,19 @@ export default async function PlanExportPage({
       })),
   }
 
+  const rep = {
+    name: currentMember?.name || user!.email?.split('@')[0] || 'Your ReSpark Rep',
+    role: currentMember?.role || 'Implementation Manager',
+    email: user!.email || 'ryan@respark.com',
+  }
+
   return (
     <PlanExportClient
       account={sorted}
       hardwareTasks={hardwareTasks || []}
       reportTasks={reportTasks || []}
       complianceTasks={complianceTasks || []}
+      rep={rep}
     />
   )
 }

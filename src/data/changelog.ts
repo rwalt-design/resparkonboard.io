@@ -10,6 +10,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-05-15',
     title: 'Reworked client export plan',
     bullets: [
+      'Export now opens with a cover page showing the client name, ReSpark Transition heading, go-live date, and your contact info',
       'Export now shows three sections: the onboarding plan, hardware checklist, and reporting & compliance — each on its own print page',
       'Account Creation is no longer shown in the client-facing plan view',
       'Every item now has an interactive checkbox clients can click to check things off directly on the page',
