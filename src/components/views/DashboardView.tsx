@@ -561,6 +561,7 @@ function WeeklySummaryModal({ accounts, onClose }: { accounts: Account[]; onClos
   const inactive = accounts.filter(a => !active.includes(a))
 
   const [aiSummaries, setAiSummaries] = useState<Record<string, string>>({})
+  const [aiLastContact, setAiLastContact] = useState<Record<string, string>>({})
   const [aiLoading, setAiLoading] = useState(false)
   const [aiGenerated, setAiGenerated] = useState(false)
 
@@ -576,15 +577,16 @@ function WeeklySummaryModal({ accounts, onClose }: { accounts: Account[]; onClos
       .then(r => r.json())
       .then(data => {
         const map: Record<string, string> = {}
+        const contactMap: Record<string, string> = {}
         for (const s of data.summaries || []) {
-          if (s.account_id) map[s.account_id] = s.summary
-          else {
-            // fallback: match by name
-            const match = active.find(a => a.name === s.account_name)
-            if (match) map[match.id] = s.summary
+          const id = s.account_id || active.find((a: Account) => a.name === s.account_name)?.id
+          if (id) {
+            map[id] = s.summary
+            if (s.last_contact) contactMap[id] = s.last_contact
           }
         }
         setAiSummaries(map)
+        setAiLastContact(contactMap)
         setAiGenerated(true)
       })
       .catch(() => setAiGenerated(true))
@@ -617,7 +619,10 @@ function WeeklySummaryModal({ accounts, onClose }: { accounts: Account[]; onClos
     const lines = [
       `Weekly Account Summary — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
       '',
-      ...active.map(a => `• ${a.name}: ${getSummary(a)}`),
+      ...active.map(a => {
+        const lc = aiLastContact[a.id] ? ` (last contact: ${aiLastContact[a.id]})` : ''
+        return `• ${a.name}${lc}: ${getSummary(a)}`
+      }),
       '',
       `No activity: ${inactive.map(a => a.name).join(', ')}`,
     ].join('\n')
@@ -648,7 +653,12 @@ function WeeklySummaryModal({ accounts, onClose }: { accounts: Account[]; onClos
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Active this week ({active.length})</div>
               {active.map(account => (
                 <div key={account.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#5DDDE3', marginBottom: 4 }}>{account.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#5DDDE3' }}>{account.name}</div>
+                    {!aiLoading && aiLastContact[account.id] && (
+                      <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Last contact: {aiLastContact[account.id]}</div>
+                    )}
+                  </div>
                   <div style={{ fontSize: 12, color: aiLoading ? 'var(--text-3)' : 'var(--text-2)', lineHeight: 1.6, fontStyle: aiLoading ? 'italic' : 'normal' }}>
                     {aiLoading ? 'Generating…' : getSummary(account)}
                   </div>

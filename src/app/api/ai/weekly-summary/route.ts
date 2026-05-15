@@ -58,19 +58,27 @@ export async function POST(request: NextRequest) {
   // ── Build activity blocks for Claude ─────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const activityBlocks = active.map((a: any) => {
-    const recent = (a.interactions || []).filter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (i: any) => now - new Date(i.created_at).getTime() <= weekMs
+    const allInteractions: any[] = a.interactions || [] // eslint-disable-line @typescript-eslint/no-explicit-any
+    const recent = allInteractions.filter(
+      (i: any) => now - new Date(i.created_at).getTime() <= weekMs // eslint-disable-line @typescript-eslint/no-explicit-any
     )
     // All interaction types except Slack
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const relevant = recent.filter((i: any) => i.type !== 'slack')
+
+    // Last contact across all time (not just this week), excluding Slack
+    const nonSlack = allInteractions.filter((i: any) => i.type !== 'slack') // eslint-disable-line @typescript-eslint/no-explicit-any
+    nonSlack.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) // eslint-disable-line @typescript-eslint/no-explicit-any
+    const lastContactDate = nonSlack[0]
+      ? new Date(nonSlack[0].created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : null
+
     const s = structured.find(s => s.account_id === a.id)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lines = relevant.map((i: any) =>
       `  [${i.type}] ${i.summary}${i.detail ? ' — ' + i.detail.slice(0, 120) : ''}`
     )
-    const header = `Account: ${a.name}${s?.current_stage ? ` (current stage: ${s.current_stage})` : ''}`
+    const header = `Account: ${a.name}${s?.current_stage ? ` (current stage: ${s.current_stage})` : ''}${lastContactDate ? ` | last contact: ${lastContactDate}` : ''}`
     return [header, ...lines].join('\n')
   }).join('\n\n')
 
@@ -89,11 +97,12 @@ Rules:
 - Do not mention Slack.
 - If the log has no interactions, say "No activity logged this week."
 - No filler phrases like "It appears" or "Based on the data."
+- Include the last_contact date from the account header exactly as written — do not reformat it.
 
 ${activityBlocks}
 
 Return a JSON array in the same order:
-[{"account_name": "...", "summary": "..."}]
+[{"account_name": "...", "last_contact": "...", "summary": "..."}]
 
 Only return the JSON array.`
 
@@ -111,7 +120,7 @@ Only return the JSON array.`
 
     const summaries = structured.map(s => {
       const aiRow = parsed.find(p => p.account_name === s.account_name)
-      return { ...s, summary: aiRow?.summary ?? '' }
+      return { ...s, summary: aiRow?.summary ?? '', last_contact: aiRow?.last_contact ?? null }
     })
 
     return NextResponse.json({ summaries })
