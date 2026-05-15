@@ -44,7 +44,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const EXCLUDED_MILESTONES = new Set(['account creation', 'account setup'])
 const EXCLUDED_STAGES     = new Set(['account creation'])
-const EXCLUDED_ITEM_TYPES = new Set(['record', 'handoff', 'log', 'dependency', 'golive', 'report', 'exchange'])
+// 'exchange' is NOT excluded — we show the "Return" side (send side filtered below by name prefix)
+const EXCLUDED_ITEM_TYPES = new Set(['record', 'handoff', 'log', 'dependency', 'golive', 'report'])
 const EXCLUDED_TASK_NAMES = new Set([
   'build handoff doc', 'handoff to csm', 'sub topics',
   'set up sandbox environment', 'add users',
@@ -60,8 +61,8 @@ const CUSTOMER_STAGES = new Set(['user testing', 'uat', 'readiness review', 'sig
 // Tasks owned by the customer based on name prefix
 const CUSTOMER_TASK_PREFIXES = ['return ', 'submit ']
 
-// Stages that get a freeform note (no interactive textarea)
-const NOTE_STAGES = new Set(['user testing', 'uat', 'launch', 'post launch'])
+// "Write down your questions" note: only in user testing and before post-launch check-in
+const NOTE_STAGES = new Set(['user testing', 'uat', 'post launch'])
 
 // Stages whose items are owned by the customer (in addition to per-item prefix checks)
 // readiness review: customer fills out the checklist and attends the Q&A
@@ -70,17 +71,18 @@ const GO_LIVE_BEFORE_STAGES = new Set(['post launch', 'post launch check-in'])
 
 function isVisible(item: Item): boolean {
   if (EXCLUDED_ITEM_TYPES.has(item.type)) return false
-  if (item.type === 'task') {
+  // Filter send-side of exchange pairs and excluded task names (applies to task + exchange types)
+  if (item.type === 'task' || item.type === 'exchange') {
     const name = (item.task_name || '').toLowerCase()
-    if (EXCLUDED_TASK_NAMES.has(name)) return false
     if (name.startsWith('send ')) return false
+    if (EXCLUDED_TASK_NAMES.has(name)) return false
   }
   return true
 }
 
 function isCustomerOwned(item: Item, stageLower: string): boolean {
   if (CUSTOMER_STAGES.has(stageLower)) return true
-  if (item.type === 'task') {
+  if (item.type === 'task' || item.type === 'exchange') {
     const name = (item.task_name || '').toLowerCase()
     if (CUSTOMER_TASK_PREFIXES.some(p => name.startsWith(p))) return true
   }

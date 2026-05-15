@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-15',
+    title: 'Export plan: show Return checklist items, trim question note placement',
+    bullets: [
+      '"Return" items (like Return Pre-Launch Checklist) now appear in the export — previously they were hidden because they share a type with exchange pairs',
+      'The "write down your questions" note now only appears in User Testing and before Post-Launch Check-In — removed from the Launch stage',
+    ],
+  },
+  {
+    date: '2026-05-15',
     title: 'Export plan: match account items exactly, no synthetic entries',
     bullets: [
       'Removed the fake "Pre-Launch Checklist Q&A" row — the real Q&A Session from the account now shows instead',

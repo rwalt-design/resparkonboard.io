@@ -53,7 +53,7 @@ type Rep = { name: string; role: string; email: string }
 
 const EXCLUDED_MILESTONES = new Set(['account creation', 'account setup'])
 const EXCLUDED_STAGES     = new Set(['account creation'])
-const EXCLUDED_ITEM_TYPES = new Set(['record', 'handoff', 'log', 'dependency', 'golive', 'report', 'exchange'])
+const EXCLUDED_ITEM_TYPES = new Set(['record', 'handoff', 'log', 'dependency', 'golive', 'report'])
 const EXCLUDED_TASK_NAMES = new Set([
   'build handoff doc', 'handoff to csm', 'sub topics',
   'set up sandbox environment', 'add users',
@@ -65,22 +65,22 @@ const EXCLUDED_TASK_NAMES = new Set([
 
 const CUSTOMER_STAGES        = new Set(['user testing', 'uat', 'readiness review', 'sign-off', 'post launch', 'post launch check-in'])
 const CUSTOMER_TASK_PREFIXES = ['return ', 'submit ']
-const NOTE_STAGES            = new Set(['user testing', 'uat', 'launch', 'post launch'])
+const NOTE_STAGES            = new Set(['user testing', 'uat', 'post launch'])
 const GO_LIVE_BEFORE_STAGES  = new Set(['post launch', 'post launch check-in'])
 
 function isVisible(item: Item): boolean {
   if (EXCLUDED_ITEM_TYPES.has(item.type)) return false
-  if (item.type === 'task') {
+  if (item.type === 'task' || item.type === 'exchange') {
     const name = (item.task_name || '').toLowerCase()
-    if (EXCLUDED_TASK_NAMES.has(name)) return false
     if (name.startsWith('send ')) return false
+    if (EXCLUDED_TASK_NAMES.has(name)) return false
   }
   return true
 }
 
 function isCustomerOwned(item: Item, stageLower: string): boolean {
   if (CUSTOMER_STAGES.has(stageLower)) return true
-  if (item.type === 'task') {
+  if (item.type === 'task' || item.type === 'exchange') {
     const name = (item.task_name || '').toLowerCase()
     if (CUSTOMER_TASK_PREFIXES.some(p => name.startsWith(p))) return true
   }
