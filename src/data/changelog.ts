@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-15',
+    title: 'Export Plan now downloads a clean PDF directly',
+    bullets: [
+      'Clicking "Export Plan" now silently downloads a PDF — no browser print dialog, no timestamps, no URLs',
+      'PDF includes the same cover page, onboarding plan, hardware checklist, and reporting & compliance sections as the preview page',
+      'Items that are already marked complete in the system show as pre-checked in the PDF',
+    ],
+  },
+  {
+    date: '2026-05-15',
     title: 'Reworked client export plan',
     bullets: [
       'Export now opens with a cover page showing the client name, ReSpark Transition heading, go-live date, and your contact info',
