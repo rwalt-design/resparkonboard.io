@@ -8,14 +8,15 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-15',
-    title: 'Export Plan overhaul, new intake tabs, SKU update, and more',
+    title: 'Weekly Summary improvements and Export Plan overhaul',
     bullets: [
       'Clicking "Export Plan" opens a panel to check or uncheck exactly which items go in the PDF — selections are saved per account',
       'PDF downloads clean — no print dialog, no browser clutter — with a cover page, ownership labels, Go-Live marker, and the ReSpark logo',
       'Three new tabs on every account — Hardware, Reporting, and Compliance — auto-populated from the client\'s intake form and fully editable inline',
       'SKU list updated to reflect the current product lineup; old SKUs removed',
       'Custom interaction logging now has an Internal option — shows in the timeline but doesn\'t affect Last Contact or Last Outreach counts',
-      'Weekly Summary now answers three questions only: did they move stages, was a meeting scheduled or held, did the client send an email — Slack excluded',
+      'Weekly Summary now covers calls, texts, emails, and meetings — only what matters when you miss the sync — Slack excluded',
+      'Each account in the Weekly Summary now shows the last contact date',
     ],
   },
   {
