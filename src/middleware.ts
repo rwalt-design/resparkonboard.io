@@ -28,7 +28,10 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/auth')
 
-  if (!user && !isAuthRoute) {
+  // Internal API routes authenticate via shared secret header — bypass session check
+  const isInternalApi = request.nextUrl.pathname.startsWith('/api/')
+
+  if (!user && !isAuthRoute && !isInternalApi) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
