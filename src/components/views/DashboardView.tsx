@@ -180,6 +180,8 @@ function CreateAccountModal({ onClose, onCreated, orgMembers: _orgMembers, train
 
     if (!member) { setLoading(false); return }
 
+    const form_slug = name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+
     const { data: account, error } = await supabase
       .from('accounts')
       .insert({
@@ -190,6 +192,7 @@ function CreateAccountModal({ onClose, onCreated, orgMembers: _orgMembers, train
         arr: parseInt(arr) || 0,
         sales_context: salesContext || null,
         owner_id: user.id,
+        form_slug: form_slug || null,
       })
       .select('id')
       .single()

@@ -299,11 +299,11 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', flexShrink: 0 }}>
         {([
           { id: 'plan',       label: 'Plan',       tip: 'The onboarding plan — milestones, stages, and items the customer must complete' },
-          { id: 'timeline',   label: 'Timeline',   tip: 'Log and view all interactions: calls, emails, meetings, and internal notes' },
-          { id: 'details',    label: 'Details',    tip: 'Account settings, contacts, and advanced configuration' },
           { id: 'hardware',   label: 'Hardware',   tip: 'Hardware checklist — track every device that needs to be configured in ReMatter' },
           { id: 'reporting',  label: 'Reporting',  tip: 'Reports the client needs built in ReMatter, populated from their intake form' },
           { id: 'compliance', label: 'Compliance', tip: 'Compliance configurations and government upload setups to complete' },
+          { id: 'details',    label: 'Details',    tip: 'Account settings, contacts, and advanced configuration' },
+          { id: 'timeline',   label: 'Timeline',   tip: 'Log and view all interactions: calls, emails, meetings, and internal notes' },
           { id: 'ai',         label: '✦ AI',       tip: 'AI-generated next steps and insights based on recent activity' },
         ] as const).map(({ id, label, tip }) => (
           <Tooltip key={id} content={tip} placement="bottom">
@@ -2525,8 +2525,6 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
   const [requirementsSaved, setRequirementsSaved] = useState(true)
   const [notesDraft, setNotesDraft] = useState(account.notes || '')
   const [notesSaved, setNotesSaved] = useState(true)
-  const [formSlugDraft, setFormSlugDraft] = useState(account.form_slug || '')
-  const [formSlugSaved, setFormSlugSaved] = useState(true)
   const [linkedResourceIds, setLinkedResourceIds] = useState<Set<string>>(new Set())
   const [resourcesLoaded, setResourcesLoaded] = useState(false)
   const supabase = createClient()
@@ -2575,14 +2573,6 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
     setNotesSaved(true)
   }
 
-  const saveFormSlug = async () => {
-    const slug = formSlugDraft.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-    setFormSlugDraft(slug)
-    await supabase.from('accounts').update({ form_slug: slug || null }).eq('id', account.id)
-    onUpdate({ ...account, form_slug: slug || null })
-    setFormSlugSaved(true)
-  }
-
   return (
     <div style={{ padding: '20px 24px', display: 'flex', gap: 32, alignItems: 'flex-start' }}>
       {/* Left column */}
@@ -2591,32 +2581,6 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
         {planTemplates.length > 0 && (
           <ApplyPlanTemplateSection account={account} planTemplates={planTemplates} onRefresh={onRefresh} />
         )}
-
-        {/* Form slug — links this account to form-fills submissions */}
-        <section>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <div>
-              <span style={sectionLabel}>Intake Form Slug</span>
-              <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 8 }}>used to match form submissions</span>
-            </div>
-            {!formSlugSaved && (
-              <button onClick={saveFormSlug} style={primaryBtn}>Save</button>
-            )}
-          </div>
-          <input
-            type="text"
-            value={formSlugDraft}
-            onChange={e => { setFormSlugDraft(e.target.value); setFormSlugSaved(false) }}
-            onBlur={saveFormSlug}
-            placeholder="e.g. research-alloys"
-            style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
-          />
-          {formSlugDraft && (
-            <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-3)' }}>
-              Form URL: <code style={{ color: 'var(--text-2)' }}>?account={formSlugDraft}&amp;form=prework</code>
-            </div>
-          )}
-        </section>
 
         {/* Sales context — always editable */}
         <section>

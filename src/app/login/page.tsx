@@ -13,13 +13,17 @@ function LoginContent() {
 
   const handleGoogleSignIn = async () => {
     const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
+    const { data } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: { hd: 'respark.com' },
+        skipBrowserRedirect: true,
       },
     })
+    // Navigate in the same tab — skipBrowserRedirect prevents Supabase from
+    // opening a popup and we do the redirect ourselves.
+    if (data.url) window.location.assign(data.url)
   }
 
   const handleDemo = async () => {
