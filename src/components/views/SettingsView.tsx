@@ -961,11 +961,21 @@ function PlanTemplatesPanel({ planTemplates: initialTemplates, sessionTemplates,
                     title="Double-click to rename"
                   >{t.name}</span>
                 )}
-                {t.sku && (
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 3,
-                    background: '#1BB3BB14', border: '1px solid #1BB3BB30', color: '#5DDDE3',
-                    fontFamily: 'var(--font-mono)' }}>{SKU_LABELS[t.sku] || t.sku}</span>
-                )}
+                <select
+                  value={t.sku || ''}
+                  onChange={async e => {
+                    const sku = e.target.value || null
+                    await supabase.from('plan_templates').update({ sku }).eq('id', t.id)
+                    setTemplates(prev => prev.map(x => x.id === t.id ? { ...x, sku: sku ?? undefined } : x))
+                    await onTemplatesChange?.()
+                  }}
+                  style={{ background: 'var(--bg-surface2)', border: '1px solid var(--border-b)', borderRadius: 4,
+                    padding: '2px 6px', fontSize: 11, color: t.sku ? '#5DDDE3' : 'var(--text-3)',
+                    cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
+                >
+                  <option value="">All SKUs</option>
+                  {SKU_OPTIONS.map(s => <option key={s} value={s}>{SKU_LABELS[s]}</option>)}
+                </select>
                 <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
                   {t.structure?.milestones?.length ?? 0} milestones
                 </span>

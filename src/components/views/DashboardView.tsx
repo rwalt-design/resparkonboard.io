@@ -942,7 +942,6 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
                       <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{account.currentStage}</span>
                     </>
                   )}
-                  {accountsWithSuggestions.has(account.id) && <span className="ai-dot" title="AI suggestions available" />}
                 </div>
 
                 {/* Row 3: completion bar */}
@@ -1100,9 +1099,6 @@ export function DashboardView({ accounts, currentMember, orgMembers, trainingTem
                         <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
                           ${account.arr >= 1000 ? `${(account.arr / 1000).toFixed(account.arr % 1000 === 0 ? 0 : 1)}k` : account.arr.toLocaleString()}
                         </span>
-                      )}
-                      {accountsWithSuggestions.has(account.id) && (
-                        <span className="ai-dot" title="AI suggestions available" />
                       )}
                     </div>
                     {account.sales_context && (
