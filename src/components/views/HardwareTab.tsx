@@ -130,13 +130,13 @@ export function HardwareTab({ account, onUpdate }: {
       {tasks.length > 0 && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '24px 1fr 140px 180px 80px 32px',
+          gridTemplateColumns: '24px 1fr 140px 140px 160px 80px 32px',
           gap: '0 10px',
           padding: '4px 10px',
           borderBottom: '1px solid var(--border)',
           marginBottom: 4,
         }}>
-          {['', 'Name', 'Type', 'Location / Label', 'Status', ''].map((h, i) => (
+          {['', 'Name', 'Type', 'Make / Model', 'Location', 'Status', ''].map((h, i) => (
             <div key={i} style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 500 }}>{h}</div>
           ))}
         </div>
@@ -149,7 +149,7 @@ export function HardwareTab({ account, onUpdate }: {
             className="hw-row"
             style={{
               display: 'grid',
-              gridTemplateColumns: '24px 1fr 140px 180px 80px 32px',
+              gridTemplateColumns: '24px 1fr 140px 140px 160px 80px 32px',
               gap: '0 10px',
               alignItems: 'center',
               padding: '7px 10px',
@@ -189,6 +189,16 @@ export function HardwareTab({ account, onUpdate }: {
             >
               {HARDWARE_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
+
+            {/* Make / Model */}
+            <EditableCell
+              value={task.make_model || ''}
+              placeholder="Add make/model…"
+              editing={editingField?.id === task.id && editingField.field === 'make_model'}
+              onStartEdit={() => setEditingField({ id: task.id, field: 'make_model' })}
+              onSave={val => { updateField(task.id, 'make_model', val); setEditingField(null) }}
+              onCancel={() => setEditingField(null)}
+            />
 
             {/* Location */}
             <EditableCell

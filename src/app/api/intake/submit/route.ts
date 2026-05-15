@@ -6,15 +6,30 @@ import { createAdminClient } from '@/lib/supabase/admin'
 interface PreworkAnswers {
   hardware_yes?: boolean
   hardware_items?: string[]
+  // Scales
   scale_types?: string[]
   floor_count?: string | number
   truck_count?: string | number
-  camera_brand?: string
+  scales_make?: string           // NEW: make/model of scales
+  scales_connection?: string
+  scales_connection_other?: string
+  // Cameras
+  camera_brand?: string          // legacy — superseded by camera_make
+  camera_make?: string           // NEW: make/model of cameras
   camera_count?: string | number
+  camera_location?: string       // NEW: where cameras are located
+  // Printers
   printer_types?: string[]
   thermal_count?: string | number
   tag_count?: string | number
   standard_count?: string | number
+  printer_make?: string          // NEW: make/model of printers
+  printer_location?: string      // NEW: where printers are located
+  // Accessories
+  signature_location?: string    // NEW: where signature pads are located
+  fingerprint_location?: string  // NEW: where fingerprint scanners are located
+  id_scanner_location?: string   // NEW: where ID scanners are located
+  // Reports
   reports_rows?: {
     id?: string | number
     legacy_name?: string
@@ -22,6 +37,7 @@ interface PreworkAnswers {
     purpose?: string
     columns?: string  // form-fills uses "columns", we map to key_columns
   }[]
+  // Compliance
   compliance_yes?: boolean
   compliance_programs?: string[]
   leads_mre?: string
@@ -123,12 +139,15 @@ export async function POST(req: NextRequest) {
 
     if (items.includes('scales')) {
       const scaleTypes = answers.scale_types ?? []
+      const scalesMake = answers.scales_make?.trim() || null
       if (scaleTypes.includes('floor')) {
         const count = toInt(answers.floor_count)
         for (let i = 1; i <= count; i++) {
           hardwareRows.push({
             account_id: accountId, source_submission_id: submissionId,
-            name: `Floor Scale ${i}`, type: 'floor_scale', sort_order: hwOrder++,
+            name: `Floor Scale ${i}`, type: 'floor_scale',
+            make_model: scalesMake,
+            sort_order: hwOrder++,
           })
         }
       }
@@ -137,7 +156,9 @@ export async function POST(req: NextRequest) {
         for (let i = 1; i <= count; i++) {
           hardwareRows.push({
             account_id: accountId, source_submission_id: submissionId,
-            name: `Truck Scale ${i}`, type: 'truck_scale', sort_order: hwOrder++,
+            name: `Truck Scale ${i}`, type: 'truck_scale',
+            make_model: scalesMake,
+            sort_order: hwOrder++,
           })
         }
       }
@@ -145,13 +166,16 @@ export async function POST(req: NextRequest) {
 
     if (items.includes('cameras')) {
       const count = toInt(answers.camera_count)
-      const brand = answers.camera_brand?.trim() || ''
+      // camera_make supersedes legacy camera_brand
+      const cameraMake = (answers.camera_make?.trim() || answers.camera_brand?.trim()) || null
+      const cameraLocation = answers.camera_location?.trim() || null
       for (let i = 1; i <= count; i++) {
         hardwareRows.push({
           account_id: accountId, source_submission_id: submissionId,
           name: count > 1 ? `Camera ${i}` : 'Camera',
           type: 'camera',
-          location_label: brand || null,
+          make_model: cameraMake,
+          location_label: cameraLocation,
           sort_order: hwOrder++,
         })
       }
@@ -159,6 +183,8 @@ export async function POST(req: NextRequest) {
 
     if (items.includes('printers')) {
       const printerTypes = answers.printer_types ?? []
+      const printerMake = answers.printer_make?.trim() || null
+      const printerLocation = answers.printer_location?.trim() || null
       const printerDefs = [
         { key: 'thermal', count: toInt(answers.thermal_count),   label: 'Thermal Printer' },
         { key: 'tag',     count: toInt(answers.tag_count),       label: 'Tag Printer' },
@@ -170,25 +196,39 @@ export async function POST(req: NextRequest) {
           hardwareRows.push({
             account_id: accountId, source_submission_id: submissionId,
             name: count > 1 ? `${label} ${i}` : label,
-            type: 'other', sort_order: hwOrder++,
+            type: 'other',
+            make_model: printerMake,
+            location_label: printerLocation,
+            sort_order: hwOrder++,
           })
         }
       }
     }
 
-    // Single-unit hardware items
-    const singles: Record<string, string> = {
-      id_scanner:  'ID Scanner',
-      signature:   'Signature Pad',
-      fingerprint: 'Fingerprint Scanner',
+    // Single-unit hardware items with per-type location fields
+    if (items.includes('signature')) {
+      hardwareRows.push({
+        account_id: accountId, source_submission_id: submissionId,
+        name: 'Signature Pad', type: 'other',
+        location_label: answers.signature_location?.trim() || null,
+        sort_order: hwOrder++,
+      })
     }
-    for (const [key, label] of Object.entries(singles)) {
-      if (items.includes(key)) {
-        hardwareRows.push({
-          account_id: accountId, source_submission_id: submissionId,
-          name: label, type: 'other', sort_order: hwOrder++,
-        })
-      }
+    if (items.includes('fingerprint')) {
+      hardwareRows.push({
+        account_id: accountId, source_submission_id: submissionId,
+        name: 'Fingerprint Scanner', type: 'other',
+        location_label: answers.fingerprint_location?.trim() || null,
+        sort_order: hwOrder++,
+      })
+    }
+    if (items.includes('id_scanner')) {
+      hardwareRows.push({
+        account_id: accountId, source_submission_id: submissionId,
+        name: 'ID Scanner', type: 'other',
+        location_label: answers.id_scanner_location?.trim() || null,
+        sort_order: hwOrder++,
+      })
     }
   }
 

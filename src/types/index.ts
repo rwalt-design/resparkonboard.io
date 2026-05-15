@@ -361,6 +361,7 @@ export interface HardwareTask {
   rep_id: string | null
   name: string
   type: HardwareType
+  make_model: string | null
   location_label: string | null
   completed: boolean
   completed_at: string | null
