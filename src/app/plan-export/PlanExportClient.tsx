@@ -88,6 +88,7 @@ type Account = {
   sku: string
   addons: string[]
   arr: number
+  go_live_date?: string | null
   contacts: Contact[]
   milestones: Milestone[]
 }
@@ -119,16 +120,20 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
+type Rep = { name: string; role: string; email: string }
+
 export function PlanExportClient({
   account,
   hardwareTasks,
   reportTasks,
   complianceTasks,
+  rep,
 }: {
   account: Account
   hardwareTasks: HardwareTask[]
   reportTasks: ReportTask[]
   complianceTasks: ComplianceTask[]
+  rep: Rep
 }) {
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const storageKey = `respark-export-checks-${account.id}`
@@ -195,9 +200,79 @@ export function PlanExportClient({
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
       `}</style>
 
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 40px 60px', fontFamily: '"Inter", system-ui, sans-serif' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', fontFamily: '"Inter", system-ui, sans-serif' }}>
+
+        {/* ─── COVER PAGE ────────────────────────────────────────────────── */}
+        <div style={{
+          minHeight: '100vh', display: 'flex', flexDirection: 'column',
+          padding: '60px 56px',
+        }}>
+          {/* Top bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 'auto' }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: 'linear-gradient(135deg, #1BB3BB, #007580)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 800, color: '#fff', fontFamily: '"DM Mono", monospace',
+            }}>ob</div>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', letterSpacing: '-0.02em' }}>
+              onboard<span style={{ color: '#1BB3BB' }}>.io</span>
+            </span>
+          </div>
+
+          {/* Center content */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 0 }}>
+            {/* Eyebrow */}
+            <div style={{
+              fontSize: 11, fontWeight: 700, color: '#1BB3BB',
+              textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 20,
+              fontFamily: '"DM Mono", monospace',
+            }}>
+              Onboarding Transition Plan
+            </div>
+
+            {/* Main title */}
+            <div style={{ fontSize: 42, fontWeight: 800, color: '#1e293b', lineHeight: 1.15, letterSpacing: '-0.03em', marginBottom: 10 }}>
+              {account.name}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 40 }}>
+              <div style={{ height: 2, width: 32, background: '#1BB3BB', borderRadius: 99 }} />
+              <span style={{ fontSize: 18, fontWeight: 500, color: '#64748b', letterSpacing: '-0.01em' }}>ReSpark Transition</span>
+            </div>
+
+            {/* Go live date */}
+            {account.go_live_date && (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 12,
+                background: '#E0F7F8', borderRadius: 10, padding: '14px 20px',
+                alignSelf: 'flex-start', marginBottom: 48,
+              }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1BB3BB', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#007580', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>Target Go-Live</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', fontFamily: '"DM Mono", monospace' }}>
+                    {new Date(account.go_live_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Rep contact info — bottom */}
+          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 3 }}>{rep.name}</div>
+              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>{rep.role} · ReSpark</div>
+              <div style={{ fontSize: 12, color: '#1BB3BB', fontFamily: '"DM Mono", monospace' }}>{rep.email}</div>
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: '"DM Mono", monospace', textAlign: 'right' }}>
+              Generated {today}
+            </div>
+          </div>
+        </div>
 
         {/* ─── PAGE 1: PLAN ──────────────────────────────────────────────── */}
+        <div className="page-break" style={{ padding: '40px 56px 60px' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, paddingBottom: 18, borderBottom: '2px solid #1BB3BB' }}>
@@ -248,7 +323,7 @@ export function PlanExportClient({
 
         {/* Plan stages */}
         <SectionLabel>Onboarding Plan</SectionLabel>
-        <div style={{ marginBottom: 8 }}>
+        <div>
           {visibleMilestones.map((milestone, mi) => {
             const stageBlocks = milestone.stages
               .map(stage => {
@@ -335,8 +410,10 @@ export function PlanExportClient({
           })}
         </div>
 
+        </div>{/* end plan page */}
+
         {/* ─── PAGE 2: HARDWARE ─────────────────────────────────────────── */}
-        <div className="page-break" style={{ marginTop: 48, paddingTop: 40, borderTop: '2px solid #1BB3BB' }}>
+        <div className="page-break" style={{ padding: '40px 56px 60px', borderTop: '2px solid #1BB3BB' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#1BB3BB', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Hardware</div>
@@ -388,7 +465,7 @@ export function PlanExportClient({
         </div>
 
         {/* ─── PAGE 3: REPORTING & COMPLIANCE ──────────────────────────── */}
-        <div className="page-break" style={{ marginTop: 48, paddingTop: 40, borderTop: '2px solid #1BB3BB' }}>
+        <div className="page-break" style={{ padding: '40px 56px 60px', borderTop: '2px solid #1BB3BB' }}>
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#1BB3BB', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Reporting & Compliance</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: '#1e293b' }}>{account.name} — Reports & Compliance</div>
@@ -477,12 +554,12 @@ export function PlanExportClient({
               </div>
             )}
           </div>
-        </div>
 
-        {/* Footer */}
-        <div style={{ marginTop: 40, paddingTop: 16, borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>Generated by onboard.io</span>
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>{account.name} · {today}</span>
+          {/* Footer */}
+          <div style={{ marginTop: 40, paddingTop: 16, borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: '#94a3b8' }}>Generated by onboard.io</span>
+            <span style={{ fontSize: 11, color: '#94a3b8' }}>{account.name} · {today}</span>
+          </div>
         </div>
       </div>
 
