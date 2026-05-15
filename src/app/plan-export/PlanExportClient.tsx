@@ -45,6 +45,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 // Milestones to exclude from client-facing export
 const EXCLUDED_MILESTONES = ['account creation', 'account setup']
 
+// Stages to exclude from client-facing export
+const EXCLUDED_STAGES = new Set(['account creation'])
+
 // Item types that are internal-only and shouldn't appear
 const EXCLUDED_ITEM_TYPES = new Set(['record', 'handoff', 'log', 'dependency', 'golive', 'report'])
 
@@ -179,7 +182,7 @@ export function PlanExportClient({
     <>
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', system-ui, sans-serif; color: #1e293b; background: white; font-size: 13px; line-height: 1.5; }
+        html, body { font-family: 'Inter', system-ui, sans-serif; color: #1e293b; background: white !important; font-size: 13px; line-height: 1.5; }
         @media print {
           body { background: white; font-size: 11px; }
           .no-print { display: none !important; }
@@ -189,7 +192,7 @@ export function PlanExportClient({
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
       `}</style>
 
-      <div style={{ maxWidth: 800, margin: '0 auto', fontFamily: '"Inter", system-ui, sans-serif' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', fontFamily: '"Inter", system-ui, sans-serif', background: 'white', color: '#1e293b', minHeight: '100vh' }}>
 
         {/* ─── COVER PAGE ─────────────────────────────────────────────────── */}
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '60px 56px' }}>
@@ -238,6 +241,7 @@ export function PlanExportClient({
 
           {visibleMilestones.map((milestone, mi) => {
             const stageBlocks = milestone.stages.map(stage => {
+              if (EXCLUDED_STAGES.has(stage.name.toLowerCase().trim())) return null
               const items = stage.items.filter(isVisible)
               if (items.length === 0) return null
               return (
