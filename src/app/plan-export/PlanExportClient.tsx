@@ -218,7 +218,6 @@ export function PlanExportClient({
           .page-break { page-break-before: always; }
         }
         .check-row:hover { background: #f8fafc !important; cursor: pointer; }
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
       `}</style>
 
       <div style={{ maxWidth: 800, margin: '0 auto', background: 'white', color: '#1e293b', minHeight: '100vh', fontFamily: '"Inter", system-ui, sans-serif' }}>
