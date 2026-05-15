@@ -45,7 +45,22 @@ const CATEGORY_LABELS: Record<string, string> = {
 const EXCLUDED_MILESTONES = new Set(['account creation', 'account setup'])
 const EXCLUDED_STAGES     = new Set(['account creation'])
 const EXCLUDED_ITEM_TYPES = new Set(['record', 'handoff', 'log', 'dependency', 'golive', 'report', 'exchange'])
-const EXCLUDED_TASK_NAMES = new Set(['build handoff doc', 'handoff to csm', 'sub topics'])
+const EXCLUDED_TASK_NAMES = new Set([
+  'build handoff doc', 'handoff to csm', 'sub topics',
+  'set up sandbox environment', 'add users',
+  'log daily job/ticket usage', 'usage review',
+])
+
+// Stages that get a freeform question/notes textarea appended
+const TEXTAREA_STAGES: Record<string, string> = {
+  'user testing': 'Question Bank & Readiness Review',
+  'uat':          'Question Bank & Readiness Review',
+  'launch':       'Go-Live Notes',
+  'post launch':  'Post-Launch Check-In Notes',
+}
+
+// Stages that get a synthetic "Pre-Launch Checklist Q&A" session item prepended
+const PREPEND_QNA_STAGES = new Set(['readiness review', 'sign-off'])
 
 function isVisible(item: Item): boolean {
   if (EXCLUDED_ITEM_TYPES.has(item.type)) return false
@@ -171,15 +186,28 @@ export function PlanExportClient({
   const storageKey = `respark-export-checks-${account.id}`
 
   const [checked, setChecked] = useState<Record<string, boolean>>({})
+  const [notes, setNotes] = useState<Record<string, string>>({})
   const [hydrated, setHydrated] = useState(false)
+
+  const notesKey = `respark-export-notes-${account.id}`
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem(storageKey)
       if (stored) setChecked(JSON.parse(stored))
+      const storedNotes = localStorage.getItem(notesKey)
+      if (storedNotes) setNotes(JSON.parse(storedNotes))
     } catch { /* ignore */ }
     setHydrated(true)
-  }, [storageKey])
+  }, [storageKey, notesKey])
+
+  const updateNote = useCallback((id: string, val: string) => {
+    setNotes(prev => {
+      const next = { ...prev, [id]: val }
+      try { localStorage.setItem(notesKey, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }, [notesKey])
 
   // Auto-trigger print dialog once hydrated
   useEffect(() => {
@@ -280,14 +308,35 @@ export function PlanExportClient({
 
           {visibleMilestones.map((milestone, mi) => {
             const stageBlocks = milestone.stages.map(stage => {
-              if (EXCLUDED_STAGES.has(stage.name.toLowerCase().trim())) return null
+              const stageLower = stage.name.toLowerCase().trim()
+              if (EXCLUDED_STAGES.has(stageLower)) return null
               const items = stage.items.filter(isVisible)
-              if (items.length === 0) return null
+              const textareaLabel = TEXTAREA_STAGES[stageLower]
+              const showQnA = PREPEND_QNA_STAGES.has(stageLower)
+              const qnaId = `synthetic-qna-${stage.id}`
+              if (items.length === 0 && !textareaLabel && !showQnA) return null
+
               return (
                 <div key={stage.id}>
                   <div style={{ padding: '7px 14px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stage.name}</span>
                   </div>
+
+                  {/* Synthetic Pre-Launch Checklist Q&A session */}
+                  {showQnA && (
+                    <div
+                      className="check-row"
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px 8px 28px', borderBottom: '1px solid #f8fafc' }}
+                      onClick={() => toggle(qnaId, false)}
+                    >
+                      <Checkbox checked={isChecked(qnaId, false)} onChange={() => toggle(qnaId, false)} />
+                      <span style={{ fontSize: 12, color: isChecked(qnaId, false) ? '#94a3b8' : '#1e293b', textDecoration: isChecked(qnaId, false) ? 'line-through' : 'none', flex: 1, userSelect: 'none' }}>
+                        Pre-Launch Checklist Q&amp;A
+                      </span>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: '#E0F7F8', color: '#007580', fontFamily: '"DM Mono", monospace' }}>session</span>
+                    </div>
+                  )}
+
                   {items.map(item => {
                     const def = item.type === 'task' ? !!item.task_done : item.session_status === 'complete'
                     const itemChecked = isChecked(item.id, def)
@@ -312,6 +361,27 @@ export function PlanExportClient({
                       </div>
                     )
                   })}
+
+                  {/* Stage-specific freeform textarea */}
+                  {textareaLabel && (
+                    <div style={{ padding: '12px 14px', borderTop: '1px solid #f1f5f9' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{textareaLabel}</div>
+                      <textarea
+                        value={notes[stage.id] || ''}
+                        onChange={e => updateNote(stage.id, e.target.value)}
+                        placeholder="Add notes, questions, or action items here…"
+                        rows={4}
+                        style={{
+                          width: '100%', boxSizing: 'border-box',
+                          border: '1px solid #e2e8f0', borderRadius: 6,
+                          padding: '8px 10px', fontSize: 12, color: '#1e293b',
+                          fontFamily: '"Inter", system-ui, sans-serif',
+                          resize: 'vertical', outline: 'none', background: '#fafafa',
+                          lineHeight: 1.5,
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               )
             }).filter(Boolean)
