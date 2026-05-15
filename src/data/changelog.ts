@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-15',
+    title: 'Reworked client export plan',
+    bullets: [
+      'Export now shows three sections: the onboarding plan, hardware checklist, and reporting & compliance — each on its own print page',
+      'Account Creation is no longer shown in the client-facing plan view',
+      'Every item now has an interactive checkbox clients can click to check things off directly on the page',
+      'Checkbox state is saved in the browser so it persists between visits',
+      'Items already marked complete on your end show pre-checked when clients open the page',
+    ],
+  },
+  {
+    date: '2026-05-15',
     title: 'Updated SKU list to match new product lineup',
     bullets: [
       'SKUs now reflect the full ReSpark product catalog: Essentials, Pro, Dispatch, Rail, Exports, UptimePM Core, UptimePM Pro, and UptimePM Enterprise',

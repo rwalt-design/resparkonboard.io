@@ -14,22 +14,32 @@ export default async function PlanExportPage({
   const accountId = searchParams.account
   if (!accountId) redirect('/')
 
-  const { data: account } = await supabase
-    .from('accounts')
-    .select(`
-      *,
-      contacts(*),
-      requests(*),
-      milestones(
+  const [
+    { data: account },
+    { data: hardwareTasks },
+    { data: reportTasks },
+    { data: complianceTasks },
+  ] = await Promise.all([
+    supabase
+      .from('accounts')
+      .select(`
         *,
-        stages(
+        contacts(*),
+        requests(*),
+        milestones(
           *,
-          items(*)
+          stages(
+            *,
+            items(*)
+          )
         )
-      )
-    `)
-    .eq('id', accountId)
-    .single()
+      `)
+      .eq('id', accountId)
+      .single(),
+    supabase.from('hardware_tasks').select('*').eq('account_id', accountId).order('sort_order'),
+    supabase.from('report_tasks').select('*').eq('account_id', accountId).order('sort_order'),
+    supabase.from('compliance_tasks').select('*').eq('account_id', accountId).order('sort_order'),
+  ])
 
   if (!account) redirect('/')
 
@@ -50,5 +60,12 @@ export default async function PlanExportPage({
       })),
   }
 
-  return <PlanExportClient account={sorted} />
+  return (
+    <PlanExportClient
+      account={sorted}
+      hardwareTasks={hardwareTasks || []}
+      reportTasks={reportTasks || []}
+      complianceTasks={complianceTasks || []}
+    />
+  )
 }
