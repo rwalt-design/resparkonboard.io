@@ -2837,7 +2837,18 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
   const supabase = createClient()
 
   const SKU_OPTIONS = [['essentials', 'Essentials'], ['pro', 'Pro'], ['dispatch', 'Dispatch'], ['rail', 'Rail'], ['exports', 'Exports'], ['uptimepm_core', 'UptimePM Core'], ['uptimepm_pro', 'UptimePM Pro'], ['uptimepm_enterprise', 'UptimePM Enterprise']] as const
-  const ADDON_OPTIONS = ['brokerage', 'export', 'api'] as const
+  const ADDON_OPTIONS = [
+    // AI Agents
+    ['ai_commercial', 'Commercial Agent'], ['ai_operations', 'Operations Agent'],
+    ['ai_finance', 'Finance Agent'], ['ai_dispatch', 'Dispatch Agent'],
+    // Pro Add-ons
+    ['supplier_portal', 'Supplier Portal'], ['integrated_gl', 'Integrated GL'],
+    ['brokerage', 'Brokerage'], ['crv_processing', 'CRV Processing'],
+    // Logistics add-ons
+    ['dispatch', 'Dispatch'], ['rail', 'Rail'], ['exports', 'Exports'],
+    // Services
+    ['positive_pay', 'Positive Pay'],
+  ] as const
   const SKU_COLORS_MAP: Record<string, string> = { essentials: '#10b981', pro: '#1BB3BB', dispatch: '#f59e0b', rail: '#6b7280', exports: '#3b82f6', uptimepm_core: '#7757F5', uptimepm_pro: '#6366f1', uptimepm_enterprise: '#4f46e5' }
 
   const toggleAddon = (addon: string) =>
@@ -2947,15 +2958,15 @@ function AccountDetailsModal({ account, onClose, onUpdate }: { account: Account;
 
         <div>
           <div style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, marginBottom: 6 }}>Add-ons</div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {ADDON_OPTIONS.map(val => (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {ADDON_OPTIONS.map(([val, label]) => (
               <button key={val} onClick={() => toggleAddon(val)} style={{
-                flex: 1, padding: '5px 0', borderRadius: 6,
+                padding: '5px 10px', borderRadius: 6,
                 background: addons.includes(val) ? '#1BB3BB22' : 'var(--bg-surface2)',
                 border: `1px solid ${addons.includes(val) ? '#1BB3BB' : 'var(--border-b)'}`,
                 color: addons.includes(val) ? '#1BB3BB' : 'var(--text-2)',
-                fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)', textTransform: 'capitalize',
-              }}>{val}</button>
+                fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-ui)',
+              }}>{label}</button>
             ))}
           </div>
         </div>

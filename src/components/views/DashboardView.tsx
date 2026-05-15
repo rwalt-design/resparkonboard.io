@@ -39,9 +39,18 @@ const SKU_COLORS: Record<string, string> = {
   uptimepm_enterprise: '#4f46e5',
 }
 const ADDON_LABELS: Record<string, string> = {
-  brokerage: 'Brokerage',
-  export: 'Export',
-  api: 'API',
+  ai_commercial:  'Commercial Agent',
+  ai_operations:  'Operations Agent',
+  ai_finance:     'Finance Agent',
+  ai_dispatch:    'Dispatch Agent',
+  supplier_portal: 'Supplier Portal',
+  integrated_gl:  'Integrated GL',
+  brokerage:      'Brokerage',
+  crv_processing: 'CRV Processing',
+  dispatch:       'Dispatch',
+  rail:           'Rail',
+  exports:        'Exports',
+  positive_pay:   'Positive Pay',
 }
 const HEALTH_OPTIONS: { value: HealthStatus; label: string; color: string }[] = [
   { value: 'active',       label: 'Active',       color: '#10b981' },
@@ -279,10 +288,10 @@ function CreateAccountModal({ onClose, onCreated, orgMembers: _orgMembers, train
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>SKU</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[['dispatch', 'Dispatch'], ['facility_management', 'Facility Mgmt'], ['full_suite', 'Full Suite']].map(([val, label]) => (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {Object.entries(SKU_LABELS).map(([val, label]) => (
                 <button key={val} onClick={() => { setSku(val); setSelectedPlanId(null) }} style={{
-                  flex: 1, padding: '8px 0', borderRadius: 6,
+                  padding: '6px 10px', borderRadius: 6,
                   background: sku === val ? SKU_COLORS[val] + '22' : 'var(--bg-surface2)',
                   border: `1px solid ${sku === val ? SKU_COLORS[val] : 'var(--border-b)'}`,
                   color: sku === val ? SKU_COLORS[val] : 'var(--text-2)',
@@ -291,10 +300,10 @@ function CreateAccountModal({ onClose, onCreated, orgMembers: _orgMembers, train
               ))}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 4 }}>Add-ons</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[['brokerage', 'Brokerage'], ['export', 'Export'], ['api', 'API']].map(([val, label]) => (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {Object.entries(ADDON_LABELS).map(([val, label]) => (
                 <button key={val} onClick={() => toggleAddon(val)} style={{
-                  flex: 1, padding: '7px 0', borderRadius: 6,
+                  padding: '6px 10px', borderRadius: 6,
                   background: addons.includes(val) ? '#1BB3BB22' : 'var(--bg-surface2)',
                   border: `1px solid ${addons.includes(val) ? '#1BB3BB' : 'var(--border-b)'}`,
                   color: addons.includes(val) ? '#1BB3BB' : 'var(--text-2)',

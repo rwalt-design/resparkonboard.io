@@ -11,9 +11,18 @@ const SKU_LABELS: Record<string, string> = {
   uptimepm_enterprise: 'UptimePM Enterprise',
 }
 const ADDON_LABELS: Record<string, string> = {
-  brokerage: 'Brokerage',
-  export: 'Export Compliance',
-  api: 'API',
+  ai_commercial:   'Commercial Agent',
+  ai_operations:   'Operations Agent',
+  ai_finance:      'Finance Agent',
+  ai_dispatch:     'Dispatch Agent',
+  supplier_portal: 'Supplier Portal',
+  integrated_gl:   'Integrated GL',
+  brokerage:       'Brokerage',
+  crv_processing:  'CRV Processing',
+  dispatch:        'Dispatch',
+  rail:            'Rail',
+  exports:         'Exports',
+  positive_pay:    'Positive Pay',
 }
 const STATUS_COLORS: Record<string, string> = {
   pending: '#94a3b8',

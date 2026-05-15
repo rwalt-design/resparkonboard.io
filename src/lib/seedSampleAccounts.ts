@@ -39,7 +39,7 @@ async function seedAbcAccount(
   const a1 = randomUUID()
   await admin.from('accounts').insert({
     id: a1, org_id: orgId, name: 'ABC Iron & Metal',
-    sku: 'facility_management', addons: [], arr: 54000, owner_id: userId,
+    sku: 'pro', addons: [], arr: 54000, owner_id: userId,
     health_status: 'active',
     kickoff_date: dateAgo(36),
     go_live_date: daysFromNow(22),

@@ -1,5 +1,13 @@
 export type Sku = 'essentials' | 'pro' | 'dispatch' | 'rail' | 'exports' | 'uptimepm_core' | 'uptimepm_pro' | 'uptimepm_enterprise'
-export type Addon = 'brokerage' | 'export' | 'api'
+export type Addon =
+  // AI Agents
+  | 'ai_commercial' | 'ai_operations' | 'ai_finance' | 'ai_dispatch'
+  // Pro Add-ons
+  | 'supplier_portal' | 'integrated_gl' | 'brokerage' | 'crv_processing'
+  // Logistics (when added to a core platform SKU)
+  | 'dispatch' | 'rail' | 'exports'
+  // Services
+  | 'positive_pay'
 export type StageStatus = 'locked' | 'active' | 'unlocked' | 'complete'
 export type ItemType = 'task' | 'session' | 'record' | 'handoff' | 'log' | 'dependency' | 'golive' | 'report'
 

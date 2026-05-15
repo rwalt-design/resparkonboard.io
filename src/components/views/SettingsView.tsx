@@ -14,7 +14,14 @@ import { CSS } from '@dnd-kit/utilities'
 
 const SKU_OPTIONS = ['essentials', 'pro', 'dispatch', 'rail', 'exports', 'uptimepm_core', 'uptimepm_pro', 'uptimepm_enterprise']
 const SKU_LABELS: Record<string, string> = { essentials: 'Essentials', pro: 'Pro', dispatch: 'Dispatch', rail: 'Rail', exports: 'Exports', uptimepm_core: 'UptimePM Core', uptimepm_pro: 'UptimePM Pro', uptimepm_enterprise: 'UptimePM Enterprise' }
-const ADDON_OPTIONS = ['brokerage', 'export', 'api']
+const ADDON_OPTIONS = [
+  ['ai_commercial', 'Commercial Agent'], ['ai_operations', 'Operations Agent'],
+  ['ai_finance', 'Finance Agent'], ['ai_dispatch', 'Dispatch Agent'],
+  ['supplier_portal', 'Supplier Portal'], ['integrated_gl', 'Integrated GL'],
+  ['brokerage', 'Brokerage'], ['crv_processing', 'CRV Processing'],
+  ['dispatch', 'Dispatch'], ['rail', 'Rail'], ['exports', 'Exports'],
+  ['positive_pay', 'Positive Pay'],
+]
 
 interface ConnectorToken {
   provider: string

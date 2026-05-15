@@ -31,20 +31,20 @@ export async function POST(req: NextRequest) {
 
   // ── Training templates ────────────────────────────────────────────────────
   await admin.from('training_templates').insert([
-    { org_id: orgId, name: 'Pre Transaction',  triggers: ['facility_management'], duration_minutes: 60,
+    { org_id: orgId, name: 'Pre Transaction',  triggers: ['essentials'], duration_minutes: 60,
       description: 'Setting commodity prices, creating vendor profiles, managing user permissions, and running the daily open/close yard checklist.' },
-    { org_id: orgId, name: 'Transacting',      triggers: ['facility_management'], duration_minutes: 90,
+    { org_id: orgId, name: 'Transacting',      triggers: ['essentials'], duration_minutes: 90,
       description: 'End-to-end transaction flow: scale ticket creation, multi-line tickets, mobile app for drivers, and the ticket-to-invoice workflow.' },
-    { org_id: orgId, name: 'Post Transaction', triggers: ['facility_management'], duration_minutes: 60,
+    { org_id: orgId, name: 'Post Transaction', triggers: ['essentials'], duration_minutes: 60,
       description: 'Reporting, end-of-day reconciliation, payment processing, QuickBooks sync verification, and compliance manifest generation.' },
   ])
 
-  // ── Plan template: Facility Management Standard ───────────────────────────
+  // ── Plan template: Yard Ops Standard ─────────────────────────────────────
   await admin.from('plan_templates').insert({
     org_id: orgId,
-    name: 'Facility Management Standard',
-    description: 'Full onboarding plan for Facility Management accounts — Configuration → Training → Validation → Go-Live.',
-    sku: 'facility_management',
+    name: 'Yard Ops Standard',
+    description: 'Default onboarding plan for Essentials and Pro accounts — Configuration → Training → Validation → Go-Live.',
+    sku: null,
     is_default: true,
     structure: {
       milestones: [

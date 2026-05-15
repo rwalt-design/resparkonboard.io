@@ -11,8 +11,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Updated SKU list to match new product lineup',
     bullets: [
       'SKUs now reflect the full ReSpark product catalog: Essentials, Pro, Dispatch, Rail, Exports, UptimePM Core, UptimePM Pro, and UptimePM Enterprise',
-      'Old SKUs (Dispatch-only, Facility Mgmt, Full Suite) have been replaced — any existing accounts will still show correctly, just with the updated names going forward',
-      'SKU selector on account pages and plan templates now includes all 8 products',
+      'Add-ons updated to match: AI Agents (Commercial, Operations, Finance, Dispatch), Supplier Portal, Integrated GL, Brokerage, CRV Processing, Dispatch/Rail/Exports (when layered onto Essentials or Pro), and Positive Pay',
+      'Old SKUs and add-ons (Facility Mgmt, Full Suite, Export Compliance, API) have been removed',
+      'Default plan templates renamed from "Facility Management Standard" to "Yard Ops Standard"',
     ],
   },
   {

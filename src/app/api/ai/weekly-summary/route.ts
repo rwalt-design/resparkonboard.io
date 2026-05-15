@@ -5,9 +5,14 @@ import Anthropic from '@anthropic-ai/sdk'
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const SKU_LABEL: Record<string, string> = {
+  essentials:          'Essentials',
+  pro:                 'Pro',
   dispatch:            'Dispatch',
-  facility_management: 'Facility Management',
-  full_suite:          'Full Suite',
+  rail:                'Rail',
+  exports:             'Exports',
+  uptimepm_core:       'UptimePM Core',
+  uptimepm_pro:        'UptimePM Pro',
+  uptimepm_enterprise: 'UptimePM Enterprise',
 }
 
 export async function POST(request: NextRequest) {
