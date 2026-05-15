@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-15',
+    title: 'Updated SKU list to match new product lineup',
+    bullets: [
+      'SKUs now reflect the full ReSpark product catalog: Essentials, Pro, Dispatch, Rail, Exports, UptimePM Core, UptimePM Pro, and UptimePM Enterprise',
+      'Old SKUs (Dispatch-only, Facility Mgmt, Full Suite) have been replaced — any existing accounts will still show correctly, just with the updated names going forward',
+      'SKU selector on account pages and plan templates now includes all 8 products',
+    ],
+  },
+  {
+    date: '2026-05-15',
     title: 'Intake form tabs: Hardware, Reporting, Compliance',
     bullets: [
       'Three new tabs on every account — Hardware, Reporting, and Compliance — automatically populated when a client submits their pre-work form',

@@ -12,8 +12,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-const SKU_OPTIONS = ['dispatch', 'facility_management', 'full_suite']
-const SKU_LABELS: Record<string, string> = { dispatch: 'Dispatch', facility_management: 'Facility Mgmt', full_suite: 'Full Suite' }
+const SKU_OPTIONS = ['essentials', 'pro', 'dispatch', 'rail', 'exports', 'uptimepm_core', 'uptimepm_pro', 'uptimepm_enterprise']
+const SKU_LABELS: Record<string, string> = { essentials: 'Essentials', pro: 'Pro', dispatch: 'Dispatch', rail: 'Rail', exports: 'Exports', uptimepm_core: 'UptimePM Core', uptimepm_pro: 'UptimePM Pro', uptimepm_enterprise: 'UptimePM Enterprise' }
 const ADDON_OPTIONS = ['brokerage', 'export', 'api']
 
 interface ConnectorToken {

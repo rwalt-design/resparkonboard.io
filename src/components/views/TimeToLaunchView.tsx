@@ -6,14 +6,24 @@ import type { Account } from '@/types'
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SKU_COLORS: Record<string, string> = {
-  dispatch:            '#1BB3BB',
-  facility_management: '#7757F5',
-  full_suite:          '#06b6d4',
+  essentials:          '#10b981',
+  pro:                 '#1BB3BB',
+  dispatch:            '#f59e0b',
+  rail:                '#6b7280',
+  exports:             '#3b82f6',
+  uptimepm_core:       '#7757F5',
+  uptimepm_pro:        '#6366f1',
+  uptimepm_enterprise: '#4f46e5',
 }
 const SKU_LABELS: Record<string, string> = {
+  essentials:          'Essentials',
+  pro:                 'Pro',
   dispatch:            'Dispatch',
-  facility_management: 'FM',
-  full_suite:          'Full Suite',
+  rail:                'Rail',
+  exports:             'Exports',
+  uptimepm_core:       'UptimePM Core',
+  uptimepm_pro:        'UptimePM Pro',
+  uptimepm_enterprise: 'UptimePM Ent.',
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

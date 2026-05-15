@@ -1,4 +1,4 @@
-export type Sku = 'dispatch' | 'facility_management' | 'full_suite'
+export type Sku = 'essentials' | 'pro' | 'dispatch' | 'rail' | 'exports' | 'uptimepm_core' | 'uptimepm_pro' | 'uptimepm_enterprise'
 export type Addon = 'brokerage' | 'export' | 'api'
 export type StageStatus = 'locked' | 'active' | 'unlocked' | 'complete'
 export type ItemType = 'task' | 'session' | 'record' | 'handoff' | 'log' | 'dependency' | 'golive' | 'report'

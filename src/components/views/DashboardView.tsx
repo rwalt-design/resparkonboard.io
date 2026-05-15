@@ -19,14 +19,24 @@ const INTERACTION_TYPE_LABELS: Record<string, string> = {
 }
 
 const SKU_LABELS: Record<string, string> = {
-  dispatch: 'Dispatch',
-  facility_management: 'Facility Mgmt',
-  full_suite: 'Full Suite',
+  essentials:          'Essentials',
+  pro:                 'Pro',
+  dispatch:            'Dispatch',
+  rail:                'Rail',
+  exports:             'Exports',
+  uptimepm_core:       'UptimePM Core',
+  uptimepm_pro:        'UptimePM Pro',
+  uptimepm_enterprise: 'UptimePM Enterprise',
 }
 const SKU_COLORS: Record<string, string> = {
-  dispatch: '#f59e0b',
-  facility_management: '#7757F5',
-  full_suite: '#1BB3BB',
+  essentials:          '#10b981',
+  pro:                 '#1BB3BB',
+  dispatch:            '#f59e0b',
+  rail:                '#6b7280',
+  exports:             '#3b82f6',
+  uptimepm_core:       '#7757F5',
+  uptimepm_pro:        '#6366f1',
+  uptimepm_enterprise: '#4f46e5',
 }
 const ADDON_LABELS: Record<string, string> = {
   brokerage: 'Brokerage',
@@ -150,7 +160,7 @@ interface CreateAccountModalProps {
 function CreateAccountModal({ onClose, onCreated, orgMembers: _orgMembers, trainingTemplates, planTemplates, sessionTemplates }: CreateAccountModalProps) {
   const [step, setStep] = useState(1)
   const [name, setName] = useState('')
-  const [sku, setSku] = useState<string>('dispatch')
+  const [sku, setSku] = useState<string>('essentials')
   const [addons, setAddons] = useState<string[]>([])
   const [arr, setArr] = useState('')
   const [salesContext, setSalesContext] = useState('')

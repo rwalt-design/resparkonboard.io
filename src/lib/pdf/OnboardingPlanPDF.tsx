@@ -23,9 +23,14 @@ interface Account {
 }
 
 const SKU_LABELS: Record<string, string> = {
-  dispatch: 'Dispatch',
-  facility_management: 'Facility Management',
-  full_suite: 'Full Suite',
+  essentials:          'Essentials',
+  pro:                 'Pro',
+  dispatch:            'Dispatch',
+  rail:                'Rail',
+  exports:             'Exports',
+  uptimepm_core:       'UptimePM Core',
+  uptimepm_pro:        'UptimePM Pro',
+  uptimepm_enterprise: 'UptimePM Enterprise',
 }
 
 interface Props { account: Account; repName: string; companyName: string; intro?: string }
