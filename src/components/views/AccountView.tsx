@@ -2525,6 +2525,8 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
   const [requirementsSaved, setRequirementsSaved] = useState(true)
   const [notesDraft, setNotesDraft] = useState(account.notes || '')
   const [notesSaved, setNotesSaved] = useState(true)
+  const [formSlugDraft, setFormSlugDraft] = useState(account.form_slug || '')
+  const [formSlugSaved, setFormSlugSaved] = useState(true)
   const [linkedResourceIds, setLinkedResourceIds] = useState<Set<string>>(new Set())
   const [resourcesLoaded, setResourcesLoaded] = useState(false)
   const supabase = createClient()
@@ -2573,6 +2575,14 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
     setNotesSaved(true)
   }
 
+  const saveFormSlug = async () => {
+    const slug = formSlugDraft.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    setFormSlugDraft(slug)
+    await supabase.from('accounts').update({ form_slug: slug || null }).eq('id', account.id)
+    onUpdate({ ...account, form_slug: slug || null })
+    setFormSlugSaved(true)
+  }
+
   return (
     <div style={{ padding: '20px 24px', display: 'flex', gap: 32, alignItems: 'flex-start' }}>
       {/* Left column */}
@@ -2581,6 +2591,32 @@ function DetailsTab({ account, planTemplates, resources, onRefreshResources, onU
         {planTemplates.length > 0 && (
           <ApplyPlanTemplateSection account={account} planTemplates={planTemplates} onRefresh={onRefresh} />
         )}
+
+        {/* Form slug — links this account to form-fills submissions */}
+        <section>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div>
+              <span style={sectionLabel}>Intake Form Slug</span>
+              <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 8 }}>used to match form submissions</span>
+            </div>
+            {!formSlugSaved && (
+              <button onClick={saveFormSlug} style={primaryBtn}>Save</button>
+            )}
+          </div>
+          <input
+            type="text"
+            value={formSlugDraft}
+            onChange={e => { setFormSlugDraft(e.target.value); setFormSlugSaved(false) }}
+            onBlur={saveFormSlug}
+            placeholder="e.g. research-alloys"
+            style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
+          />
+          {formSlugDraft && (
+            <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-3)' }}>
+              Form URL: <code style={{ color: 'var(--text-2)' }}>?account={formSlugDraft}&amp;form=prework</code>
+            </div>
+          )}
+        </section>
 
         {/* Sales context — always editable */}
         <section>
