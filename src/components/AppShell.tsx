@@ -10,13 +10,14 @@ import { ActionItemsView } from './views/ActionItemsView'
 import { SettingsView } from './views/SettingsView'
 import { TimeToLaunchView } from './views/TimeToLaunchView'
 import { ResourcesView } from './views/ResourcesView'
+import { PerformanceView } from './views/PerformanceView'
 import { DemoWelcomeModal } from './DemoWelcomeModal'
 import { WelcomeModal } from './WelcomeModal'
 import { WhatsNewButton } from './WhatsNewButton'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
 
-type View = 'dashboard' | 'account' | 'actions' | 'ttl' | 'templates' | 'resources' | 'settings'
+type View = 'dashboard' | 'account' | 'actions' | 'ttl' | 'performance' | 'templates' | 'resources' | 'settings'
 type ThemePref = 'dark' | 'light'
 
 interface ConnectorToken {
@@ -261,8 +262,9 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
   const navItems: { id: View; label: string; icon: string; tip: string }[] = [
     { id: 'dashboard', label: 'Dashboard',    icon: '▤', tip: 'All accounts at a glance — health, outreach, timeline, and tasks' },
     { id: 'actions',   label: 'Action Items', icon: '✓', tip: 'Your open tasks and items waiting on customers across all accounts' },
-    { id: 'ttl',       label: 'Time to Launch', icon: '◎', tip: 'Projected go-live dates and onboarding velocity for all accounts' },
-    { id: 'templates', label: 'Templates',    icon: '⊞', tip: 'Manage reusable plan, session, and training templates' },
+    { id: 'ttl',         label: 'Time to Launch', icon: '◎', tip: 'Projected go-live dates and onboarding velocity for all accounts' },
+    { id: 'performance', label: 'Performance',   icon: '↗', tip: 'Go-live readiness trends — comfort scores, infra issues, and module breakdowns across all accounts' },
+    { id: 'templates',   label: 'Templates',     icon: '⊞', tip: 'Manage reusable plan, session, and training templates' },
     { id: 'resources', label: 'Resources',    icon: '🔗', tip: 'Central link library — slide decks, forms, templates, and reference docs shared across accounts' },
   ]
 
@@ -590,6 +592,8 @@ export function AppShell({ accounts: initialAccounts, currentUser, currentMember
             accounts={filteredAccounts}
             onSelectAccount={handleSelectAccount}
           />
+        ) : view === 'performance' ? (
+          <PerformanceView />
         ) : view === 'templates' ? (
           <SettingsView
             section="templates"
