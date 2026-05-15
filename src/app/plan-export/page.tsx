@@ -64,7 +64,7 @@ export default async function PlanExportPage({
 
   const rep = {
     name: currentMember?.name || user!.email?.split('@')[0] || 'Your ReSpark Rep',
-    role: currentMember?.role || 'Implementation Manager',
+    role: 'Implementation Specialist',
     email: user!.email || 'ryan@respark.com',
   }
 
