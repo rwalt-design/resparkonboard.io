@@ -62,11 +62,9 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (i: any) => now - new Date(i.created_at).getTime() <= weekMs
     )
-    // Only email and meetings/calendar — skip Slack and tasks
+    // All interaction types except Slack
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const relevant = recent.filter((i: any) =>
-      i.type === 'email' || i.type === 'meeting' || i.type === 'calendar'
-    )
+    const relevant = recent.filter((i: any) => i.type !== 'slack')
     const s = structured.find(s => s.account_id === a.id)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lines = relevant.map((i: any) =>
@@ -77,15 +75,19 @@ export async function POST(request: NextRequest) {
   }).join('\n\n')
 
   const prompt = `You are writing a brief weekly status note for an onboarding team that missed their weekly sync.
-For each account answer only these three questions if the data supports it:
-1. Did they move to a new stage this week? (only mention if you can infer a recent change — if you can't tell, skip it)
-2. Was a meeting or session scheduled or held this week?
-3. Did the client send any emails this week?
+
+CRITICAL: Only report what is explicitly listed in the interaction log below. Do NOT infer, guess, or assume anything that is not directly stated. If a meeting or stage change is not in the log, do not mention it.
+
+For each account, summarize only what is in the log — covering:
+- Any calls, texts, or custom interactions
+- Any meetings or calendar events
+- Any emails from the client
 
 Rules:
-- 1-2 sentences max per account. Be direct and factual.
-- Do not mention Slack. Do not mention internal tasks.
-- If none of the three things happened, say "No meetings or emails this week."
+- 1-2 sentences max per account.
+- Only use facts from the interaction lines provided. Never invent or assume events.
+- Do not mention Slack.
+- If the log has no interactions, say "No activity logged this week."
 - No filler phrases like "It appears" or "Based on the data."
 
 ${activityBlocks}
