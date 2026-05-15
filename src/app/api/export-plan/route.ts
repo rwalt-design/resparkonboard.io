@@ -9,13 +9,18 @@ import { NextRequest, NextResponse } from 'next/server'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new NextResponse('Unauthorized', { status: 401 })
 
-  const accountId = req.nextUrl.searchParams.get('account')
-  if (!accountId) return new NextResponse('Missing account', { status: 400 })
+  const body = await req.json()
+  const accountId: string   = body.accountId
+  const selectedIds: string[] = body.selectedIds ?? []
+
+  if (!accountId) return new NextResponse('Missing accountId', { status: 400 })
+
+  const selSet = new Set(selectedIds)
 
   const [
     { data: account },
@@ -46,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   if (!account) return new NextResponse('Account not found', { status: 404 })
 
-  // Sort nested arrays
+  // Sort nested arrays and filter items to only selected ones
   const sorted = {
     ...account,
     milestones: ((account.milestones || []) as any[])
@@ -58,29 +63,33 @@ export async function GET(req: NextRequest) {
           .map((s: any) => ({
             ...s,
             items: ((s.items || []) as any[])
-              .sort((a: any, b: any) => a.order_index - b.order_index),
+              .sort((a: any, b: any) => a.order_index - b.order_index)
+              .filter((item: any) => selSet.has(item.id)),
           })),
       })),
   }
 
+  const filteredHardware   = (hardwareTasks   || []).filter((t: any) => selSet.has(`hw-${t.id}`))
+  const filteredReports    = (reportTasks     || []).filter((t: any) => selSet.has(`rpt-${t.id}`))
+  const filteredCompliance = (complianceTasks || []).filter((t: any) => selSet.has(`cmp-${t.id}`))
+
   const rep = {
-    name: currentMember?.name || user.email?.split('@')[0] || 'Your ReSpark Rep',
-    role: 'Implementation Specialist',
+    name:  currentMember?.name || user.email?.split('@')[0] || 'Your ReSpark Rep',
+    role:  'Implementation Specialist',
     email: user.email || 'ryan@respark.com',
   }
 
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
-  // Load logo as base64 data URI for react-pdf
-  const logoPath = path.join(process.cwd(), 'public', 'logo-respark.png')
+  const logoPath   = path.join(process.cwd(), 'public', 'logo-respark.png')
   const logoBuffer = readFileSync(logoPath)
-  const logoSrc = `data:image/png;base64,${logoBuffer.toString('base64')}`
+  const logoSrc    = `data:image/png;base64,${logoBuffer.toString('base64')}`
 
   const element = createElement(ExportPlanPDF, {
     account: sorted,
-    hardwareTasks: hardwareTasks || [],
-    reportTasks: reportTasks || [],
-    complianceTasks: complianceTasks || [],
+    hardwareTasks:   filteredHardware,
+    reportTasks:     filteredReports,
+    complianceTasks: filteredCompliance,
     rep,
     logoSrc,
     today,
@@ -89,12 +98,11 @@ export async function GET(req: NextRequest) {
   const buffer = await renderToBuffer(element as any)
 
   const safeName = account.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()
-  const filename = `${safeName}-onboarding-plan.pdf`
 
   return new NextResponse(buffer as unknown as BodyInit, {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Disposition': `attachment; filename="${safeName}-onboarding-plan.pdf"`,
     },
   })
 }

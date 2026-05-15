@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-15',
+    title: 'Export Plan: choose exactly which items to include before downloading',
+    bullets: [
+      'Clicking "Export Plan" now opens a panel where you can check or uncheck any item before generating the PDF',
+      'Items are grouped by milestone and stage — hardware, reporting, and compliance sections are included too',
+      'Smart defaults pre-select the same items as before, but you can override anything',
+      'Your selections are saved per account so the same choices are remembered next time',
+    ],
+  },
+  {
+    date: '2026-05-15',
     title: 'Custom interactions: add Internal option',
     bullets: [
       'Custom interaction logging now has a third direction option — Internal — for notes that shouldn\'t count as customer contact or outreach (e.g. internal handoffs, team notes, CRM updates)',

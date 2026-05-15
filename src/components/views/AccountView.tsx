@@ -10,6 +10,7 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Tooltip } from '@/components/Tooltip'
+import { ExportPlanModal } from '@/components/ExportPlanModal'
 import { HardwareTab } from './HardwareTab'
 import { ReportingTab } from './ReportingTab'
 import { ComplianceTab } from './ComplianceTab'
@@ -93,6 +94,7 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
   const [localAccount, setLocalAccount] = useState<Account>(account)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
   const [editingDetails, setEditingDetails] = useState(false)
 
   // Compute stats
@@ -110,14 +112,7 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
 
   const openTaskCount = (localAccount.open_tasks || []).filter(t => !t.done).length
 
-  const exportPlan = () => {
-    const a = document.createElement('a')
-    a.href = `/api/export-plan?account=${localAccount.id}`
-    a.download = ''
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-  }
+  const exportPlan = () => setShowExportModal(true)
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -386,6 +381,9 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
           onClose={() => setEditingDetails(false)}
           onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
         />
+      )}
+      {showExportModal && (
+        <ExportPlanModal account={localAccount} onClose={() => setShowExportModal(false)} />
       )}
     </div>
   )
