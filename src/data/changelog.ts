@@ -8,8 +8,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-15',
-    title: 'Browser tab polish',
+    title: 'Intake form tabs: Hardware, Reporting, Compliance',
     bullets: [
+      'Three new tabs on every account — Hardware, Reporting, and Compliance — automatically populated when a client submits their intake form',
+      'Hardware tab generates one checklist item per unit (e.g. FloorScale 1, FloorScale 2, FloorScale 3) based on the counts the client entered — check items off as you configure them in ReMatter',
+      'Reporting tab shows every legacy report the client filled out, with columns for date range, purpose, key columns, and a spot for you to fill in the converted ReMatter report name and status',
+      'Compliance tab is a checklist of every regulatory requirement the client flagged — government uploads, regulatory configs, document templates',
+      'All three tabs are fully editable inline — add items manually, delete rows, and leave per-item notes',
+      'Each tab has a freeform notes section at the bottom for session notes, open questions, and follow-up items',
       'The browser tab and Vercel favicon now show a 🚀 rocket emoji instead of the old logo icon',
       'Fixed Slack sync timestamp not updating after each sync run',
     ],

@@ -65,6 +65,9 @@ export interface Account {
   notes?: string | null
   paused_days?: number | null
   plan_template_id?: string | null
+  hardware_notes?: string | null
+  reporting_notes?: string | null
+  compliance_notes?: string | null
   created_at: string
   updated_at: string
   // joined / computed
@@ -334,6 +337,67 @@ export interface Connector {
   status: 'connected' | 'disconnected'
   connected_at?: string
 }
+
+// ─── Intake form types ────────────────────────────────────────────────────────
+
+export type HardwareType = 'floor_scale' | 'truck_scale' | 'camera' | 'tablet' | 'other'
+export type ReportStatus = 'not_started' | 'in_progress' | 'complete'
+export type ComplianceCategory = 'government_upload' | 'regulatory_config' | 'document_template' | 'other'
+
+export interface IntakeToken {
+  id: string
+  token: string
+  account_id: string
+  rep_id: string
+  submitted_at: string | null
+  expires_at: string
+  created_at: string
+}
+
+export interface HardwareTask {
+  id: string
+  account_id: string
+  rep_id: string | null
+  name: string
+  type: HardwareType
+  location_label: string | null
+  completed: boolean
+  completed_at: string | null
+  notes: string | null
+  sort_order: number
+  created_at: string
+}
+
+export interface ReportTask {
+  id: string
+  account_id: string
+  rep_id: string | null
+  legacy_name: string
+  date_range: string | null
+  purpose: string | null
+  key_columns: string | null
+  converted_name: string | null
+  status: ReportStatus
+  notes: string | null
+  sort_order: number
+  created_at: string
+}
+
+export interface ComplianceTask {
+  id: string
+  account_id: string
+  rep_id: string | null
+  name: string
+  category: ComplianceCategory
+  assigned_session: string | null
+  completed: boolean
+  completed_at: string | null
+  notes: string | null
+  sort_order: number
+  created_at: string
+}
+
+// ─── Computed for dashboard display ──────────────────────────────────────────
 
 // Computed for dashboard display
 export interface AccountSummary extends Account {

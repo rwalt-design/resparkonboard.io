@@ -10,6 +10,9 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Tooltip } from '@/components/Tooltip'
+import { HardwareTab } from './HardwareTab'
+import { ReportingTab } from './ReportingTab'
+import { ComplianceTab } from './ComplianceTab'
 
 const SKU_LABELS: Record<string, string> = {
   dispatch: 'Dispatch',
@@ -73,7 +76,7 @@ interface Props {
   onRefresh: () => void
 }
 
-type TabId = 'plan' | 'timeline' | 'details' | 'ai'
+type TabId = 'plan' | 'timeline' | 'details' | 'ai' | 'hardware' | 'reporting' | 'compliance'
 
 export function AccountView({ account, orgMembers, currentMember, planTemplates = [], trainingTemplates = [], sessionTemplates = [], resources = [], onRefreshResources, onBack, onRefresh }: Props) {
   const [tab, setTab] = useState<TabId>('plan')
@@ -295,10 +298,13 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', flexShrink: 0 }}>
         {([
-          { id: 'plan',     label: 'Plan',      tip: 'The onboarding plan — milestones, stages, and items the customer must complete' },
-          { id: 'timeline', label: 'Timeline',  tip: 'Log and view all interactions: calls, emails, meetings, and internal notes' },
-          { id: 'details',  label: 'Details',   tip: 'Account settings, contacts, and advanced configuration' },
-          { id: 'ai',       label: '✦ AI',      tip: 'AI-generated next steps and insights based on recent activity' },
+          { id: 'plan',       label: 'Plan',       tip: 'The onboarding plan — milestones, stages, and items the customer must complete' },
+          { id: 'timeline',   label: 'Timeline',   tip: 'Log and view all interactions: calls, emails, meetings, and internal notes' },
+          { id: 'details',    label: 'Details',    tip: 'Account settings, contacts, and advanced configuration' },
+          { id: 'hardware',   label: 'Hardware',   tip: 'Hardware checklist — track every device that needs to be configured in ReMatter' },
+          { id: 'reporting',  label: 'Reporting',  tip: 'Reports the client needs built in ReMatter, populated from their intake form' },
+          { id: 'compliance', label: 'Compliance', tip: 'Compliance configurations and government upload setups to complete' },
+          { id: 'ai',         label: '✦ AI',       tip: 'AI-generated next steps and insights based on recent activity' },
         ] as const).map(({ id, label, tip }) => (
           <Tooltip key={id} content={tip} placement="bottom">
           <button onClick={() => setTab(id)} style={{
@@ -339,6 +345,24 @@ export function AccountView({ account, orgMembers, currentMember, planTemplates 
             onRefreshResources={onRefreshResources}
             onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
             onRefresh={onRefresh}
+          />
+        )}
+        {tab === 'hardware' && (
+          <HardwareTab
+            account={localAccount}
+            onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
+          />
+        )}
+        {tab === 'reporting' && (
+          <ReportingTab
+            account={localAccount}
+            onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
+          />
+        )}
+        {tab === 'compliance' && (
+          <ComplianceTab
+            account={localAccount}
+            onUpdate={updated => { setLocalAccount(updated); onRefresh() }}
           />
         )}
         {tab === 'ai' && (
