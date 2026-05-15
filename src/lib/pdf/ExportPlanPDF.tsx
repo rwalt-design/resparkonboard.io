@@ -354,7 +354,7 @@ export function ExportPlanPDF({
                 </View>
 
                 {items.map(item => {
-                  const done = item.type === 'task' ? !!item.task_done : item.session_status === 'complete'
+                  const done = item.type === 'session' ? item.session_status === 'complete' : !!item.task_done
                   const label = item.type === 'session' ? item.session_name : item.task_name
                   const customer = isCustomerOwned(item, stageLower)
                   return (

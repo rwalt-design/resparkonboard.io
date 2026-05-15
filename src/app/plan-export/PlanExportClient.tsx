@@ -357,7 +357,7 @@ export function PlanExportClient({
                   </div>
 
                   {items.map(item => {
-                    const def = item.type === 'task' ? !!item.task_done : item.session_status === 'complete'
+                    const def = item.type === 'session' ? item.session_status === 'complete' : !!item.task_done
                     const itemChecked = isChecked(item.id, def)
                     const label = item.type === 'session' ? item.session_name : item.task_name
                     const customer = isCustomerOwned(item, stageLower)
