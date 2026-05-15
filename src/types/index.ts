@@ -68,6 +68,7 @@ export interface Account {
   hardware_notes?: string | null
   reporting_notes?: string | null
   compliance_notes?: string | null
+  form_slug?: string | null
   created_at: string
   updated_at: string
   // joined / computed
@@ -365,6 +366,7 @@ export interface HardwareTask {
   completed_at: string | null
   notes: string | null
   sort_order: number
+  source_submission_id: string | null
   created_at: string
 }
 
@@ -380,6 +382,7 @@ export interface ReportTask {
   status: ReportStatus
   notes: string | null
   sort_order: number
+  source_submission_id: string | null
   created_at: string
 }
 
@@ -394,6 +397,7 @@ export interface ComplianceTask {
   completed_at: string | null
   notes: string | null
   sort_order: number
+  source_submission_id: string | null
   created_at: string
 }
 
