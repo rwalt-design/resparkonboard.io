@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-15',
+    title: 'Export plan: ReSpark logo and ownership column fixes',
+    bullets: [
+      'PDF now shows the ReSpark logo — no more onboard.io',
+      'Every item now shows its owner on the right: "ReSpark", "customer", or "session · ReSpark"',
+    ],
+  },
+  {
+    date: '2026-05-15',
     title: 'Export plan ownership labels, Go-Live marker, and filter cleanup',
     bullets: [
       'Items the customer is responsible for (like "Return Data Template") are now labeled "Customer" in both the PDF and the preview page',

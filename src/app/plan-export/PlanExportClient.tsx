@@ -205,9 +205,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 // Badge styles
-const sessionBadge: React.CSSProperties = { fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: '#E0F7F8', color: '#007580', fontFamily: '"DM Mono", monospace' }
+const sessionBadge: React.CSSProperties  = { fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: '#E0F7F8', color: '#007580', fontFamily: '"DM Mono", monospace' }
 const customerBadge: React.CSSProperties = { fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: '#dbeafe', color: '#1d4ed8', fontFamily: '"DM Mono", monospace' }
-const optionalLabel: React.CSSProperties = { fontSize: 10, color: '#94a3b8' }
+const resparkBadge: React.CSSProperties  = { fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: '#E0F7F8', color: '#007580', fontFamily: '"DM Mono", monospace' }
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
@@ -388,9 +388,9 @@ export function PlanExportClient({
                         <span style={{ fontSize: 12, color: itemChecked ? '#94a3b8' : '#1e293b', textDecoration: itemChecked ? 'line-through' : 'none', flex: 1, userSelect: 'none' }}>
                           {label}
                         </span>
-                        {item.type === 'session' && <span style={sessionBadge}>session</span>}
+                        {item.type === 'session' && <span style={sessionBadge}>session · ReSpark</span>}
                         {customer && item.type !== 'session' && <span style={customerBadge}>customer</span>}
-                        {!item.required && !customer && item.type !== 'session' && <span style={optionalLabel}>optional</span>}
+                        {!customer && item.type !== 'session' && <span style={resparkBadge}>ReSpark</span>}
                       </div>
                     )
                   })}

@@ -193,9 +193,9 @@ const s = StyleSheet.create({
   checkmark: { fontSize: 5, color: 'white', fontFamily: 'Helvetica-Bold' },
   itemLabel: { fontSize: 9, color: DARK, flex: 1 },
   itemLabelDone: { fontSize: 9, color: LIGHT, flex: 1 },
-  sessionBadge: { fontSize: 6, fontFamily: 'Helvetica-Bold', color: '#007580', backgroundColor: '#E0F7F8', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3, marginLeft: 4 },
+  sessionBadge:  { fontSize: 6, fontFamily: 'Helvetica-Bold', color: '#007580', backgroundColor: '#E0F7F8', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3, marginLeft: 4 },
   customerBadge: { fontSize: 6, fontFamily: 'Helvetica-Bold', color: '#1d4ed8', backgroundColor: '#dbeafe', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3, marginLeft: 4 },
-  optionalLabel: { fontSize: 7, color: LIGHT, marginLeft: 4 },
+  resparkBadge:  { fontSize: 6, fontFamily: 'Helvetica-Bold', color: '#007580', backgroundColor: '#E0F7F8', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3, marginLeft: 4 },
 
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 10, paddingLeft: 18, paddingVertical: 7, borderTopWidth: 1, borderTopColor: '#f1f5f9', borderTopStyle: 'solid' },
   noteText: { fontSize: 8, color: LIGHT, fontFamily: 'Helvetica-Oblique', flex: 1 },
@@ -371,9 +371,9 @@ export function ExportPlanPDF({
                     <View key={item.id} style={s.itemRow}>
                       <Checkbox done={done} />
                       <Text style={done ? s.itemLabelDone : s.itemLabel}>{label}</Text>
-                      {item.type === 'session' && <Text style={s.sessionBadge}>session</Text>}
+                      {item.type === 'session' && <Text style={s.sessionBadge}>session · ReSpark</Text>}
                       {customer && item.type !== 'session' && <Text style={s.customerBadge}>customer</Text>}
-                      {!item.required && !customer && item.type !== 'session' && <Text style={s.optionalLabel}>optional</Text>}
+                      {!customer && item.type !== 'session' && <Text style={s.resparkBadge}>ReSpark</Text>}
                     </View>
                   )
                 })}

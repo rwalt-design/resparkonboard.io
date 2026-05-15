@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
   // Load logo as base64 data URI for react-pdf
-  const logoPath = path.join(process.cwd(), 'public', 'logo-horizontal.png')
+  const logoPath = path.join(process.cwd(), 'public', 'logo-respark.png')
   const logoBuffer = readFileSync(logoPath)
   const logoSrc = `data:image/png;base64,${logoBuffer.toString('base64')}`
 
