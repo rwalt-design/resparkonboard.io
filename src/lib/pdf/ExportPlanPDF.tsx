@@ -63,11 +63,10 @@ const EXCLUDED_TASK_NAMES = new Set([
   'outstanding items cleanup',
 ])
 
-const CUSTOMER_STAGES       = new Set(['user testing', 'uat', 'post launch', 'post launch check-in'])
+const CUSTOMER_STAGES        = new Set(['user testing', 'uat', 'readiness review', 'sign-off', 'post launch', 'post launch check-in'])
 const CUSTOMER_TASK_PREFIXES = ['return ', 'submit ']
-const NOTE_STAGES           = new Set(['user testing', 'uat', 'launch', 'post launch'])
-const PREPEND_QNA_STAGES    = new Set(['readiness review', 'sign-off'])
-const GO_LIVE_BEFORE_STAGES = new Set(['post launch', 'post launch check-in'])
+const NOTE_STAGES            = new Set(['user testing', 'uat', 'launch', 'post launch'])
+const GO_LIVE_BEFORE_STAGES  = new Set(['post launch', 'post launch check-in'])
 
 function isVisible(item: Item): boolean {
   if (EXCLUDED_ITEM_TYPES.has(item.type)) return false
@@ -329,7 +328,6 @@ export function ExportPlanPDF({
 
             const items = stage.items.filter(isVisible)
             const showNote = NOTE_STAGES.has(stageLower)
-            const showQnA = PREPEND_QNA_STAGES.has(stageLower)
             const stageIsCustomer = CUSTOMER_STAGES.has(stageLower)
 
             // Inject Go-Live marker before post-launch stage
@@ -346,7 +344,7 @@ export function ExportPlanPDF({
               )
             }
 
-            if (items.length === 0 && !showNote && !showQnA) return
+            if (items.length === 0 && !showNote) return
 
             stageBlocks.push(
               <View key={stage.id}>
@@ -354,14 +352,6 @@ export function ExportPlanPDF({
                   <Text style={s.stageName}>{stage.name.toUpperCase()}</Text>
                   {stageIsCustomer && <Text style={s.customerStageBadge}>CUSTOMER</Text>}
                 </View>
-
-                {showQnA && (
-                  <View style={s.itemRow}>
-                    <Checkbox done={false} />
-                    <Text style={s.itemLabel}>Pre-Launch Checklist Q&A</Text>
-                    <Text style={s.customerBadge}>customer</Text>
-                  </View>
-                )}
 
                 {items.map(item => {
                   const done = item.type === 'task' ? !!item.task_done : item.session_status === 'complete'

@@ -55,7 +55,7 @@ const EXCLUDED_TASK_NAMES = new Set([
 ])
 
 // Stages where all items are customer-owned
-const CUSTOMER_STAGES = new Set(['user testing', 'uat', 'post launch', 'post launch check-in'])
+const CUSTOMER_STAGES = new Set(['user testing', 'uat', 'readiness review', 'sign-off', 'post launch', 'post launch check-in'])
 
 // Tasks owned by the customer based on name prefix
 const CUSTOMER_TASK_PREFIXES = ['return ', 'submit ']
@@ -63,10 +63,9 @@ const CUSTOMER_TASK_PREFIXES = ['return ', 'submit ']
 // Stages that get a freeform note (no interactive textarea)
 const NOTE_STAGES = new Set(['user testing', 'uat', 'launch', 'post launch'])
 
-// Stages that get a synthetic "Pre-Launch Checklist Q&A" session item prepended
-const PREPEND_QNA_STAGES = new Set(['readiness review', 'sign-off'])
+// Stages whose items are owned by the customer (in addition to per-item prefix checks)
+// readiness review: customer fills out the checklist and attends the Q&A
 
-// Stages that trigger the Go-Live marker above them
 const GO_LIVE_BEFORE_STAGES = new Set(['post launch', 'post launch check-in'])
 
 function isVisible(item: Item): boolean {
@@ -337,8 +336,6 @@ export function PlanExportClient({
 
               const items = stage.items.filter(isVisible)
               const showNote = NOTE_STAGES.has(stageLower)
-              const showQnA = PREPEND_QNA_STAGES.has(stageLower)
-              const qnaId = `synthetic-qna-${stage.id}`
 
               // Inject Go-Live marker before post-launch stage
               if (GO_LIVE_BEFORE_STAGES.has(stageLower) && !goLiveInserted) {
@@ -346,7 +343,7 @@ export function PlanExportClient({
                 stageBlocks.push(<GoLiveMarker key={`golive-${stage.id}`} date={account.go_live_date} />)
               }
 
-              if (items.length === 0 && !showNote && !showQnA) return
+              if (items.length === 0 && !showNote) return
 
               const stageIsCustomer = CUSTOMER_STAGES.has(stageLower)
 
@@ -356,21 +353,6 @@ export function PlanExportClient({
                     <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stage.name}</span>
                     {stageIsCustomer && <span style={{ fontSize: 9, fontWeight: 700, color: '#1d4ed8', background: '#dbeafe', borderRadius: 4, padding: '2px 7px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Customer</span>}
                   </div>
-
-                  {/* Synthetic Pre-Launch Checklist Q&A session */}
-                  {showQnA && (
-                    <div
-                      className="check-row"
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px 8px 28px', borderBottom: '1px solid #f8fafc' }}
-                      onClick={() => toggle(qnaId, false)}
-                    >
-                      <Checkbox checked={isChecked(qnaId, false)} onChange={() => toggle(qnaId, false)} />
-                      <span style={{ fontSize: 12, color: isChecked(qnaId, false) ? '#94a3b8' : '#1e293b', textDecoration: isChecked(qnaId, false) ? 'line-through' : 'none', flex: 1, userSelect: 'none' }}>
-                        Pre-Launch Checklist Q&amp;A
-                      </span>
-                      <span style={customerBadge}>customer</span>
-                    </div>
-                  )}
 
                   {items.map(item => {
                     const def = item.type === 'task' ? !!item.task_done : item.session_status === 'complete'

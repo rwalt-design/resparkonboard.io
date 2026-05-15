@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-15',
+    title: 'Export plan: match account items exactly, no synthetic entries',
+    bullets: [
+      'Removed the fake "Pre-Launch Checklist Q&A" row — the real Q&A Session from the account now shows instead',
+      'Readiness Review and Sign-Off stages are now marked as customer-owned',
+    ],
+  },
+  {
+    date: '2026-05-15',
     title: 'Export plan: ReSpark logo and ownership column fixes',
     bullets: [
       'PDF now shows the ReSpark logo — no more onboard.io',
