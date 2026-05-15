@@ -6,7 +6,8 @@ import { NextRequest, NextResponse } from 'next/server'
 // Creates missing stages; only adds missing items — never removes or modifies existing ones.
 // scope: 'linked' (default) = only accounts with plan_template_id set
 //        'all'              = every account in the org
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -19,13 +20,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const scope: 'linked' | 'all' = body.scope === 'all' ? 'all' : 'linked'
 
   const { data: template } = await supabase
-    .from('plan_templates').select('*').eq('id', params.id).eq('org_id', member.org_id).single()
+    .from('plan_templates').select('*').eq('id', id).eq('org_id', member.org_id).single()
   if (!template) return NextResponse.json({ error: 'Template not found' }, { status: 404 })
 
   let accountQuery = supabase
     .from('accounts').select('id, name').eq('org_id', member.org_id)
   if (scope === 'linked') {
-    accountQuery = accountQuery.eq('plan_template_id', params.id)
+    accountQuery = accountQuery.eq('plan_template_id', id)
   }
   const { data: accounts } = await accountQuery
   if (!accounts?.length) return NextResponse.json({ accounts_synced: 0, items_added: 0, details: [] })
