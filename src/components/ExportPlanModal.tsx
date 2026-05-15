@@ -16,7 +16,7 @@ type Item = {
 }
 type Stage     = { id: string; name: string; items: Item[] }
 type Milestone = { id: string; name: string; stages: Stage[] }
-type Account   = { id: string; name: string; sku: string; addons: string[]; go_live_date?: string | null; milestones: Milestone[] }
+type Account   = { id: string; name: string; sku: string; addons: string[]; go_live_date?: string | null; milestones?: Milestone[] }
 type HardwareTask   = { id: string; name: string; type: string; make_model?: string; location_label?: string; completed: boolean }
 type ReportTask     = { id: string; legacy_name: string; date_range?: string; purpose?: string }
 type ComplianceTask = { id: string; name: string; category: string; completed: boolean }
