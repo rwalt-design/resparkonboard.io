@@ -7,6 +7,13 @@ export interface ChangelogEntry {
 // Add new entries at the TOP. The date drives what users see vs. what they've dismissed.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-05-15',
+    title: 'Browser tab polish',
+    bullets: [
+      'The browser tab and Vercel favicon now show a 🚀 rocket emoji instead of the old logo icon',
+    ],
+  },
+  {
     date: '2026-05-13',
     title: 'Tooltips, smarter scan timing, and inline editing',
     bullets: [

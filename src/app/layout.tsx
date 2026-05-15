@@ -14,11 +14,7 @@ export const metadata: Metadata = {
   title: 'ReSPARK Onboard',
   description: 'Customer onboarding platform for ReSPARK',
   icons: {
-    icon: [
-      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon-16.png', sizes: '16x16', type: 'image/png' },
-    ],
-    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🚀</text></svg>',
   },
   other: {
     'apple-mobile-web-app-capable': 'yes',
