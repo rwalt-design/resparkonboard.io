@@ -11,6 +11,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Browser tab polish',
     bullets: [
       'The browser tab and Vercel favicon now show a 🚀 rocket emoji instead of the old logo icon',
+      'Fixed Slack sync timestamp not updating after each sync run',
     ],
   },
   {

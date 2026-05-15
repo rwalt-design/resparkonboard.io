@@ -703,11 +703,10 @@ export async function POST() {
     }
   }
 
-  // ── Record sync time so next run only fetches new emails ─────────────────────
+  // ── Record sync time for all connected providers ──────────────────────────────
   await supabase.from('connector_tokens')
     .update({ last_synced_at: new Date().toISOString() })
     .eq('user_id', user.id)
-    .eq('provider', 'google')
 
   const parts: string[] = []
   if (emailCount > 0) parts.push(`${emailCount} email${emailCount !== 1 ? 's' : ''}`)
