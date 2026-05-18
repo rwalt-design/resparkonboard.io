@@ -369,6 +369,7 @@ export interface HardwareTask {
   type: HardwareType
   make_model: string | null
   location_label: string | null
+  connection_type: string | null
   completed: boolean
   completed_at: string | null
   notes: string | null

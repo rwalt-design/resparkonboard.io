@@ -130,13 +130,13 @@ export function HardwareTab({ account, onUpdate }: {
       {tasks.length > 0 && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '24px 1fr 140px 140px 160px 80px 32px',
+          gridTemplateColumns: '24px 1fr 140px 140px 160px 120px 80px 32px',
           gap: '0 10px',
           padding: '4px 10px',
           borderBottom: '1px solid var(--border)',
           marginBottom: 4,
         }}>
-          {['', 'Name', 'Type', 'Make / Model', 'Location', 'Status', ''].map((h, i) => (
+          {['', 'Name', 'Type', 'Make / Model', 'Location', 'Connection', 'Status', ''].map((h, i) => (
             <div key={i} style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 500 }}>{h}</div>
           ))}
         </div>
@@ -149,7 +149,7 @@ export function HardwareTab({ account, onUpdate }: {
             className="hw-row"
             style={{
               display: 'grid',
-              gridTemplateColumns: '24px 1fr 140px 140px 160px 80px 32px',
+              gridTemplateColumns: '24px 1fr 140px 140px 160px 120px 80px 32px',
               gap: '0 10px',
               alignItems: 'center',
               padding: '7px 10px',
@@ -207,6 +207,16 @@ export function HardwareTab({ account, onUpdate }: {
               editing={editingField?.id === task.id && editingField.field === 'location_label'}
               onStartEdit={() => setEditingField({ id: task.id, field: 'location_label' })}
               onSave={val => { updateField(task.id, 'location_label', val); setEditingField(null) }}
+              onCancel={() => setEditingField(null)}
+            />
+
+            {/* Connection */}
+            <EditableCell
+              value={task.connection_type || ''}
+              placeholder="Add connection…"
+              editing={editingField?.id === task.id && editingField.field === 'connection_type'}
+              onStartEdit={() => setEditingField({ id: task.id, field: 'connection_type' })}
+              onSave={val => { updateField(task.id, 'connection_type', val); setEditingField(null) }}
               onCancel={() => setEditingField(null)}
             />
 
