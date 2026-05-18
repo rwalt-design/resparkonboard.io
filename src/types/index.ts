@@ -72,6 +72,7 @@ export interface Account {
   paused_days?: number | null
   plan_template_id?: string | null
   hardware_notes?: string | null
+  hardware_ordering_status?: 'own_all' | 'ordering_some' | 'ordering_all' | null
   reporting_notes?: string | null
   compliance_notes?: string | null
   form_slug?: string | null

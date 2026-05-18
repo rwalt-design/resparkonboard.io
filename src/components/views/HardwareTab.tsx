@@ -221,14 +221,19 @@ export function HardwareTab({ account, onUpdate }: {
             />
 
             {/* Status */}
-            <div style={{
-              fontSize: 11, fontWeight: 600, borderRadius: 4, padding: '2px 7px',
-              textAlign: 'center',
-              background: task.completed ? '#10b98120' : '#f59e0b20',
-              color: task.completed ? '#10b981' : '#f59e0b',
-            }}>
-              {task.completed ? 'Complete' : 'Incomplete'}
-            </div>
+            {(() => {
+              const notIn = !task.completed && (account.hardware_ordering_status === 'ordering_some' || account.hardware_ordering_status === 'ordering_all')
+              return (
+                <div style={{
+                  fontSize: 11, fontWeight: 600, borderRadius: 4, padding: '2px 7px',
+                  textAlign: 'center',
+                  background: task.completed ? '#10b98120' : notIn ? '#ef444420' : '#f59e0b20',
+                  color: task.completed ? '#10b981' : notIn ? '#ef4444' : '#f59e0b',
+                }}>
+                  {task.completed ? 'Complete' : notIn ? 'Not in yet' : 'Incomplete'}
+                </div>
+              )
+            })()}
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'flex-end' }}>
